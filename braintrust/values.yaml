@@ -1,0 +1,102 @@
+# Default values for braintrust Helm chart
+# This is a YAML-formatted file.
+
+# Global configs
+global:
+  orgName: "<your org name on Braintrust>"
+  namespace: "braintrust"
+  image:
+    pullPolicy: IfNotPresent
+
+cloud: "aws"
+
+# Azure Storage configuration
+storage:
+  connectionString: ""            # BlobEndpoint=https://...
+  containerName: "brainstore"     # From Terraform output
+  brainstore:
+    indexUri: "az://brainstore/brainstore/index"
+    walUri: "az://brainstore/brainstore/wal"
+    blobUrl: "az://brainstore"
+  responseBucket: "responses"
+  codeBundleBucket: "code-bundles"
+
+secrets:
+  # The kubernetes secret that ESO will synchronize secrets to
+  k8sSecretName: "braintrust-secrets"
+  # TODO: Rename these in terraform
+  redisConnectionStringSecretName: "REDIS_CONNECTION_STRING"
+  brainstoreLicenseKeySecretName: "BRAINSTORE_LICENSE_KEY"
+  postgresURLSecretName: "PG_URL"
+  functionEncryptionSecretName: "FUNCTION_SECRET"
+  azureStorageConnectionStringSecretName: "AZURE_STORAGE_CONNECTION_STRING"
+  # Azure Key Vault configuration
+  azureTenantId: ""  # Your Azure tenant ID
+  azureKeyVaultUrl: ""  # Your Azure Key Vault URL
+  # AWS Secrets Manager configuration
+  awsRegion: ""  # AWS region where secrets are stored
+
+# API service configuration
+api:
+  name: "braintrust-api"
+  replicas: 2
+  image:
+    repository: public.ecr.aws/braintrust/standalone-api
+    tag: latest
+    # Set this to Always if you are pointing the "latest" tag
+    pullPolicy: Always
+  service:
+    type: ClusterIP
+    port: 3000
+  resources:
+    requests:
+      cpu: "2"
+      memory: "4Gi"
+    limits:
+      cpu: "4"
+      memory: "8Gi"
+  # Allow running user generated code functions (e.g. scorers/tools)
+  allowCodeFunctionExecution: true
+  # Brainstore backfill configuration
+  enableHistoricalFullBackfill: true
+  backfillNewObjects: true
+  backfillDisableHistorical: false
+  backfillDisableNonhistorical: false
+  # Arbitrary environment variables that will be passed to the API container
+  extraEnvVars:
+    # Example:
+    # - name: MY_ENV_VAR
+    #   value: "my-value"
+    # - name: ANOTHER_VAR
+    #   value: "another-value"
+
+# Brainstore configuration
+brainstore:
+  name: "brainstore"
+  replicas: 1
+  image:
+    repository: public.ecr.aws/braintrust/brainstore
+    tag: latest
+  command: ["web"]
+  service:
+    type: ClusterIP
+    port: 4000
+  resources:
+    requests:
+      cpu: "8"
+      memory: "16Gi"
+    limits:
+      cpu: "16"
+      memory: "32Gi"
+  # Local cache settings - uses local ephemeral storage (emptyDir)
+  cacheDir: "/mnt/tmp/brainstore"
+  cacheSizeLimit: "50Gi"
+  verbose: true
+  noColor: true
+  extraEnvVars:
+    # Example:
+    # - name: MY_ENV_VAR
+    #   value: "my-value"
+    # - name: ANOTHER_VAR
+    #   value: "another-value"
+

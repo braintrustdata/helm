@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.brainstore.name }}
+  namespace: {{ .Values.global.namespace }}
+spec:
+  selector:
+    app: {{ .Values.brainstore.name }}
+  ports:
+    - port: {{ .Values.brainstore.service.port }}
+      targetPort: {{ .Values.brainstore.service.port }}
+  type: {{ .Values.brainstore.service.type }}

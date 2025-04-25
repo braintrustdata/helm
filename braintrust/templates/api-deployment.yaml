@@ -1,0 +1,65 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.api.name }}
+  namespace: {{ .Values.global.namespace }}
+spec:
+  replicas: {{ .Values.api.replicas }}
+  selector:
+    matchLabels:
+      app: {{ .Values.api.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.api.name }}
+    spec:
+      containers:
+        - name: api
+          image: "{{ .Values.api.image.repository }}:{{ .Values.api.image.tag }}"
+          imagePullPolicy: {{ .Values.global.image.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.api.service.port }}
+          resources:
+            {{- toYaml .Values.api.resources | nindent 12 }}
+          env:
+            - name: ORG_NAME
+              value: {{ .Values.global.orgName | quote }}
+            - name: PG_URL
+              valueFrom:
+                secretKeyRef:
+                  name: braintrust-secrets
+                  key: PG_URL
+            - name: REDIS_URL
+              valueFrom:
+                secretKeyRef:
+                  name: braintrust-secrets
+                  key: REDIS_URL
+            - name: AZURE_STORAGE_CONNECTION_STRING
+              valueFrom:
+                configMapKeyRef:
+                  name: braintrust-secrets
+                  key: AZURE_STORAGE_CONNECTION_STRING
+            - name: RESPONSE_BUCKET
+              value: {{ .Values.storage.responseBucket | quote }}
+            - name: CODE_BUNDLE_BUCKET
+              value: {{ .Values.storage.codeBundleBucket | quote }}
+            - name: BRAINSTORE_REALTIME_WAL_BUCKET
+              value: {{ .Values.storage.brainstore.realtimeWalBucket | quote }}
+            - name: BRAINSTORE_ENABLED
+              value: "true"
+            - name: BRAINSTORE_URL
+              value: "http://{{ .Values.brainstore.name }}:{{ .Values.brainstore.service.port }}"
+            - name: ALLOW_CODE_FUNCTION_EXECUTION
+              value: {{ .Values.api.allowCodeFunctionExecution | quote }}
+            - name: BRAINSTORE_ENABLE_HISTORICAL_FULL_BACKFILL
+              value: {{ .Values.api.enableHistoricalFullBackfill | quote }}
+            - name: BRAINSTORE_BACKFILL_NEW_OBJECTS
+              value: {{ .Values.api.backfillNewObjects | quote }}
+            - name: BRAINSTORE_BACKFILL_DISABLE_HISTORICAL
+              value: {{ .Values.api.backfillDisableHistorical | quote }}
+            - name: BRAINSTORE_BACKFILL_DISABLE_NONHISTORICAL
+              value: {{ .Values.api.backfillDisableNonhistorical | quote }}
+            {{- if .Values.api.extraEnvVars }}
+            {{- toYaml .Values.api.extraEnvVars | nindent 12 }}
+            {{- end }}
+

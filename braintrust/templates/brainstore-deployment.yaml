@@ -1,0 +1,86 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.brainstore.name }}
+  namespace: {{ .Values.global.namespace }}
+spec:
+  replicas: {{ .Values.brainstore.replicas }}
+  selector:
+    matchLabels:
+      app: {{ .Values.brainstore.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.brainstore.name }}
+    spec:
+      containers:
+        - name: brainstore
+          image: "{{ .Values.brainstore.image.repository }}:{{ .Values.brainstore.image.tag }}"
+          imagePullPolicy: {{ .Values.global.image.pullPolicy }}
+          command: {{ .Values.brainstore.command }}
+          ports:
+            - containerPort: {{ .Values.brainstore.service.port }}
+          resources:
+            {{- toYaml .Values.brainstore.resources | nindent 12 }}
+          env:
+            - name: BRAINSTORE_VERBOSE
+              value: {{ .Values.brainstore.verbose | quote }}
+            - name: BRAINSTORE_PORT
+              value: {{ .Values.brainstore.service.port | quote }}
+            - name: BRAINSTORE_INDEX_URI
+              valueFrom:
+                configMapKeyRef:
+                  name: braintrust-config
+                  key: brainstore_index_uri
+            - name: BRAINSTORE_REALTIME_WAL_URI
+              valueFrom:
+                configMapKeyRef:
+                  name: braintrust-config
+                  key: brainstore_wal_uri
+            - name: BRAINSTORE_LOCKS_URI
+              value: "redis://$(REDIS_HOST):$(REDIS_PORT)"
+            - name: REDIS_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: braintrust-config
+                  key: redis_host
+            - name: REDIS_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: braintrust-config
+                  key: redis_port
+            - name: BRAINSTORE_METADATA_URI
+              value: "postgres://$(POSTGRES_USERNAME):$(POSTGRES_PASSWORD)@$(POSTGRES_HOST)/postgres"
+            - name: BRAINSTORE_WAL_URI
+              value: "postgres://$(POSTGRES_USERNAME):$(POSTGRES_PASSWORD)@$(POSTGRES_HOST)/postgres"
+            - name: POSTGRES_USERNAME
+              valueFrom:
+                configMapKeyRef:
+                  name: braintrust-config
+                  key: postgres_username
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: braintrust-secrets
+                  key: postgres-password
+            - name: POSTGRES_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: braintrust-config
+                  key: postgres_host
+            - name: BRAINSTORE_CACHE_DIR
+              value: {{ .Values.brainstore.cacheDir | quote }}
+            - name: BRAINSTORE_LICENSE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: braintrust-secrets
+                  key: brainstore-license-key
+            - name: NO_COLOR
+              value: {{ .Values.brainstore.noColor | quote }}
+          volumeMounts:
+            - name: cache-volume
+              mountPath: {{ .Values.brainstore.cacheDir }}
+      volumes:
+        - name: cache-volume
+          emptyDir:
+            sizeLimit: {{ .Values.brainstore.cacheSizeLimit | quote }}
