@@ -1,6 +1,3 @@
-# Default values for braintrust Helm chart
-# This is a YAML-formatted file.
-
 # Global configs
 global:
   orgName: "<your org name on Braintrust>"
@@ -48,7 +45,6 @@ api:
   backfillNewObjects: true
   backfillDisableHistorical: false
   backfillDisableNonhistorical: false
-  # Arbitrary environment variables that will be passed to the API container
   extraEnvVars:
     # Example:
     # - name: MY_ENV_VAR
@@ -74,9 +70,9 @@ brainstore:
     limits:
       cpu: "16"
       memory: "32Gi"
-  # Cloud-specific URIs will be set in the configmap template
   cacheDir: "/mnt/tmp/brainstore"
-  cacheSizeLimit: "50Gi"
+  objectStoreCacheMemoryLimit: "1Gi"
+  objectStoreCacheFileSize: "50Gi"
   verbose: true
   noColor: true
   extraEnvVars:

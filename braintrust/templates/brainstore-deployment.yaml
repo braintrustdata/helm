@@ -17,7 +17,8 @@ spec:
         - name: brainstore
           image: "{{ .Values.brainstore.image.repository }}:{{ .Values.brainstore.image.tag }}"
           imagePullPolicy: {{ .Values.brainstore.image.pullPolicy }}
-          command: "web"
+          command: ["brainstore"]
+          args: ["web"]
           ports:
             - containerPort: {{ .Values.brainstore.service.port }}
           resources:
