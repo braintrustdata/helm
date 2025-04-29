@@ -1,19 +1,21 @@
-This helm chart assumes a Kubernetes secret named `braintrust-secrets` exists in the namespace where the chart is installed.
+# Braintrust Helm Chart
 
-The secret must contain the following keys:
+## Prerequisites
 
-- `REDIS_URL`
-- `PG_URL`
-- `BRAINSTORE_LICENSE_KEY`
-- `FUNCTION_SECRET_KEY`
-- `AZURE_STORAGE_CONNECTION_STRING` (only if `cloud` is `azure`)
+This helm chart requires a Kubernetes secret named `braintrust-secrets` to exist in the namespace where the chart is installed.
 
-The `REDIS_URL` must be in the format `redis://<host>:<port>`.
+## Required Secrets
 
-The `PG_URL` must be in the format `postgres://<username>:<password>@<host>:<port>/<database>`.
+The `braintrust-secrets` secret must contain the following keys:
 
-The `BRAINSTORE_LICENSE_KEY` must be a valid Brainstore license key.
+| Secret Key | Description | Format |
+|------------|-------------|--------|
+| `REDIS_URL` | Redis connection URL | `redis://<host>:<port>` |
+| `PG_URL` | PostgreSQL connection URL | `postgres://<username>:<password>@<host>:<port>/<database>` |
+| `BRAINSTORE_LICENSE_KEY` | Brainstore license key | Valid Brainstore license key from the Braintrust Data Plane settings page |
+| `FUNCTION_SECRET_KEY` | Random string for encrypting function secrets | Random string |
+| `AZURE_STORAGE_CONNECTION_STRING` | Azure storage connection string | Valid Azure storage connection string (only required if `cloud` is `azure`) |
 
-The `FUNCTION_SECRET_KEY` a random string for encrypting function secrets.
+## Notes
 
-The `AZURE_STORAGE_CONNECTION_STRING` must be a valid Azure storage connection string. This may or may not contain a secret key depending on the storage account configuration. If not, workload identity will be tried.
+- The `AZURE_STORAGE_CONNECTION_STRING` may or may not contain an AccountKey or SAS token depending on the storage account configuration. If a key or token is not provided, workload identity will be used.
