@@ -5,45 +5,31 @@
 global:
   orgName: "<your org name on Braintrust>"
   namespace: "braintrust"
-  image:
-    pullPolicy: IfNotPresent
 
-cloud: "aws"
+# Cloud provider configuration
+cloud: "aws"  # or "azure"
 
-# Azure Storage configuration
-storage:
-  connectionString: ""            # BlobEndpoint=https://...
-  containerName: "brainstore"     # From Terraform output
-  brainstore:
-    indexUri: "az://brainstore/brainstore/index"
-    walUri: "az://brainstore/brainstore/wal"
-    blobUrl: "az://brainstore"
-  responseBucket: "responses"
-  codeBundleBucket: "code-bundles"
+# Object storage configuration
+objectStorage:
+  # Azure specific configuration
+  azure:
+    storageAccountName: ""  # Azure storage account name
+    brainstoreContainer: "brainstore"  # Azure container name for brainstore
+    responseContainer: "responses"  # Azure container name for responses
+    codeBundleContainer: "code-bundles"  # Azure container name for code bundles
 
-secrets:
-  # The kubernetes secret that ESO will synchronize secrets to
-  k8sSecretName: "braintrust-secrets"
-  # TODO: Rename these in terraform
-  redisConnectionStringSecretName: "REDIS_CONNECTION_STRING"
-  brainstoreLicenseKeySecretName: "BRAINSTORE_LICENSE_KEY"
-  postgresURLSecretName: "PG_URL"
-  functionEncryptionSecretName: "FUNCTION_SECRET"
-  azureStorageConnectionStringSecretName: "AZURE_STORAGE_CONNECTION_STRING"
-  # Azure Key Vault configuration
-  azureTenantId: ""  # Your Azure tenant ID
-  azureKeyVaultUrl: ""  # Your Azure Key Vault URL
-  # AWS Secrets Manager configuration
-  awsRegion: ""  # AWS region where secrets are stored
+  # AWS specific configuration
+  aws:
+    brainstoreBucket: ""  # S3 bucket name for brainstore
+    responseBucket: "responses"  # S3 bucket name for responses
+    codeBundleBucket: "code-bundles"  # S3 bucket name for code bundles
 
-# API service configuration
 api:
   name: "braintrust-api"
   replicas: 2
   image:
     repository: public.ecr.aws/braintrust/standalone-api
     tag: latest
-    # Set this to Always if you are pointing the "latest" tag
     pullPolicy: Always
   service:
     type: ClusterIP
@@ -77,7 +63,7 @@ brainstore:
   image:
     repository: public.ecr.aws/braintrust/brainstore
     tag: latest
-  command: ["web"]
+    pullPolicy: Always
   service:
     type: ClusterIP
     port: 4000
@@ -88,7 +74,7 @@ brainstore:
     limits:
       cpu: "16"
       memory: "32Gi"
-  # Local cache settings - uses local ephemeral storage (emptyDir)
+  # Cloud-specific URIs will be set in the configmap template
   cacheDir: "/mnt/tmp/brainstore"
   cacheSizeLimit: "50Gi"
   verbose: true

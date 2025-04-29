@@ -16,67 +16,46 @@ spec:
       containers:
         - name: brainstore
           image: "{{ .Values.brainstore.image.repository }}:{{ .Values.brainstore.image.tag }}"
-          imagePullPolicy: {{ .Values.global.image.pullPolicy }}
-          command: {{ .Values.brainstore.command }}
+          imagePullPolicy: {{ .Values.brainstore.image.pullPolicy }}
+          command: "web"
           ports:
             - containerPort: {{ .Values.brainstore.service.port }}
           resources:
             {{- toYaml .Values.brainstore.resources | nindent 12 }}
+          envFrom:
+            - configMapRef:
+                name: {{ .Values.brainstore.name }}
           env:
-            - name: BRAINSTORE_VERBOSE
-              value: {{ .Values.brainstore.verbose | quote }}
-            - name: BRAINSTORE_PORT
-              value: {{ .Values.brainstore.service.port | quote }}
-            - name: BRAINSTORE_INDEX_URI
-              valueFrom:
-                configMapKeyRef:
-                  name: braintrust-config
-                  key: brainstore_index_uri
-            - name: BRAINSTORE_REALTIME_WAL_URI
-              valueFrom:
-                configMapKeyRef:
-                  name: braintrust-config
-                  key: brainstore_wal_uri
-            - name: BRAINSTORE_LOCKS_URI
-              value: "redis://$(REDIS_HOST):$(REDIS_PORT)"
-            - name: REDIS_HOST
-              valueFrom:
-                configMapKeyRef:
-                  name: braintrust-config
-                  key: redis_host
-            - name: REDIS_PORT
-              valueFrom:
-                configMapKeyRef:
-                  name: braintrust-config
-                  key: redis_port
             - name: BRAINSTORE_METADATA_URI
-              value: "postgres://$(POSTGRES_USERNAME):$(POSTGRES_PASSWORD)@$(POSTGRES_HOST)/postgres"
-            - name: BRAINSTORE_WAL_URI
-              value: "postgres://$(POSTGRES_USERNAME):$(POSTGRES_PASSWORD)@$(POSTGRES_HOST)/postgres"
-            - name: POSTGRES_USERNAME
-              valueFrom:
-                configMapKeyRef:
-                  name: braintrust-config
-                  key: postgres_username
-            - name: POSTGRES_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: braintrust-secrets
-                  key: postgres-password
-            - name: POSTGRES_HOST
+                  key: PG_URL
+            - name: BRAINSTORE_WAL_URI
               valueFrom:
-                configMapKeyRef:
-                  name: braintrust-config
-                  key: postgres_host
-            - name: BRAINSTORE_CACHE_DIR
-              value: {{ .Values.brainstore.cacheDir | quote }}
+                secretKeyRef:
+                  name: braintrust-secrets
+                  key: PG_URL
+            - name: BRAINSTORE_LOCKS_URI
+              valueFrom:
+                secretKeyRef:
+                  name: braintrust-secrets
+                  key: REDIS_URL
             - name: BRAINSTORE_LICENSE_KEY
               valueFrom:
                 secretKeyRef:
                   name: braintrust-secrets
-                  key: brainstore-license-key
-            - name: NO_COLOR
-              value: {{ .Values.brainstore.noColor | quote }}
+                  key: BRAINSTORE_LICENSE_KEY
+            {{- if eq .Values.cloud "azure" }}
+            - name: AZURE_STORAGE_CONNECTION_STRING
+              valueFrom:
+                secretKeyRef:
+                  name: braintrust-secrets
+                  key: AZURE_STORAGE_CONNECTION_STRING
+            {{- end }}
+            {{- if .Values.brainstore.extraEnvVars }}
+            {{- toYaml .Values.brainstore.extraEnvVars | nindent 12 }}
+            {{- end }}
           volumeMounts:
             - name: cache-volume
               mountPath: {{ .Values.brainstore.cacheDir }}

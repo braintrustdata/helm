@@ -1,0 +1,20 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.brainstore.name }}
+  namespace: {{ .Values.global.namespace }}
+data:
+  BRAINSTORE_VERBOSE: {{ .Values.brainstore.verbose | quote }}
+  BRAINSTORE_PORT: {{ .Values.brainstore.service.port | quote }}
+  BRAINSTORE_CACHE_DIR: {{ .Values.brainstore.cacheDir | quote }}
+  BRAINSTORE_OBJECT_STORE_CACHE_MEMORY_LIMIT: {{ .Values.brainstore.objectStoreCacheMemoryLimit | quote }}
+  BRAINSTORE_OBJECT_STORE_CACHE_FILE_SIZE: {{ .Values.brainstore.objectStoreCacheFileSize | quote }}
+  {{- if eq .Values.cloud "azure" }}
+  BRAINSTORE_INDEX_URI: "az://{{ .Values.objectStorage.azure.storageAccountName }}/{{ .Values.objectStorage.azure.brainstoreContainer }}/index"
+  BRAINSTORE_REALTIME_WAL_URI: "az://{{ .Values.objectStorage.azure.storageAccountName }}/{{ .Values.objectStorage.azure.brainstoreContainer }}/wal"
+  {{- else }}
+  BRAINSTORE_INDEX_URI: "s3://{{ .Values.objectStorage.aws.brainstoreBucket }}/brainstore/index"
+  BRAINSTORE_REALTIME_WAL_URI: "s3://{{ .Values.objectStorage.aws.brainstoreBucket }}/brainstore/wal"
+  {{- end }}
+  NO_COLOR: {{ .Values.brainstore.noColor | quote }}
