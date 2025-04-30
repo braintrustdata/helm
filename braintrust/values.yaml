@@ -33,6 +33,12 @@ api:
   service:
     type: ClusterIP
     port: 3000
+  serviceAccount:
+    name: "braintrust-api"
+    # AWS IAM role ARN for accessing S3 buckets
+    awsRoleArn: ""
+    # Azure Workload Identity client ID for accessing storage accounts
+    azureClientId: ""
   resources:
     requests:
       cpu: "2"
@@ -65,6 +71,12 @@ brainstore:
   service:
     type: ClusterIP
     port: 4000
+  serviceAccount:
+    name: "brainstore"
+    # AWS IAM role ARN for accessing S3 buckets
+    awsRoleArn: ""
+    # Azure Workload Identity client ID for accessing storage accounts
+    azureClientId: ""
   resources:
     requests:
       cpu: "8"

@@ -3,6 +3,10 @@ kind: Deployment
 metadata:
   name: {{ .Values.api.name }}
   namespace: {{ .Values.global.namespace }}
+  {{- if eq .Values.cloud "azure" }}
+  annotations:
+    azure.workload.identity/use: "true"
+  {{- end }}
 spec:
   replicas: {{ .Values.api.replicas }}
   selector:
@@ -12,7 +16,12 @@ spec:
     metadata:
       labels:
         app: {{ .Values.api.name }}
+      {{- if eq .Values.cloud "azure" }}
+      annotations:
+        azure.workload.identity/use: "true"
+      {{- end }}
     spec:
+      serviceAccountName: {{ .Values.api.serviceAccount.name }}
       containers:
         - name: api
           image: "{{ .Values.api.image.repository }}:{{ .Values.api.image.tag }}"
