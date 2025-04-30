@@ -50,4 +50,19 @@ spec:
             {{- if .Values.api.extraEnvVars }}
             {{- toYaml .Values.api.extraEnvVars | nindent 12 }}
             {{- end }}
+          {{- if .Values.azureKeyVaultCSI.enabled }}
+          volumeMounts:
+            - name: secrets-store-inline
+              mountPath: "/mnt/secrets-store"
+              readOnly: true
+          {{- end }}
+      {{- if .Values.azureKeyVaultCSI.enabled }}
+      volumes:
+        - name: secrets-store-inline
+          csi:
+            driver: secrets-store.csi.k8s.io
+            readOnly: true
+            volumeAttributes:
+              secretProviderClass: {{ .Values.azureKeyVaultCSI.name }}
+      {{- end }}
 

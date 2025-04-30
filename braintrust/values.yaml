@@ -6,20 +6,22 @@ global:
 # Cloud provider configuration
 cloud: "aws"  # or "azure"
 
-# Object storage configuration
 objectStorage:
   # Azure specific configuration
   azure:
-    storageAccountName: ""  # Azure storage account name
-    brainstoreContainer: "brainstore"  # Azure container name for brainstore
-    responseContainer: "responses"  # Azure container name for responses
-    codeBundleContainer: "code-bundles"  # Azure container name for code bundles
+    # This should come from the terraform module
+    storageAccountName: ""
+    # These are the default container names used by the terraform module
+    brainstoreContainer: "brainstore"
+    responseContainer: "responses"
+    codeBundleContainer: "code-bundles"
 
   # AWS specific configuration
   aws:
-    brainstoreBucket: ""  # S3 bucket name for brainstore
-    responseBucket: "responses"  # S3 bucket name for responses
-    codeBundleBucket: "code-bundles"  # S3 bucket name for code bundles
+    # This should come from the terraform module
+    brainstoreBucket: ""
+    responseBucket: ""
+    codeBundleBucket: ""
 
 api:
   name: "braintrust-api"
@@ -40,7 +42,7 @@ api:
       memory: "8Gi"
   # Allow running user generated code functions (e.g. scorers/tools)
   allowCodeFunctionExecution: true
-  # Brainstore backfill configuration
+  # Brainstore backfill configuration. These defaults are fine for most cases.
   enableHistoricalFullBackfill: true
   backfillNewObjects: true
   backfillDisableHistorical: false
@@ -81,4 +83,40 @@ brainstore:
     #   value: "my-value"
     # - name: ANOTHER_VAR
     #   value: "another-value"
+
+# Optional Azure Key Vault CSI configuration for syncing secrets from Azure Key Vault
+azureKeyVaultCSI:
+  # Set to true to enable Azure Key Vault CSI secret syncing
+  enabled: false
+
+  # Name of your Azure Key Vault.
+  # If you use our terraform module, this will be "<deployment-name>-kv" with a default value of "braintrust-kv"
+  name: "braintrust-kv"
+
+  # User Assigned Identity details for accessing Key Vault
+  userAssignedIdentityID: ""
+  clientID: ""
+  tenantId: ""
+
+  # Map your Key Vault secret names to the required Kubernetes secret keys
+  # Example: If your Redis URL is stored as "my-redis-connection" in Key Vault, set:
+  #   keyVaultSecretName: "my-redis-connection"
+  #   kubernetesSecretKey: "REDIS_URL"
+  # These defaults assume you are using the Braintrust terraform module to deploy the base infrastructure
+  secrets:
+    - keyVaultSecretName: "redis-connection-string"
+      keyVaultSecretType: "secret"
+      kubernetesSecretKey: "REDIS_URL"
+    - keyVaultSecretName: "postgres-connection-string"
+      kubernetesSecretKey: "PG_URL"
+      keyVaultSecretType: "secret"
+    - keyVaultSecretName: "brainstore-license-key"
+      keyVaultSecretType: "secret"
+      kubernetesSecretKey: "BRAINSTORE_LICENSE_KEY"
+    - keyVaultSecretName: "function-secret-key"
+      keyVaultSecretType: "secret"
+      kubernetesSecretKey: "FUNCTION_SECRET_KEY"
+    - keyVaultSecretName: "azure-storage-connection-string"
+      keyVaultSecretType: "secret"
+      kubernetesSecretKey: "AZURE_STORAGE_CONNECTION_STRING"
 

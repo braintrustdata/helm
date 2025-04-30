@@ -60,7 +60,20 @@ spec:
           volumeMounts:
             - name: cache-volume
               mountPath: {{ .Values.brainstore.cacheDir }}
+            {{- if .Values.azureKeyVaultCSI.enabled }}
+            - name: secrets-store-inline
+              mountPath: "/mnt/secrets-store"
+              readOnly: true
+            {{- end }}
       volumes:
         - name: cache-volume
           emptyDir:
             sizeLimit: {{ .Values.brainstore.cacheSizeLimit | quote }}
+        {{- if .Values.azureKeyVaultCSI.enabled }}
+        - name: secrets-store-inline
+          csi:
+            driver: secrets-store.csi.k8s.io
+            readOnly: true
+            volumeAttributes:
+              secretProviderClass: {{ .Values.azureKeyVaultCSI.name }}
+        {{- end }}

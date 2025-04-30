@@ -2,3 +2,7 @@ apiVersion: v2
 name: braintrust
 version: 0.1.0
 description: A Helm chart to run the Braintrust services for the self-hosted data plane
+type: application
+home: https://github.com/braintrustdata/helm
+sources:
+  - https://github.com/braintrustdata/helm
