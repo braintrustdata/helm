@@ -5,7 +5,7 @@ metadata:
   name: {{ .Values.brainstore.name }}
   namespace: {{ .Values.global.namespace }}
 data:
-  BRAINSTORE_VERBOSE: {{ .Values.brainstore.verbose | quote }}
+  BRAINSTORE_VERBOSE: {{ ternary "1" "0" (eq (.Values.brainstore.verbose | toString) "true") | quote }}
   BRAINSTORE_PORT: {{ .Values.brainstore.service.port | quote }}
   BRAINSTORE_CACHE_DIR: {{ .Values.brainstore.cacheDir | quote }}
   BRAINSTORE_OBJECT_STORE_CACHE_MEMORY_LIMIT: {{ .Values.brainstore.objectStoreCacheMemoryLimit | quote }}
