@@ -32,7 +32,7 @@ api:
     pullPolicy: Always
   service:
     type: ClusterIP
-    port: 3000
+    port: 8000
   resources:
     requests:
       cpu: "2"
@@ -75,7 +75,7 @@ brainstore:
   cacheDir: "/mnt/tmp/brainstore"
   objectStoreCacheMemoryLimit: "1Gi"
   objectStoreCacheFileSize: "50Gi"
-  verbose: true
+  verbose: 1
   noColor: true
   extraEnvVars:
     # Example:
