@@ -87,7 +87,7 @@ brainstore:
   cacheDir: "/mnt/tmp/brainstore"
   objectStoreCacheMemoryLimit: "1Gi"
   objectStoreCacheFileSize: "50Gi"
-  verbose: true
+  verbose: 1
   noColor: true
   extraEnvVars:
     # Example:
