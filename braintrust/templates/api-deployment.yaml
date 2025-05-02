@@ -3,10 +3,6 @@ kind: Deployment
 metadata:
   name: {{ .Values.api.name }}
   namespace: {{ .Values.global.namespace }}
-  {{- if eq .Values.cloud "azure" }}
-  annotations:
-    azure.workload.identity/use: "true"
-  {{- end }}
 spec:
   replicas: {{ .Values.api.replicas }}
   selector:
