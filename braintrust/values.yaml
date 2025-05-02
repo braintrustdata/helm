@@ -32,7 +32,7 @@ api:
     pullPolicy: Always
   service:
     type: ClusterIP
-    port: 3000
+    port: 8000
   serviceAccount:
     name: "braintrust-api"
     # AWS IAM role ARN for accessing S3 buckets
