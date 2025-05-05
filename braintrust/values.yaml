@@ -56,7 +56,7 @@ api:
 
 # Brainstore configuration
 brainstore:
-  enabled: true
+  enable: true
   name: "brainstore"
   replicas: 1
   image:
