@@ -23,7 +23,7 @@ data:
   BRAINSTORE_REALTIME_WAL_BUCKET: {{ .Values.objectStorage.aws.brainstoreBucket | quote }}
   BRAINSTORE_REALTIME_WAL_BUCKET_PREFIX: "brainstore/wal"
   {{- end }}
-  BRAINSTORE_ENABLED: "true"
+  BRAINSTORE_ENABLED: {{ .Values.brainstore.enable | quote }}
   BRAINSTORE_URL: "http://{{ .Values.brainstore.name }}:{{ .Values.brainstore.service.port }}"
   BRAINSTORE_ENABLE_HISTORICAL_FULL_BACKFILL: {{ .Values.api.enableHistoricalFullBackfill | quote }}
   BRAINSTORE_BACKFILL_NEW_OBJECTS: {{ .Values.api.backfillNewObjects | quote }}
