@@ -16,6 +16,9 @@ spec:
         azure.workload.identity/use: "true"
 {{- end }}
     spec:
+{{- if .Values.azureKeyVaultCSI.enabled }}
+      serviceAccountName: braintrust
+{{- end }}
       containers:
         - name: brainstore
           image: "{{ .Values.brainstore.image.repository }}:{{ .Values.brainstore.image.tag }}"
