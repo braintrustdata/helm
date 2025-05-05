@@ -12,6 +12,9 @@ spec:
     metadata:
       labels:
         app: {{ .Values.brainstore.name }}
+{{- if .Values.azureKeyVaultCSI.enabled }}
+        azure.workload.identity/use: "true"
+{{- end }}
     spec:
       containers:
         - name: brainstore

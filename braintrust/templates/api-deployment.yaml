@@ -12,7 +12,13 @@ spec:
     metadata:
       labels:
         app: {{ .Values.api.name }}
+{{- if .Values.azureKeyVaultCSI.enabled }}
+        azure.workload.identity/use: "true"
+{{- end }}
     spec:
+{{- if .Values.azureKeyVaultCSI.enabled }}
+      serviceAccountName: braintrust
+{{- end }}
       containers:
         - name: api
           image: "{{ .Values.api.image.repository }}:{{ .Values.api.image.tag }}"
