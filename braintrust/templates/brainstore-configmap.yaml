@@ -13,7 +13,7 @@ metadata:
     {{- toYaml . | nindent 4 }}
   {{- end }}
 data:
-  BRAINSTORE_VERBOSE: {{ ternary "1" "0" (eq (.Values.brainstore.verbose | toString) "true") | quote }}
+  BRAINSTORE_VERBOSE: {{ (or (eq (toString .Values.brainstore.verbose) "true") (eq (toString .Values.brainstore.verbose) "1")) | ternary "1" "0" | quote }}
   BRAINSTORE_PORT: {{ .Values.brainstore.service.port | quote }}
   BRAINSTORE_CACHE_DIR: {{ .Values.brainstore.cacheDir | quote }}
   BRAINSTORE_OBJECT_STORE_CACHE_MEMORY_LIMIT: {{ .Values.brainstore.objectStoreCacheMemoryLimit | quote }}
