@@ -3,6 +3,14 @@ kind: Deployment
 metadata:
   name: {{ .Values.api.name }}
   namespace: {{ .Values.global.namespace }}
+  {{- with (merge .Values.global.labels .Values.api.labels) }}
+  labels:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with .Values.api.annotations.deployment }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
 spec:
   replicas: {{ .Values.api.replicas }}
   selector:
@@ -12,10 +20,16 @@ spec:
     metadata:
       labels:
         app: {{ .Values.api.name }}
-      {{- if eq .Values.cloud "azure" }}
+        {{- with (merge .Values.global.labels .Values.api.labels) }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
       annotations:
+        {{- if eq .Values.cloud "azure" }}
         azure.workload.identity/use: "true"
-      {{- end }}
+        {{- end }}
+        {{- with .Values.api.annotations.pod }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
     spec:
       serviceAccountName: {{ .Values.api.serviceAccount.name }}
       containers:
@@ -45,13 +59,6 @@ spec:
                 secretKeyRef:
                   name: braintrust-secrets
                   key: FUNCTION_SECRET_KEY
-            {{- if eq .Values.cloud "azure" }}
-            - name: AZURE_STORAGE_CONNECTION_STRING
-              valueFrom:
-                secretKeyRef:
-                  name: braintrust-secrets
-                  key: AZURE_STORAGE_CONNECTION_STRING
-            {{- end }}
             {{- if .Values.api.extraEnvVars }}
             {{- toYaml .Values.api.extraEnvVars | nindent 12 }}
             {{- end }}

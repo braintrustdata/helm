@@ -4,6 +4,14 @@ kind: ConfigMap
 metadata:
   name: {{ .Values.brainstore.name }}
   namespace: {{ .Values.global.namespace }}
+  {{- with (merge .Values.global.labels .Values.brainstore.labels) }}
+  labels:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with .Values.brainstore.annotations.configmap }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
 data:
   BRAINSTORE_VERBOSE: {{ ternary "1" "0" (eq (.Values.brainstore.verbose | toString) "true") | quote }}
   BRAINSTORE_PORT: {{ .Values.brainstore.service.port | quote }}

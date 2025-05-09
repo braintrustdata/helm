@@ -7,6 +7,10 @@ metadata:
     {{- if eq .Values.cloud "azure" }}
     azure.workload.identity/use: "true"
     {{- end }}
-{{- with .Values.global.labels }}
+    {{- with (merge .Values.global.labels .Values.global.labels) }}
     {{- toYaml . | nindent 4 }}
-{{- end }}
+    {{- end }}
+  {{- with .Values.global.annotations.namespaces }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}

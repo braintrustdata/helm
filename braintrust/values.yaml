@@ -2,6 +2,7 @@
 global:
   orgName: "<your org name on Braintrust>"
   namespace: "braintrust"
+  labels: {}
 
 # Cloud provider configuration
 cloud: "aws"  # or "azure"
@@ -25,6 +26,13 @@ objectStorage:
 
 api:
   name: "braintrust-api"
+  labels: {}
+  annotations:
+    configmap: {}
+    deployment: {}
+    service: {}
+    pod: {}
+    serviceaccount: {}
   replicas: 2
   image:
     repository: public.ecr.aws/braintrust/standalone-api
@@ -63,6 +71,13 @@ api:
 # Brainstore configuration
 brainstore:
   name: "brainstore"
+  labels: {}
+  annotations:
+    configmap: {}
+    deployment: {}
+    service: {}
+    pod: {}
+    serviceaccount: {}
   replicas: 1
   image:
     repository: public.ecr.aws/braintrust/brainstore
