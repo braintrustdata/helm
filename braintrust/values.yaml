@@ -43,9 +43,7 @@ api:
     port: 8000
   serviceAccount:
     name: "braintrust-api"
-    # AWS IAM role ARN for accessing S3 buckets
     awsRoleArn: ""
-    # Azure Workload Identity client ID for accessing storage accounts
     azureClientId: ""
   resources:
     requests:
@@ -88,9 +86,7 @@ brainstore:
     port: 4000
   serviceAccount:
     name: "brainstore"
-    # AWS IAM role ARN for accessing S3 buckets
     awsRoleArn: ""
-    # Azure Workload Identity client ID for accessing storage accounts
     azureClientId: ""
   resources:
     requests:
@@ -102,8 +98,7 @@ brainstore:
   cacheDir: "/mnt/tmp/brainstore"
   objectStoreCacheMemoryLimit: "1Gi"
   objectStoreCacheFileSize: "50Gi"
-  verbose: 1
-  noColor: true
+  verbose: true
   extraEnvVars:
     # Example:
     # - name: MY_ENV_VAR
@@ -120,8 +115,6 @@ azureKeyVaultCSI:
   # If you use our terraform module, this will be "<deployment-name>-kv" with a default value of "braintrust-kv"
   name: "braintrust-kv"
 
-  # User Assigned Identity details for accessing Key Vault
-  userAssignedIdentityID: ""
   clientID: ""
   tenantId: ""
 

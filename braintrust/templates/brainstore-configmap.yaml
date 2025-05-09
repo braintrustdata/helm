@@ -25,4 +25,4 @@ data:
   BRAINSTORE_INDEX_URI: "s3://{{ .Values.objectStorage.aws.brainstoreBucket }}/brainstore/index"
   BRAINSTORE_REALTIME_WAL_URI: "s3://{{ .Values.objectStorage.aws.brainstoreBucket }}/brainstore/wal"
   {{- end }}
-  NO_COLOR: {{ .Values.brainstore.noColor | quote }}
+  NO_COLOR: "1"
