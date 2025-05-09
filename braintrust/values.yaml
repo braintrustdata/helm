@@ -2,6 +2,7 @@
 global:
   orgName: "<your org name on Braintrust>"
   namespace: "braintrust"
+  namespaceAnnotations: {}
   labels: {}
 
 # Cloud provider configuration
