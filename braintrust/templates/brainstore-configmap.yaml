@@ -4,17 +4,26 @@ kind: ConfigMap
 metadata:
   name: {{ .Values.brainstore.name }}
   namespace: {{ .Values.global.namespace }}
+  {{- with (merge .Values.global.labels .Values.brainstore.labels) }}
+  labels:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with .Values.brainstore.annotations.configmap }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
 data:
-  BRAINSTORE_VERBOSE: {{ .Values.brainstore.verbose | quote }}
+  BRAINSTORE_VERBOSE: {{ (or (eq (toString .Values.brainstore.verbose) "true") (eq (toString .Values.brainstore.verbose) "1")) | ternary "1" "0" | quote }}
   BRAINSTORE_PORT: {{ .Values.brainstore.service.port | quote }}
   BRAINSTORE_CACHE_DIR: {{ .Values.brainstore.cacheDir | quote }}
   BRAINSTORE_OBJECT_STORE_CACHE_MEMORY_LIMIT: {{ .Values.brainstore.objectStoreCacheMemoryLimit | quote }}
   BRAINSTORE_OBJECT_STORE_CACHE_FILE_SIZE: {{ .Values.brainstore.objectStoreCacheFileSize | quote }}
   {{- if eq .Values.cloud "azure" }}
+  AZURE_STORAGE_ACCOUNT_NAME: {{ .Values.objectStorage.azure.storageAccountName | quote }}
   BRAINSTORE_INDEX_URI: "az://{{ .Values.objectStorage.azure.storageAccountName }}/{{ .Values.objectStorage.azure.brainstoreContainer }}/index"
   BRAINSTORE_REALTIME_WAL_URI: "az://{{ .Values.objectStorage.azure.storageAccountName }}/{{ .Values.objectStorage.azure.brainstoreContainer }}/wal"
   {{- else }}
   BRAINSTORE_INDEX_URI: "s3://{{ .Values.objectStorage.aws.brainstoreBucket }}/brainstore/index"
   BRAINSTORE_REALTIME_WAL_URI: "s3://{{ .Values.objectStorage.aws.brainstoreBucket }}/brainstore/wal"
   {{- end }}
-  NO_COLOR: {{ .Values.brainstore.noColor | quote }}
+  NO_COLOR: "1"

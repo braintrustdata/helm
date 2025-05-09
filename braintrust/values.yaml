@@ -2,6 +2,8 @@
 global:
   orgName: "<your org name on Braintrust>"
   namespace: "braintrust"
+  namespaceAnnotations: {}
+  labels: {}
 
 # Cloud provider configuration
 cloud: "aws"  # or "azure"
@@ -25,6 +27,13 @@ objectStorage:
 
 api:
   name: "braintrust-api"
+  labels: {}
+  annotations:
+    configmap: {}
+    deployment: {}
+    service: {}
+    pod: {}
+    serviceaccount: {}
   replicas: 2
   image:
     repository: public.ecr.aws/braintrust/standalone-api
@@ -33,6 +42,10 @@ api:
   service:
     type: ClusterIP
     port: 8000
+  serviceAccount:
+    name: "braintrust-api"
+    awsRoleArn: ""
+    azureClientId: ""
   resources:
     requests:
       cpu: "2"
@@ -58,6 +71,13 @@ api:
 brainstore:
   enabled: true
   name: "brainstore"
+  labels: {}
+  annotations:
+    configmap: {}
+    deployment: {}
+    service: {}
+    pod: {}
+    serviceaccount: {}
   replicas: 1
   image:
     repository: public.ecr.aws/braintrust/brainstore
@@ -66,6 +86,10 @@ brainstore:
   service:
     type: ClusterIP
     port: 4000
+  serviceAccount:
+    name: "brainstore"
+    awsRoleArn: ""
+    azureClientId: ""
   resources:
     requests:
       cpu: "8"
@@ -76,8 +100,7 @@ brainstore:
   cacheDir: "/mnt/tmp/brainstore"
   objectStoreCacheMemoryLimit: "1Gi"
   objectStoreCacheFileSize: "50Gi"
-  verbose: 1
-  noColor: true
+  verbose: true
   extraEnvVars:
     # Example:
     # - name: MY_ENV_VAR
@@ -94,8 +117,6 @@ azureKeyVaultCSI:
   # If you use our terraform module, this will be "<deployment-name>-kv" with a default value of "braintrust-kv"
   name: "braintrust-kv"
 
-  # User Assigned Identity details for accessing Key Vault
-  userAssignedIdentityID: ""
   clientID: ""
   tenantId: ""
 
