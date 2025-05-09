@@ -19,6 +19,7 @@ data:
   BRAINSTORE_OBJECT_STORE_CACHE_MEMORY_LIMIT: {{ .Values.brainstore.objectStoreCacheMemoryLimit | quote }}
   BRAINSTORE_OBJECT_STORE_CACHE_FILE_SIZE: {{ .Values.brainstore.objectStoreCacheFileSize | quote }}
   {{- if eq .Values.cloud "azure" }}
+  AZURE_STORAGE_ACCOUNT_NAME: "{{ .Values.objectStorage.azure.storageAccountName | quote }}"
   BRAINSTORE_INDEX_URI: "az://{{ .Values.objectStorage.azure.storageAccountName }}/{{ .Values.objectStorage.azure.brainstoreContainer }}/index"
   BRAINSTORE_REALTIME_WAL_URI: "az://{{ .Values.objectStorage.azure.storageAccountName }}/{{ .Values.objectStorage.azure.brainstoreContainer }}/wal"
   {{- else }}
