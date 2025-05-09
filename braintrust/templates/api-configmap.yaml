@@ -17,8 +17,8 @@ data:
   {{- end }}
   ALLOW_CODE_FUNCTION_EXECUTION: {{ .Values.api.allowCodeFunctionExecution | quote }}
   {{- if eq .Values.cloud "azure" }}
-  BRAINSTORE_REALTIME_WAL_BUCKET: {{ .Values.objectStorage.azure.storageAccountName | quote }}
-  BRAINSTORE_REALTIME_WAL_BUCKET_PREFIX: "{{ .Values.objectStorage.azure.brainstoreContainer }}/wal"
+  BRAINSTORE_REALTIME_WAL_BUCKET: {{ .Values.objectStorage.azure.brainstoreContainer | quote }}
+  BRAINSTORE_REALTIME_WAL_BUCKET_PREFIX: "wal"
   {{- else }}
   BRAINSTORE_REALTIME_WAL_BUCKET: {{ .Values.objectStorage.aws.brainstoreBucket | quote }}
   BRAINSTORE_REALTIME_WAL_BUCKET_PREFIX: "brainstore/wal"
