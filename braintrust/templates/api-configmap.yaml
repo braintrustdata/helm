@@ -25,7 +25,7 @@ data:
   CODE_BUNDLE_BUCKET: {{ .Values.objectStorage.aws.codeBundleBucket | quote }}
   BRAINSTORE_REALTIME_WAL_BUCKET: {{ .Values.objectStorage.aws.brainstoreBucket | quote }}
   {{- end }}
-
+  
   ALLOW_CODE_FUNCTION_EXECUTION: {{ .Values.api.allowCodeFunctionExecution | quote }}
   BRAINSTORE_ENABLED: "true"
   BRAINSTORE_URL: "http://{{ .Values.brainstore.name }}:{{ .Values.brainstore.service.port }}"
