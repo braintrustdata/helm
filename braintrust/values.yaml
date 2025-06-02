@@ -42,6 +42,7 @@ api:
   service:
     type: ClusterIP
     port: 8000
+    portName: http
   serviceAccount:
     name: "braintrust-api"
     awsRoleArn: ""
@@ -86,6 +87,7 @@ brainstore:
   service:
     type: ClusterIP
     port: 4000
+    portName: http
   serviceAccount:
     name: "brainstore"
     awsRoleArn: ""
