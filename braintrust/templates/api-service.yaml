@@ -15,6 +15,8 @@ spec:
   selector:
     app: {{ .Values.api.name }}
   ports:
-    - port: {{ .Values.api.service.port }}
+    - name: {{ .Values.api.service.portName }}
+      protocol: TCP
+      port: {{ .Values.api.service.port }}
       targetPort: {{ .Values.api.service.port }}
   type: {{ .Values.api.service.type }}
