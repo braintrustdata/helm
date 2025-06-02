@@ -29,8 +29,6 @@ cleanup() {
 trap cleanup EXIT
 
 echo "Validating rendered templates..."
-kubectl apply --dry-run=server -f "$TEMP_DIR/rendered.yaml"
-
 if kubectl apply --dry-run=server -f "$TEMP_DIR/rendered.yaml"; then
     echo "✅ Chart templates rendered successfully and are valid Kubernetes resources"
     exit 0
