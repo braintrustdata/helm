@@ -19,9 +19,13 @@ data:
   BRAINSTORE_OBJECT_STORE_CACHE_MEMORY_LIMIT: {{ .Values.brainstore.objectStoreCacheMemoryLimit | quote }}
   BRAINSTORE_OBJECT_STORE_CACHE_FILE_SIZE: {{ .Values.brainstore.objectStoreCacheFileSize | quote }}
   {{- if eq .Values.cloud "azure" }}
+  # See here for reference:
+  # https://docs.rs/object_store/latest/object_store/azure/struct.MicrosoftAzureBuilder.html
   AZURE_STORAGE_ACCOUNT_NAME: {{ .Values.objectStorage.azure.storageAccountName | quote }}
-  BRAINSTORE_INDEX_URI: "az://{{ .Values.objectStorage.azure.storageAccountName }}/{{ .Values.objectStorage.azure.brainstoreContainer }}/index"
-  BRAINSTORE_REALTIME_WAL_URI: "az://{{ .Values.objectStorage.azure.storageAccountName }}/{{ .Values.objectStorage.azure.brainstoreContainer }}/wal"
+  # This will create odd paths like az://brainstore/brainstore/index, but it maintains the naming and prefix conventions
+  # with AWS and avoids confusion with env vars.
+  BRAINSTORE_INDEX_URI: "az://{{ .Values.objectStorage.azure.brainstoreContainer }}/brainstore/index"
+  BRAINSTORE_REALTIME_WAL_URI: "az://{{ .Values.objectStorage.azure.brainstoreContainer }}/brainstore/wal"
   {{- else }}
   BRAINSTORE_INDEX_URI: "s3://{{ .Values.objectStorage.aws.brainstoreBucket }}/brainstore/index"
   BRAINSTORE_REALTIME_WAL_URI: "s3://{{ .Values.objectStorage.aws.brainstoreBucket }}/brainstore/wal"
