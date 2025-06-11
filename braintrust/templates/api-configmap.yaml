@@ -20,6 +20,7 @@ data:
   RESPONSE_BUCKET: {{ .Values.objectStorage.azure.responseContainer | quote }}
   CODE_BUNDLE_BUCKET: {{ .Values.objectStorage.azure.codeBundleContainer | quote }}
   BRAINSTORE_REALTIME_WAL_BUCKET: {{ .Values.objectStorage.azure.brainstoreContainer | quote }}
+  BRAINSTORE_REALTIME_WAL_BUCKET_PREFIX: "brainstore/wal"
   {{- else if eq .Values.cloud "aws" }}
   RESPONSE_BUCKET: {{ .Values.objectStorage.aws.responseBucket | quote }}
   CODE_BUNDLE_BUCKET: {{ .Values.objectStorage.aws.codeBundleBucket | quote }}
