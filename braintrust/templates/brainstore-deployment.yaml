@@ -20,13 +20,13 @@ spec:
     metadata:
       labels:
         app: {{ .Values.brainstore.name }}
+        {{- if eq .Values.cloud "azure" }}
+        azure.workload.identity/use: "true"
+        {{- end }}
         {{- with (merge .Values.global.labels .Values.brainstore.labels) }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
       annotations:
-        {{- if eq .Values.cloud "azure" }}
-        azure.workload.identity/use: "true"
-        {{- end }}
         {{- with .Values.brainstore.annotations.pod }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
