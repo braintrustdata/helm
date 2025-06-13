@@ -1,6 +1,7 @@
 # Global configs
 global:
   orgName: "<your org name on Braintrust>"
+  createNamespace: true
   namespace: "braintrust"
   namespaceAnnotations: {}
   labels: {}
