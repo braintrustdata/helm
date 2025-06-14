@@ -11,7 +11,7 @@ The `braintrust-secrets` secret must contain the following keys:
 | Secret Key | Description | Format |
 |------------|-------------|--------|
 | `REDIS_URL` | Redis connection URL | `redis://<host>:<port>` |
-| `PG_URL` | PostgreSQL connection URL | `postgres://<username>:<password>@<host>:<port>/<database>` |
+| `PG_URL` | PostgreSQL connection URL | `postgres://<username>:<password>@<host>:<port>/<database>` (append `?sslmode=require` if using TLS) |
 | `BRAINSTORE_LICENSE_KEY` | Brainstore license key | Valid Brainstore license key from the Braintrust Data Plane settings page |
 | `FUNCTION_SECRET_KEY` | Random string for encrypting function secrets | Random string |
 | `AZURE_STORAGE_CONNECTION_STRING` | Azure storage connection string | Valid Azure storage connection string (only required if `cloud` is `azure`) |
