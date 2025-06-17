@@ -1,3 +1,4 @@
+{{- if .Values.global.createNamespace }}
 apiVersion: v1
 kind: Namespace
 metadata:
@@ -14,3 +15,4 @@ metadata:
     {{- with .Values.global.namespaceAnnotations }}
     {{- toYaml . | nindent 4 }}
     {{- end }}
+{{- end }}
