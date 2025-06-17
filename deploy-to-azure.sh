@@ -2,16 +2,29 @@
 # This is for internal braintrust testing only
 
 set -euo pipefail
+
+cd "$(dirname "${BASH_SOURCE[0]}")"
+
 namespace="braintrust"
 
-echo "Setting Kubernetes context..."
-kubectl config use-context bt-azure-k8s-admin
+echo "Current Kubernetes context:"
+kubectl config current-context
+
+echo "Cluster URL:"
+kubectl config view --minify -o jsonpath='{.clusters[0].cluster.server}'
+echo
+
+echo
+read -p "Do you want to proceed with deployment to this kubernetes cluster? (y/N) " -n 1 -r
+echo
+if [[ ! $REPLY =~ ^[Yy]$ ]]
+then
+    echo "Deployment cancelled."
+    exit 1
+fi
 
 echo "Creating namespace..."
 kubectl create namespace "${namespace}" --dry-run=client -o yaml | kubectl apply -f -
-
-echo "Applying secrets..."
-kubectl apply -n "${namespace}" -f secrets.yaml
 
 echo "Deploying Helm chart..."
 helm upgrade --install braintrust \
