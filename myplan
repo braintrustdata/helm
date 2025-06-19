@@ -1,0 +1,38 @@
+
+Terraform used the selected providers to generate the following execution plan. Resource actions are indicated with the following symbols:
+  ~ update in-place
+
+Terraform will perform the following actions:
+
+  # module.braintrust-data-plane.module.brainstore[0].aws_autoscaling_group.brainstore_writer[0] will be updated in-place
+  ~ resource "aws_autoscaling_group" "brainstore_writer" {
+        id                               = "sandbox-brainstore-writer20250618223036828000000003"
+        name                             = "sandbox-brainstore-writer20250618223036828000000003"
+        # (32 unchanged attributes hidden)
+
+      ~ launch_template {
+            id      = "lt-0e30c5310d185f561"
+            name    = "sandbox-brainstore-writer"
+          ~ version = "2" -> (known after apply)
+        }
+
+        # (6 unchanged blocks hidden)
+    }
+
+  # module.braintrust-data-plane.module.brainstore[0].aws_launch_template.brainstore_writer[0] will be updated in-place
+  ~ resource "aws_launch_template" "brainstore_writer" {
+      ~ default_version                      = 2 -> (known after apply)
+        id                                   = "lt-0e30c5310d185f561"
+      ~ instance_type                        = "c8gd.4xlarge" -> "c8gd.2xlarge"
+      ~ latest_version                       = 2 -> (known after apply)
+        name                                 = "sandbox-brainstore-writer"
+        tags                                 = {
+            "BraintrustDeploymentName" = "sandbox"
+            "Name"                     = "sandbox-brainstore-writer"
+        }
+        # (16 unchanged attributes hidden)
+
+        # (7 unchanged blocks hidden)
+    }
+
+Plan: 0 to add, 2 to change, 0 to destroy.
