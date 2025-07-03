@@ -41,6 +41,9 @@ api:
     tag: latest
     pullPolicy: Always
   service:
+    # Optional name for service object. If not specified (empty), the api.name
+    # is used.
+    name: ""
     type: ClusterIP
     port: 8000
     portName: http
@@ -86,6 +89,9 @@ brainstore:
     tag: latest
     pullPolicy: Always
   service:
+    # Optional name for service object. If not specified (empty), the
+    # brainstore.name is used.
+    name: ""
     type: ClusterIP
     port: 4000
     portName: http
