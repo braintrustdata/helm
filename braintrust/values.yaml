@@ -7,7 +7,7 @@ global:
   labels: {}
 
 # Cloud provider configuration
-cloud: "aws"  # or "azure"
+cloud: "google"  # or "azure" or "aws"
 
 objectStorage:
   # Azure specific configuration
@@ -21,6 +21,12 @@ objectStorage:
 
   # AWS specific configuration
   aws:
+    # This should come from the terraform module
+    brainstoreBucket: ""
+    responseBucket: ""
+    codeBundleBucket: ""
+
+  google:
     # This should come from the terraform module
     brainstoreBucket: ""
     responseBucket: ""
@@ -51,6 +57,7 @@ api:
     name: "braintrust-api"
     awsRoleArn: ""
     azureClientId: ""
+    googleServiceAccount: ""
   resources:
     requests:
       cpu: "2"
@@ -99,6 +106,7 @@ brainstore:
     name: "brainstore"
     awsRoleArn: ""
     azureClientId: ""
+    googleServiceAccount: ""
   resources:
     requests:
       cpu: "8"

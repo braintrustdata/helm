@@ -23,6 +23,9 @@ spec:
         {{- if eq .Values.cloud "azure" }}
         azure.workload.identity/use: "true"
         {{- end }}
+        {{- if eq .Values.cloud "google" }}
+        gke-workload-identity/use: "true"
+        {{- end }}
         {{- with (merge .Values.global.labels .Values.api.labels) }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
