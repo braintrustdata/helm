@@ -29,8 +29,8 @@ objectStorage:
   google:
     # This should come from the terraform module
     brainstoreBucket: ""
-    responseBucket: ""
-    codeBundleBucket: ""
+    # Single API bucket with paths for responses and code bundles
+    apiBucket: ""
 
 api:
   name: "braintrust-api"

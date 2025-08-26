@@ -26,10 +26,11 @@ data:
   CODE_BUNDLE_BUCKET: {{ .Values.objectStorage.aws.codeBundleBucket | quote }}
   BRAINSTORE_REALTIME_WAL_BUCKET: {{ .Values.objectStorage.aws.brainstoreBucket | quote }}
   {{- else if eq .Values.cloud "google" }}
-  RESPONSE_BUCKET: {{ .Values.objectStorage.google.responseContainer | quote }}
-  CODE_BUNDLE_BUCKET: {{ .Values.objectStorage.google.codeBundleContainer | quote }}
-  BRAINSTORE_REALTIME_WAL_BUCKET: {{ .Values.objectStorage.google.brainstoreContainer | quote }}
-  BRAINSTORE_REALTIME_WAL_BUCKET_PREFIX: "brainstore/wal"
+  RESPONSE_BUCKET: {{ .Values.objectStorage.google.apiBucket | quote }}
+  RESPONSE_BUCKET_PREFIX: "response/"
+  CODE_BUNDLE_BUCKET: {{ .Values.objectStorage.google.apiBucket | quote }}
+  CODE_BUNDLE_BUCKET_PREFIX: "code-bundle/"
+  BRAINSTORE_REALTIME_WAL_BUCKET: {{ .Values.objectStorage.google.brainstoreBucket | quote }}
   {{- end }}
 
   ALLOW_CODE_FUNCTION_EXECUTION: {{ .Values.api.allowCodeFunctionExecution | quote }}
