@@ -104,12 +104,16 @@ jobs:
           # Push the chart to ECR Public
           helm push $CHART_NAME.tgz oci://$ECR_REGISTRY
 
-          echo "Chart successfully published to ECR Public!"
-          echo "Repository: oci://$ECR_REGISTRY"
-          echo "Version: ${{ github.event.inputs.version }}"
-
           # Store chart URL for release notes
           echo "chart_url=oci://$ECR_REGISTRY" >> $GITHUB_OUTPUT
+
+          # Create job summary
+          cat >> $GITHUB_STEP_SUMMARY << EOF
+          ## 📦 Chart Details
+          - **Chart Name**: ${{ env.CHART_NAME }}
+          - **Version**: ${{ github.event.inputs.version }}
+          - **Chart URL**: \`oci://${{ env.ECR_REGISTRY }}\`
+          EOF
 
       - name: Update Release with Chart Link
         run: |
@@ -123,11 +127,6 @@ jobs:
           This release includes the Helm chart available at:
           \`\`\`
           oci://${{ steps.push-chart.outputs.chart_url }}
-          \`\`\`
-
-          ### Installation
-          \`\`\`bash
-          helm install braintrust oci://${{ steps.push-chart.outputs.chart_url }} --version ${{ github.event.inputs.version }}
           \`\`\`
           EOF
 
