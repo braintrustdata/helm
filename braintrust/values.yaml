@@ -89,7 +89,7 @@ brainstore:
     service: {}
     pod: {}
     serviceaccount: {}
-  replicas: 1
+  replicas: 2
   image:
     repository: public.ecr.aws/braintrust/brainstore
     tag: latest
