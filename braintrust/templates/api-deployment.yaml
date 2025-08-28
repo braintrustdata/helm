@@ -23,9 +23,6 @@ spec:
         {{- if eq .Values.cloud "azure" }}
         azure.workload.identity/use: "true"
         {{- end }}
-        {{- if eq .Values.cloud "google" }}
-        gke-workload-identity/use: "true"
-        {{- end }}
         {{- with (merge .Values.global.labels .Values.api.labels) }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
@@ -68,6 +65,18 @@ spec:
                 secretKeyRef:
                   name: braintrust-secrets
                   key: AZURE_STORAGE_CONNECTION_STRING
+            {{- end }}
+            {{- if eq .Values.cloud "google" }}
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: braintrust-secrets
+                  key: GCS_ACCESS_KEY_ID
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: braintrust-secrets
+                  key: GCS_SECRET_ACCESS_KEY
             {{- end }}
             {{- if .Values.api.extraEnvVars }}
             {{- toYaml .Values.api.extraEnvVars | nindent 12 }}

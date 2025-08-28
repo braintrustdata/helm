@@ -57,7 +57,6 @@ api:
     name: "braintrust-api"
     awsRoleArn: ""
     azureClientId: ""
-    googleServiceAccount: ""
   resources:
     requests:
       cpu: "2"
