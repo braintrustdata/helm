@@ -39,6 +39,18 @@ jobs:
           git config --global user.name "Braintrust Bot"
           git config --global user.email "braintrust-bot@users.noreply.github.com"
 
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - name: Login to Amazon ECR Public
+        id: login-ecr-public
+        uses: aws-actions/amazon-ecr-login@v2
+        with:
+          registry-type: public
+
       - name: Validate semver version
         run: |
           VERSION="${{ github.event.inputs.version }}"
@@ -75,18 +87,6 @@ jobs:
             --generate-notes
         env:
           GH_TOKEN: ${{ steps.bot-token.outputs.token }}
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: us-east-1
-
-      - name: Login to Amazon ECR Public
-        id: login-ecr-public
-        uses: aws-actions/amazon-ecr-login@v2
-        with:
-          registry-type: public
 
       - name: Package Helm chart
         run: |
