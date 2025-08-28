@@ -1,0 +1,130 @@
+name: Release Helm Chart
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Semver version number (e.g., 1.2.3, 1.2.3-alpha.1)'
+        required: true
+        type: string
+
+env:
+  CHART_PATH: ./braintrust
+  ECR_REGISTRY: public.ecr.aws/braintrustdata/helm-braintrust-data-plane
+  CHART_NAME: braintrust
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+      id-token: write
+
+    steps:
+      - name: Create GitHub App Token
+        uses: actions/create-github-app-token@v1
+        id: bot-token
+        with:
+          app-id: ${{ secrets.GH_BOT_APP_ID }}
+          private-key: ${{ secrets.GH_BOT_APP_PRIVATE_KEY }}
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          token: ${{ steps.bot-token.outputs.token }}
+
+      - name: Configure Git
+        run: |
+          git config --global user.name "Braintrust Bot"
+          git config --global user.email "braintrust-bot@users.noreply.github.com"
+
+      - name: Validate semver version
+        run: |
+          VERSION="${{ github.event.inputs.version }}"
+
+          # Check if version matches semver pattern (x.y.z with optional pre-release and build metadata)
+          if [[ ! $VERSION =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?(\+[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?$ ]]; then
+            echo "❌ Error: Version '$VERSION' is not a valid semver format"
+            echo "Expected format: x.y.z[-prerelease][+build] (e.g., 1.2.3, 1.2.3-alpha.1, 1.2.3+build.1)"
+            exit 1
+          fi
+
+          # Check if version already exists
+          if git tag | grep -q "^$VERSION$"; then
+            echo "❌ Error: Version $VERSION already exists"
+            echo "Please use a different version number"
+            exit 1
+          fi
+
+      - name: Update Chart.yaml version
+        run: |
+          # Update version in Chart.yaml
+          sed -i "s/^version: .*/version: ${{ github.event.inputs.version }}/" $CHART_PATH/Chart.yaml
+
+          # Commit and push the version update
+          git add $CHART_PATH/Chart.yaml
+          git commit -m "chore: bump version to ${{ github.event.inputs.version }}"
+          git push origin main
+
+      - name: Create GitHub Release
+        run: |
+          gh release create ${{ github.event.inputs.version }} \
+            --draft \
+            --title "${{ github.event.inputs.version }}" \
+            --generate-notes
+        env:
+          GH_TOKEN: ${{ steps.bot-token.outputs.token }}
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - name: Login to Amazon ECR Public
+        id: login-ecr-public
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Package Helm chart
+        run: |
+          helm package $CHART_PATH
+          mv $CHART_NAME-${{ github.event.inputs.version }}.tgz $CHART_NAME.tgz
+
+      - name: Push chart to ECR Public
+        id: push-chart
+        run: |
+          # Push the chart to ECR Public
+          helm push $CHART_NAME.tgz oci://$ECR_REGISTRY
+
+          echo "Chart successfully published to ECR Public!"
+          echo "Repository: oci://$ECR_REGISTRY"
+          echo "Version: ${{ github.event.inputs.version }}"
+
+          # Store chart URL for release notes
+          echo "chart_url=oci://$ECR_REGISTRY" >> $GITHUB_OUTPUT
+
+      - name: Update Release with Chart Link
+        run: |
+          # Get the current release notes
+          gh release view ${{ github.event.inputs.version }} --json body --jq .body > current_notes.md
+
+          # Add chart information to release notes
+          cat >> current_notes.md << EOF
+
+          ## 📦 Helm Chart
+          This release includes the Helm chart available at:
+          \`\`\`
+          oci://${{ steps.push-chart.outputs.chart_url }}
+          \`\`\`
+
+          ### Installation
+          \`\`\`bash
+          helm install braintrust oci://${{ steps.push-chart.outputs.chart_url }} --version ${{ github.event.inputs.version }}
+          \`\`\`
+          EOF
+
+          # Update the release with new notes
+          gh release edit ${{ github.event.inputs.version }} --notes-file current_notes.md --draft=false
+        env:
+          GH_TOKEN: ${{ steps.bot-token.outputs.token }}
