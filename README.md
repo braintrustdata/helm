@@ -1,0 +1,23 @@
+# Braintrust Helm Repository
+
+This repository contains the official Helm chart for deploying Braintrust's self-hosted data plane services to Kubernetes.
+
+## Quick Start
+
+### Install from OCI Registry
+
+```bash
+helm install braintrust oci://public.ecr.aws/braintrustdata/helm-braintrust-data-plane
+```
+
+To install a specific version:
+
+```bash
+helm install braintrust oci://public.ecr.aws/braintrustdata/helm-braintrust-data-plane --version 1.2.3
+```
+
+## Prerequisites
+
+Before installing the Braintrust Helm chart, ensure you have run the braintrust terraform module to deploy the base infrastructure.
+
+See the [Braintrust Helm Chart](./braintrust/README.md) for more details.
