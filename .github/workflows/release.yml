@@ -10,7 +10,8 @@ on:
 
 env:
   CHART_PATH: ./braintrust
-  ECR_REGISTRY: public.ecr.aws/braintrustdata/helm-braintrust-data-plane
+  # Note: The Chart name is appended automatically by helm to the registry path
+  ECR_REGISTRY: public.ecr.aws/braintrust/helm
   CHART_NAME: braintrust
 
 jobs:
@@ -39,6 +40,18 @@ jobs:
           git config --global user.name "Braintrust Bot"
           git config --global user.email "braintrust-bot@users.noreply.github.com"
 
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - name: Login to Amazon ECR Public
+        id: login-ecr-public
+        uses: aws-actions/amazon-ecr-login@v2
+        with:
+          registry-type: public
+
       - name: Validate semver version
         run: |
           VERSION="${{ github.event.inputs.version }}"
@@ -59,6 +72,10 @@ jobs:
 
       - name: Update Chart.yaml version
         run: |
+          # Fetch main branch and switch to it
+          git fetch origin main
+          git checkout main
+
           # Update version in Chart.yaml
           sed -i "s/^version: .*/version: ${{ github.event.inputs.version }}/" $CHART_PATH/Chart.yaml
 
@@ -76,16 +93,6 @@ jobs:
         env:
           GH_TOKEN: ${{ steps.bot-token.outputs.token }}
 
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: us-east-1
-
-      - name: Login to Amazon ECR Public
-        id: login-ecr-public
-        uses: aws-actions/amazon-ecr-login@v2
-
       - name: Package Helm chart
         run: |
           helm package $CHART_PATH
@@ -97,12 +104,16 @@ jobs:
           # Push the chart to ECR Public
           helm push $CHART_NAME.tgz oci://$ECR_REGISTRY
 
-          echo "Chart successfully published to ECR Public!"
-          echo "Repository: oci://$ECR_REGISTRY"
-          echo "Version: ${{ github.event.inputs.version }}"
-
           # Store chart URL for release notes
           echo "chart_url=oci://$ECR_REGISTRY" >> $GITHUB_OUTPUT
+
+          # Create job summary
+          cat >> $GITHUB_STEP_SUMMARY << EOF
+          ## 📦 Chart Details
+          - **Chart Name**: ${{ env.CHART_NAME }}
+          - **Version**: ${{ github.event.inputs.version }}
+          - **Chart URL**: \`oci://${{ env.ECR_REGISTRY }}\`
+          EOF
 
       - name: Update Release with Chart Link
         run: |
@@ -113,14 +124,14 @@ jobs:
           cat >> current_notes.md << EOF
 
           ## 📦 Helm Chart
-          This release includes the Helm chart available at:
-          \`\`\`
-          oci://${{ steps.push-chart.outputs.chart_url }}
-          \`\`\`
+          - **Chart Name**: ${{ env.CHART_NAME }}
+          - **Version**: ${{ github.event.inputs.version }}
+          - **Chart URL**: \`oci://${{ env.ECR_REGISTRY }}\`
 
           ### Installation
           \`\`\`bash
-          helm install braintrust oci://${{ steps.push-chart.outputs.chart_url }} --version ${{ github.event.inputs.version }}
+
+          helm install braintrust oci://${{ steps.push-chart.outputs.chart_url }}/${{ env.CHART_NAME }} --version ${{ github.event.inputs.version }}
           \`\`\`
           EOF
 
