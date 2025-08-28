@@ -71,6 +71,9 @@ jobs:
 
       - name: Update Chart.yaml version
         run: |
+          # Switch to main branch
+          git checkout main
+
           # Update version in Chart.yaml
           sed -i "s/^version: .*/version: ${{ github.event.inputs.version }}/" $CHART_PATH/Chart.yaml
 
