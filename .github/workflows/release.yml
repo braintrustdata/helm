@@ -131,7 +131,7 @@ jobs:
           ### Installation
           \`\`\`bash
 
-          helm install braintrust oci://${{ steps.push-chart.outputs.chart_url }} --version ${{ github.event.inputs.version }}
+          helm install braintrust oci://${{ steps.push-chart.outputs.chart_url }}/${{ env.CHART_NAME }} --version ${{ github.event.inputs.version }}
           \`\`\`
           EOF
 
