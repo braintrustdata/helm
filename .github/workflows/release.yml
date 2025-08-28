@@ -124,9 +124,14 @@ jobs:
           cat >> current_notes.md << EOF
 
           ## 📦 Helm Chart
-          This release includes the Helm chart available at:
-          \`\`\`
-          oci://${{ steps.push-chart.outputs.chart_url }}
+          - **Chart Name**: ${{ env.CHART_NAME }}
+          - **Version**: ${{ github.event.inputs.version }}
+          - **Chart URL**: \`oci://${{ env.ECR_REGISTRY }}\`
+
+          ### Installation
+          \`\`\`bash
+
+          helm install braintrust oci://${{ steps.push-chart.outputs.chart_url }} --version ${{ github.event.inputs.version }}
           \`\`\`
           EOF
 
