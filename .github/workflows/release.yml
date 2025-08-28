@@ -10,7 +10,8 @@ on:
 
 env:
   CHART_PATH: ./braintrust
-  ECR_REGISTRY: public.ecr.aws/braintrust/helm-braintrust-data-plane
+  # Note: The Chart name is appended automatically by helm to the registry path
+  ECR_REGISTRY: public.ecr.aws/braintrust/helm
   CHART_NAME: braintrust
 
 jobs:
