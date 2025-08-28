@@ -10,7 +10,7 @@ on:
 
 env:
   CHART_PATH: ./braintrust
-  ECR_REGISTRY: public.ecr.aws/braintrustdata/helm-braintrust-data-plane
+  ECR_REGISTRY: public.ecr.aws/braintrust/helm-braintrust-data-plane
   CHART_NAME: braintrust
 
 jobs:
