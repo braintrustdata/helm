@@ -51,6 +51,11 @@ jobs:
         with:
           registry-type: public
 
+      - name: Install Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: latest
+
       - name: Validate semver version
         run: |
           VERSION="${{ github.event.inputs.version }}"
