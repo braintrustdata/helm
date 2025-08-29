@@ -66,6 +66,18 @@ spec:
                   name: braintrust-secrets
                   key: AZURE_STORAGE_CONNECTION_STRING
             {{- end }}
+            {{- if eq .Values.cloud "google" }}
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: braintrust-secrets
+                  key: GCS_ACCESS_KEY_ID
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: braintrust-secrets
+                  key: GCS_SECRET_ACCESS_KEY
+            {{- end }}
             {{- if .Values.api.extraEnvVars }}
             {{- toYaml .Values.api.extraEnvVars | nindent 12 }}
             {{- end }}

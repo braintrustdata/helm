@@ -26,8 +26,11 @@ data:
   # with AWS and avoids confusion with env vars.
   BRAINSTORE_INDEX_URI: "az://{{ .Values.objectStorage.azure.brainstoreContainer }}/brainstore/index"
   BRAINSTORE_REALTIME_WAL_URI: "az://{{ .Values.objectStorage.azure.brainstoreContainer }}/brainstore/wal"
-  {{- else }}
+  {{- else if eq .Values.cloud "aws" }}
   BRAINSTORE_INDEX_URI: "s3://{{ .Values.objectStorage.aws.brainstoreBucket }}/brainstore/index"
   BRAINSTORE_REALTIME_WAL_URI: "s3://{{ .Values.objectStorage.aws.brainstoreBucket }}/brainstore/wal"
+  {{- else if eq .Values.cloud "google" }}
+  BRAINSTORE_INDEX_URI: "gs://{{ .Values.objectStorage.google.brainstoreBucket }}/brainstore/index"
+  BRAINSTORE_REALTIME_WAL_URI: "gs://{{ .Values.objectStorage.google.brainstoreBucket }}/brainstore/wal"
   {{- end }}
   NO_COLOR: "1"

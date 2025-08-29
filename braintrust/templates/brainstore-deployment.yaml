@@ -23,10 +23,16 @@ spec:
         {{- if eq .Values.cloud "azure" }}
         azure.workload.identity/use: "true"
         {{- end }}
+        {{- if eq .Values.cloud "google" }}
+        gke-workload-identity/use: "true"
+        {{- end }}
         {{- with (merge .Values.global.labels .Values.brainstore.labels) }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
       annotations:
+        {{- if eq .Values.cloud "google" }}
+        iam.gke.io/gcp-service-account: {{ .Values.brainstore.serviceAccount.googleServiceAccount }}
+        {{- end }}
         {{- with .Values.brainstore.annotations.pod }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
