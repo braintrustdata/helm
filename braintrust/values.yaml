@@ -44,7 +44,7 @@ api:
   replicas: 2
   image:
     repository: public.ecr.aws/braintrust/standalone-api
-    tag: latest
+    tag: v1.1.21
     pullPolicy: Always
   service:
     # Optional name for service object. If not specified (empty), the api.name
@@ -92,7 +92,7 @@ brainstore:
   replicas: 2
   image:
     repository: public.ecr.aws/braintrust/brainstore
-    tag: latest
+    tag: v1.1.21
     pullPolicy: Always
   service:
     # Optional name for service object. If not specified (empty), the
