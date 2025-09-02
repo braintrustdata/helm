@@ -42,7 +42,7 @@ jobs:
       - name: Configure Git
         run: |
           git config --global user.name "Braintrust Bot"
-          git config --global user.email "braintrust-bot@users.noreply.github.com"
+          git config --global user.email "215900051+braintrust-bot[bot]@users.noreply.github.com"
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -76,8 +76,6 @@ jobs:
 
       - name: Update versions
         run: |
-          git config --global user.name "Braintrust Bot"
-          git config --global user.email "215900051+braintrust-bot[bot]@users.noreply.github.com"
           git fetch origin main
           git checkout main
 
