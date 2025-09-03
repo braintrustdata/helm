@@ -3,7 +3,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: {{ .Values.api.name }}
-  namespace: {{ .Values.global.namespace }}
+  namespace: {{ include "braintrust.namespace" . }}
   {{- with (merge .Values.global.labels .Values.api.labels) }}
   labels:
     {{- toYaml . | nindent 4 }}

@@ -1,7 +1,9 @@
 # Global configs
 global:
   orgName: "<your org name on Braintrust>"
-  createNamespace: true
+  # When createNamespace is true, the namespace will be created and resources will be in global.namespace
+  # When createNamespace is false, resources will use .Release.Namespace (the namespace specified during helm install/upgrade)
+  createNamespace: false
   namespace: "braintrust"
   namespaceAnnotations: {}
   labels: {}
