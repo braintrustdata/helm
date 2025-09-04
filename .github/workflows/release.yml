@@ -4,11 +4,11 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Semver version number (e.g., 1.2.3, 1.2.3-alpha.1)'
+        description: 'Semver version number (e.g., 1.2.3, 1.2.3-prerelease)'
         required: true
         type: string
       services_version:
-        description: 'Lock onto Braintrust services version (e.g., v1.2.3). Optional.'
+        description: 'Lock onto Braintrust services version (e.g., 1.2.3)'
         required: false
         type: string
 
@@ -56,22 +56,45 @@ jobs:
         with:
           registry-type: public
 
-      - name: Validate semver version
+      - name: Validate and fixup Helm version
         run: |
-          VERSION="${{ github.event.inputs.version }}"
+          INPUT_VERSION="${{ github.event.inputs.version }}"
+
+          # Strip v prefix if present for helm chart version
+          if [[ $INPUT_VERSION == v* ]]; then
+            VERSION="${INPUT_VERSION#v}"
+            echo "ℹ️  Stripped 'v' prefix from version: $INPUT_VERSION -> $VERSION"
+          else
+            VERSION="$INPUT_VERSION"
+          fi
 
           # Check if version matches semver pattern (x.y.z with optional pre-release and build metadata)
           if [[ ! $VERSION =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?(\+[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?$ ]]; then
-            echo "❌ Error: Version '$VERSION' is not a valid semver format"
-            echo "Expected format: x.y.z[-prerelease][+build] (e.g., 1.2.3, 1.2.3-alpha.1, 1.2.3+build.1)"
+            echo "❌ Error: Version '$INPUT_VERSION' is not a valid semver format"
+            echo "Expected format: x.y.z[-prerelease][+build] (e.g., 1.2.3, v1.2.3, 1.2.3-alpha.1)"
             exit 1
           fi
 
-          # Check if version already exists
           if git tag | grep -q "^$VERSION$"; then
             echo "❌ Error: Version $VERSION already exists"
             echo "Please use a different version number"
             exit 1
+          fi
+
+          # Store the cleaned version for later use
+          echo "CHART_VERSION=$VERSION" >> $GITHUB_ENV
+
+      - name: Validate and fixup services version
+        run: |
+          if [ "${{ inputs.services_version }}" != "" ]; then
+            INPUT_SERVICES_VERSION="${{ inputs.services_version }}"
+            if [[ $INPUT_SERVICES_VERSION == v* ]]; then
+              SERVICES_VERSION="$INPUT_SERVICES_VERSION"
+            else
+              SERVICES_VERSION="v$INPUT_SERVICES_VERSION"
+              echo "ℹ️  Added 'v' prefix to services version: ${{ inputs.services_version }} -> $SERVICES_VERSION"
+            fi
+            echo "SERVICES_VERSION=$SERVICES_VERSION" >> $GITHUB_ENV
           fi
 
       - name: Update versions
@@ -80,21 +103,21 @@ jobs:
           git checkout main
 
           # Update services versions if provided
-          if [ "${{ inputs.services_version }}" != "" ]; then
-            ./lock_versions ${{ inputs.services_version }}
+          if [ "$SERVICES_VERSION" != "" ]; then
+            ./lock_versions $SERVICES_VERSION
             git add .
             if ! git diff --staged --quiet; then
-              git commit -m "Update Braintrust Services versions to ${{ inputs.services_version }}"
+              git commit -m "Update Braintrust Services versions to $SERVICES_VERSION"
             else
               echo "No changes to commit for services version update"
             fi
           fi
 
           # Update Chart version
-          sed -i "s/^version: .*/version: ${{ github.event.inputs.version }}/" $CHART_PATH/Chart.yaml
+          sed -i "s/^version: .*/version: $CHART_VERSION/" $CHART_PATH/Chart.yaml
           git add $CHART_PATH/Chart.yaml
           if ! git diff --staged --quiet; then
-            git commit -m "Update Chart version to ${{ github.event.inputs.version }}"
+            git commit -m "Update Chart version to $CHART_VERSION"
           else
             echo "No changes to commit for Chart version update"
           fi
@@ -103,9 +126,9 @@ jobs:
 
       - name: Create GitHub Release
         run: |
-          gh release create ${{ github.event.inputs.version }} \
+          gh release create $CHART_VERSION \
             --draft \
-            --title "${{ github.event.inputs.version }}" \
+            --title "$CHART_VERSION" \
             --generate-notes
         env:
           GH_TOKEN: ${{ steps.bot-token.outputs.token }}
@@ -113,7 +136,7 @@ jobs:
       - name: Package Helm chart
         run: |
           helm package $CHART_PATH
-          mv $CHART_NAME-${{ github.event.inputs.version }}.tgz $CHART_NAME.tgz
+          mv $CHART_NAME-$CHART_VERSION.tgz $CHART_NAME.tgz
 
       - name: Push chart to ECR Public
         id: push-chart
@@ -128,21 +151,21 @@ jobs:
           cat >> $GITHUB_STEP_SUMMARY << EOF
           ## 📦 Chart Details
           - **Chart Name**: ${{ env.CHART_NAME }}
-          - **Version**: ${{ github.event.inputs.version }}
+          - **Version**: $CHART_VERSION
           - **Chart URL**: \`oci://${{ env.ECR_REGISTRY }}\`
           EOF
 
       - name: Update Release with Chart Link
         run: |
           # Get the current release notes
-          gh release view ${{ github.event.inputs.version }} --json body --jq .body > current_notes.md
+          gh release view $CHART_VERSION --json body --jq .body > current_notes.md
 
           # Add Braintrust Services version information if provided
-          if [ "${{ inputs.services_version }}" != "" ]; then
+          if [ "$SERVICES_VERSION" != "" ]; then
             cat >> current_notes.md << EOF
 
           ## 🔧 Braintrust Services
-          * Updated Braintrust Services to \`${{ inputs.services_version }}\`
+          * Updated Braintrust Services to \`$SERVICES_VERSION\`
           EOF
           fi
 
@@ -151,17 +174,17 @@ jobs:
 
           ## 📦 Helm Chart
           - **Chart Name**: ${{ env.CHART_NAME }}
-          - **Version**: ${{ github.event.inputs.version }}
+          - **Version**: $CHART_VERSION
           - **Chart URL**: \`oci://${{ env.ECR_REGISTRY }}\`
 
           ### Installation
           \`\`\`bash
 
-          helm install braintrust oci://${{ steps.push-chart.outputs.chart_url }}/${{ env.CHART_NAME }} --version ${{ github.event.inputs.version }}
+          helm install braintrust oci://${{ steps.push-chart.outputs.chart_url }}/${{ env.CHART_NAME }} --version $CHART_VERSION
           \`\`\`
           EOF
 
           # Update the release with new notes
-          gh release edit ${{ github.event.inputs.version }} --notes-file current_notes.md --draft=false
+          gh release edit $CHART_VERSION --notes-file current_notes.md --draft=false
         env:
           GH_TOKEN: ${{ steps.bot-token.outputs.token }}
