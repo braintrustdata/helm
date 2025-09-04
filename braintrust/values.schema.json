@@ -1,0 +1,1069 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "title": "Braintrust Helm Chart Values Schema",
+  "description": "Schema for configuring the Braintrust self-hosted data plane Helm chart",
+  "properties": {
+    "global": {
+      "type": "object",
+      "description": "Global configuration settings",
+      "properties": {
+        "orgName": {
+          "type": "string",
+          "description": "Your organization name on Braintrust",
+          "examples": ["my-company"]
+        },
+        "createNamespace": {
+          "type": "boolean",
+          "description": "Whether to create the Kubernetes namespace",
+          "default": true
+        },
+        "namespace": {
+          "type": "string",
+          "description": "Kubernetes namespace to deploy resources into",
+          "default": "braintrust"
+        },
+        "namespaceAnnotations": {
+          "type": "object",
+          "description": "Annotations to add to the namespace",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "labels": {
+          "type": "object",
+          "description": "Common labels to apply to all resources",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "revisionHistoryLimit": {
+          "type": "integer",
+          "description": "Number of old ReplicaSets to retain for rollback",
+          "minimum": 0,
+          "default": 10
+        },
+        "pdb": {
+          "type": "object",
+          "description": "Global PodDisruptionBudget default configuration",
+          "properties": {
+            "minAvailable": {
+              "oneOf": [
+                {"type": "integer", "minimum": 0},
+                {"type": "string", "pattern": "^[0-9]+%$"}
+              ],
+              "description": "Minimum number of available pods (can be an absolute number or percentage)",
+              "default": 1
+            }
+          }
+        }
+      },
+      "required": ["orgName"]
+    },
+    "cloud": {
+      "type": "string",
+      "description": "Cloud provider configuration",
+      "enum": ["google", "azure", "aws"],
+      "default": "google"
+    },
+    "objectStorage": {
+      "type": "object",
+      "description": "Object storage configuration for different cloud providers",
+      "properties": {
+        "azure": {
+          "type": "object",
+          "description": "Azure-specific storage configuration",
+          "properties": {
+            "storageAccountName": {
+              "type": "string",
+              "description": "Azure storage account name (from terraform module)"
+            },
+            "brainstoreContainer": {
+              "type": "string",
+              "description": "Container name for brainstore data",
+              "default": "brainstore"
+            },
+            "responseContainer": {
+              "type": "string",
+              "description": "Container name for response data",
+              "default": "responses"
+            },
+            "codeBundleContainer": {
+              "type": "string",
+              "description": "Container name for code bundles",
+              "default": "code-bundles"
+            }
+          }
+        },
+        "aws": {
+          "type": "object",
+          "description": "AWS-specific storage configuration",
+          "properties": {
+            "brainstoreBucket": {
+              "type": "string",
+              "description": "S3 bucket name for brainstore data (from terraform module)"
+            },
+            "responseBucket": {
+              "type": "string",
+              "description": "S3 bucket name for response data (from terraform module)"
+            },
+            "codeBundleBucket": {
+              "type": "string",
+              "description": "S3 bucket name for code bundles (from terraform module)"
+            }
+          }
+        },
+        "google": {
+          "type": "object",
+          "description": "Google Cloud-specific storage configuration",
+          "properties": {
+            "brainstoreBucket": {
+              "type": "string",
+              "description": "GCS bucket name for brainstore data (from terraform module)"
+            },
+            "apiBucket": {
+              "type": "string",
+              "description": "Single GCS bucket with paths for responses and code bundles (from terraform module)"
+            }
+          }
+        }
+      }
+    },
+    "api": {
+      "type": "object",
+      "description": "Braintrust API service configuration",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Name of the API service",
+          "default": "braintrust-api"
+        },
+        "labels": {
+          "type": "object",
+          "description": "Additional labels for API resources",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "annotations": {
+          "type": "object",
+          "description": "Annotations for different API resource types",
+          "properties": {
+            "configmap": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            },
+            "deployment": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            },
+            "service": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            },
+            "pod": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            },
+            "serviceaccount": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "replicas": {
+          "type": "integer",
+          "description": "Number of API replicas",
+          "minimum": 1,
+          "default": 2
+        },
+        "image": {
+          "type": "object",
+          "description": "Container image configuration",
+          "properties": {
+            "repository": {
+              "type": "string",
+              "description": "Container image repository",
+              "default": "public.ecr.aws/braintrust/standalone-api"
+            },
+            "tag": {
+              "type": "string",
+              "description": "Container image tag",
+              "default": "v1.1.21"
+            },
+            "pullPolicy": {
+              "type": "string",
+              "description": "Image pull policy",
+              "enum": ["Always", "IfNotPresent", "Never"],
+              "default": "IfNotPresent"
+            }
+          },
+          "required": ["repository", "tag"]
+        },
+        "service": {
+          "type": "object",
+          "description": "Kubernetes service configuration",
+          "properties": {
+            "name": {
+              "type": "string",
+              "description": "Optional name for service object. If not specified, api.name is used"
+            },
+            "type": {
+              "type": "string",
+              "description": "Kubernetes service type",
+              "enum": ["ClusterIP", "NodePort", "LoadBalancer", "ExternalName"],
+              "default": "ClusterIP"
+            },
+            "port": {
+              "type": "integer",
+              "description": "Service port",
+              "minimum": 1,
+              "maximum": 65535,
+              "default": 8000
+            },
+            "portName": {
+              "type": "string",
+              "description": "Name for the service port",
+              "default": "http"
+            }
+          }
+        },
+        "serviceAccount": {
+          "type": "object",
+          "description": "ServiceAccount configuration",
+          "properties": {
+            "name": {
+              "type": "string",
+              "description": "ServiceAccount name",
+              "default": "braintrust-api"
+            },
+            "awsRoleArn": {
+              "type": "string",
+              "description": "AWS IAM role ARN for IRSA"
+            },
+            "azureClientId": {
+              "type": "string",
+              "description": "Azure client ID for workload identity"
+            }
+          },
+          "required": ["name"]
+        },
+        "resources": {
+          "type": "object",
+          "description": "Resource requests and limits",
+          "properties": {
+            "requests": {
+              "type": "object",
+              "properties": {
+                "cpu": {
+                  "type": "string",
+                  "description": "CPU request",
+                  "default": "2"
+                },
+                "memory": {
+                  "type": "string",
+                  "description": "Memory request",
+                  "default": "4Gi"
+                }
+              }
+            },
+            "limits": {
+              "type": "object",
+              "properties": {
+                "cpu": {
+                  "type": "string",
+                  "description": "CPU limit",
+                  "default": "4"
+                },
+                "memory": {
+                  "type": "string",
+                  "description": "Memory limit",
+                  "default": "8Gi"
+                }
+              }
+            }
+          }
+        },
+        "allowCodeFunctionExecution": {
+          "type": "boolean",
+          "description": "Allow running user generated code functions (e.g. scorers/tools)",
+          "default": true
+        },
+        "enableHistoricalFullBackfill": {
+          "type": "boolean",
+          "description": "Enable historical full backfill",
+          "default": true
+        },
+        "backfillNewObjects": {
+          "type": "boolean",
+          "description": "Enable backfill for new objects",
+          "default": true
+        },
+        "backfillDisableHistorical": {
+          "type": "boolean",
+          "description": "Disable historical backfill",
+          "default": false
+        },
+        "backfillDisableNonhistorical": {
+          "type": "boolean",
+          "description": "Disable non-historical backfill",
+          "default": false
+        },
+        "extraEnvVars": {
+          "type": "array",
+          "description": "Additional environment variables",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "value": {
+                "type": "string"
+              }
+            },
+            "required": ["name", "value"]
+          }
+        },
+        "extraEnvFrom": {
+          "type": "array",
+          "description": "Additional environment variable sources (ConfigMaps, Secrets)",
+          "items": {
+            "type": "object",
+            "properties": {
+              "configMapRef": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "optional": {
+                    "type": "boolean"
+                  }
+                },
+                "required": ["name"]
+              },
+              "secretRef": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "optional": {
+                    "type": "boolean"
+                  }
+                },
+                "required": ["name"]
+              }
+            }
+          }
+        },
+        "nodeSelector": {
+          "type": "object",
+          "description": "Node selector for pod scheduling",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "affinity": {
+          "type": "object",
+          "description": "Pod affinity rules"
+        },
+        "tolerations": {
+          "type": "array",
+          "description": "Pod tolerations",
+          "items": {
+            "type": "object"
+          }
+        },
+        "topologySpreadConstraints": {
+          "type": "array",
+          "description": "Topology spread constraints",
+          "items": {
+            "type": "object"
+          }
+        },
+        "livenessProbe": {
+          "type": "object",
+          "description": "Liveness probe configuration",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "default": false
+            },
+            "httpGet": {
+              "type": "object",
+              "properties": {
+                "path": {
+                  "type": "string",
+                  "default": "/v1"
+                },
+                "port": {
+                  "type": "integer",
+                  "default": 8000
+                }
+              }
+            },
+            "initialDelaySeconds": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 30
+            },
+            "periodSeconds": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 10
+            },
+            "timeoutSeconds": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 5
+            },
+            "failureThreshold": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 3
+            }
+          }
+        },
+        "readinessProbe": {
+          "type": "object",
+          "description": "Readiness probe configuration",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "default": false
+            },
+            "httpGet": {
+              "type": "object",
+              "properties": {
+                "path": {
+                  "type": "string",
+                  "default": "/v1"
+                },
+                "port": {
+                  "type": "integer",
+                  "default": 8000
+                }
+              }
+            },
+            "initialDelaySeconds": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 5
+            },
+            "periodSeconds": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 5
+            },
+            "timeoutSeconds": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 3
+            },
+            "failureThreshold": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 3
+            }
+          }
+        },
+        "autoscaling": {
+          "type": "object",
+          "description": "Horizontal Pod Autoscaler configuration",
+          "properties": {
+            "hpaEnabled": {
+              "type": "boolean",
+              "description": "Enable HPA",
+              "default": false
+            },
+            "minReplicas": {
+              "type": "integer",
+              "description": "Minimum number of replicas",
+              "minimum": 1,
+              "default": 2
+            },
+            "maxReplicas": {
+              "type": "integer",
+              "description": "Maximum number of replicas",
+              "minimum": 1,
+              "default": 10
+            },
+            "stabilizationWindowSeconds": {
+              "type": "integer",
+              "description": "Stabilization window in seconds",
+              "minimum": 0,
+              "default": 300
+            },
+            "targetCPUUtilizationPercentage": {
+              "type": "integer",
+              "description": "Target CPU utilization percentage",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 70
+            },
+            "targetMemoryUtilizationPercentage": {
+              "type": "integer",
+              "description": "Target memory utilization percentage",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 80
+            }
+          }
+        },
+        "pdb": {
+          "type": "object",
+          "description": "PodDisruptionBudget configuration",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "description": "Enable PodDisruptionBudget",
+              "default": true
+            },
+            "minAvailable": {
+              "oneOf": [
+                {"type": "integer", "minimum": 0},
+                {"type": "string", "pattern": "^[0-9]+%$"}
+              ],
+              "description": "Minimum number of available pods (can be an absolute number or percentage)"
+            },
+            "maxUnavailable": {
+              "oneOf": [
+                {"type": "integer", "minimum": 0},
+                {"type": "string", "pattern": "^[0-9]+%$"}
+              ],
+              "description": "Maximum number of unavailable pods (can be an absolute number or percentage)"
+            },
+            "annotations": {
+              "type": "object",
+              "description": "Annotations to add to the PodDisruptionBudget",
+              "additionalProperties": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "required": ["name"]
+    },
+    "brainstore": {
+      "type": "object",
+      "description": "Brainstore service configuration",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Enable brainstore service",
+          "default": true
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the brainstore service",
+          "default": "brainstore"
+        },
+        "labels": {
+          "type": "object",
+          "description": "Additional labels for brainstore resources",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "annotations": {
+          "type": "object",
+          "description": "Annotations for different brainstore resource types",
+          "properties": {
+            "configmap": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            },
+            "deployment": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            },
+            "service": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            },
+            "pod": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            },
+            "serviceaccount": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "replicas": {
+          "type": "integer",
+          "description": "Number of brainstore replicas",
+          "minimum": 1,
+          "default": 2
+        },
+        "image": {
+          "type": "object",
+          "description": "Container image configuration",
+          "properties": {
+            "repository": {
+              "type": "string",
+              "description": "Container image repository",
+              "default": "public.ecr.aws/braintrust/brainstore"
+            },
+            "tag": {
+              "type": "string",
+              "description": "Container image tag",
+              "default": "v1.1.21"
+            },
+            "pullPolicy": {
+              "type": "string",
+              "description": "Image pull policy",
+              "enum": ["Always", "IfNotPresent", "Never"],
+              "default": "IfNotPresent"
+            }
+          },
+          "required": ["repository", "tag"]
+        },
+        "service": {
+          "type": "object",
+          "description": "Kubernetes service configuration",
+          "properties": {
+            "name": {
+              "type": "string",
+              "description": "Optional name for service object. If not specified, brainstore.name is used"
+            },
+            "type": {
+              "type": "string",
+              "description": "Kubernetes service type",
+              "enum": ["ClusterIP", "NodePort", "LoadBalancer", "ExternalName"],
+              "default": "ClusterIP"
+            },
+            "port": {
+              "type": "integer",
+              "description": "Service port",
+              "minimum": 1,
+              "maximum": 65535,
+              "default": 4000
+            },
+            "portName": {
+              "type": "string",
+              "description": "Name for the service port",
+              "default": "http"
+            }
+          }
+        },
+        "serviceAccount": {
+          "type": "object",
+          "description": "ServiceAccount configuration",
+          "properties": {
+            "name": {
+              "type": "string",
+              "description": "ServiceAccount name",
+              "default": "brainstore"
+            },
+            "awsRoleArn": {
+              "type": "string",
+              "description": "AWS IAM role ARN for IRSA"
+            },
+            "azureClientId": {
+              "type": "string",
+              "description": "Azure client ID for workload identity"
+            },
+            "googleServiceAccount": {
+              "type": "string",
+              "description": "Google service account for workload identity"
+            }
+          },
+          "required": ["name"]
+        },
+        "resources": {
+          "type": "object",
+          "description": "Resource requests and limits",
+          "properties": {
+            "requests": {
+              "type": "object",
+              "properties": {
+                "cpu": {
+                  "type": "string",
+                  "description": "CPU request",
+                  "default": "8"
+                },
+                "memory": {
+                  "type": "string",
+                  "description": "Memory request",
+                  "default": "16Gi"
+                }
+              }
+            },
+            "limits": {
+              "type": "object",
+              "properties": {
+                "cpu": {
+                  "type": "string",
+                  "description": "CPU limit",
+                  "default": "16"
+                },
+                "memory": {
+                  "type": "string",
+                  "description": "Memory limit",
+                  "default": "32Gi"
+                }
+              }
+            }
+          }
+        },
+        "cacheDir": {
+          "type": "string",
+          "description": "Cache directory path",
+          "default": "/mnt/tmp/brainstore"
+        },
+        "objectStoreCacheMemoryLimit": {
+          "type": "string",
+          "description": "Memory limit for object store cache",
+          "default": "1Gi"
+        },
+        "objectStoreCacheFileSize": {
+          "type": "string",
+          "description": "File size limit for object store cache",
+          "default": "50Gi"
+        },
+        "verbose": {
+          "type": "boolean",
+          "description": "Enable verbose logging",
+          "default": true
+        },
+        "extraEnvVars": {
+          "type": "array",
+          "description": "Additional environment variables",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "value": {
+                "type": "string"
+              }
+            },
+            "required": ["name", "value"]
+          }
+        },
+        "extraEnvFrom": {
+          "type": "array",
+          "description": "Additional environment variable sources (ConfigMaps, Secrets)",
+          "items": {
+            "type": "object",
+            "properties": {
+              "configMapRef": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "optional": {
+                    "type": "boolean"
+                  }
+                },
+                "required": ["name"]
+              },
+              "secretRef": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "optional": {
+                    "type": "boolean"
+                  }
+                },
+                "required": ["name"]
+              }
+            }
+          }
+        },
+        "nodeSelector": {
+          "type": "object",
+          "description": "Node selector for pod scheduling",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "affinity": {
+          "type": "object",
+          "description": "Pod affinity rules"
+        },
+        "tolerations": {
+          "type": "array",
+          "description": "Pod tolerations",
+          "items": {
+            "type": "object"
+          }
+        },
+        "topologySpreadConstraints": {
+          "type": "array",
+          "description": "Topology spread constraints",
+          "items": {
+            "type": "object"
+          }
+        },
+        "livenessProbe": {
+          "type": "object",
+          "description": "Liveness probe configuration",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "default": false
+            },
+            "httpGet": {
+              "type": "object",
+              "properties": {
+                "path": {
+                  "type": "string",
+                  "default": "/v1"
+                },
+                "port": {
+                  "type": "integer",
+                  "default": 4000
+                }
+              }
+            },
+            "initialDelaySeconds": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 30
+            },
+            "periodSeconds": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 10
+            },
+            "timeoutSeconds": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 5
+            },
+            "failureThreshold": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 3
+            }
+          }
+        },
+        "readinessProbe": {
+          "type": "object",
+          "description": "Readiness probe configuration",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "default": false
+            },
+            "httpGet": {
+              "type": "object",
+              "properties": {
+                "path": {
+                  "type": "string",
+                  "default": "/v1"
+                },
+                "port": {
+                  "type": "integer",
+                  "default": 4000
+                }
+              }
+            },
+            "initialDelaySeconds": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 5
+            },
+            "periodSeconds": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 5
+            },
+            "timeoutSeconds": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 3
+            },
+            "failureThreshold": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 3
+            }
+          }
+        },
+        "autoscaling": {
+          "type": "object",
+          "description": "Horizontal Pod Autoscaler configuration",
+          "properties": {
+            "hpaEnabled": {
+              "type": "boolean",
+              "description": "Enable HPA",
+              "default": false
+            },
+            "minReplicas": {
+              "type": "integer",
+              "description": "Minimum number of replicas",
+              "minimum": 1,
+              "default": 2
+            },
+            "maxReplicas": {
+              "type": "integer",
+              "description": "Maximum number of replicas",
+              "minimum": 1,
+              "default": 10
+            },
+            "stabilizationWindowSeconds": {
+              "type": "integer",
+              "description": "Stabilization window in seconds",
+              "minimum": 0,
+              "default": 300
+            },
+            "targetCPUUtilizationPercentage": {
+              "type": "integer",
+              "description": "Target CPU utilization percentage",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 70
+            },
+            "targetMemoryUtilizationPercentage": {
+              "type": "integer",
+              "description": "Target memory utilization percentage",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 80
+            }
+          }
+        },
+        "pdb": {
+          "type": "object",
+          "description": "PodDisruptionBudget configuration",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "description": "Enable PodDisruptionBudget",
+              "default": true
+            },
+            "minAvailable": {
+              "oneOf": [
+                {"type": "integer", "minimum": 0},
+                {"type": "string", "pattern": "^[0-9]+%$"}
+              ],
+              "description": "Minimum number of available pods (can be an absolute number or percentage)"
+            },
+            "maxUnavailable": {
+              "oneOf": [
+                {"type": "integer", "minimum": 0},
+                {"type": "string", "pattern": "^[0-9]+%$"}
+              ],
+              "description": "Maximum number of unavailable pods (can be an absolute number or percentage)"
+            },
+            "annotations": {
+              "type": "object",
+              "description": "Annotations to add to the PodDisruptionBudget",
+              "additionalProperties": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "required": ["name"]
+    },
+    "azureKeyVaultCSI": {
+      "type": "object",
+      "description": "Azure Key Vault CSI configuration for syncing secrets",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Enable Azure Key Vault CSI secret syncing",
+          "default": false
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of your Azure Key Vault (e.g., '<deployment-name>-kv' with default 'braintrust-kv')",
+          "default": "braintrust-kv"
+        },
+        "clientID": {
+          "type": "string",
+          "description": "Azure client ID for Key Vault access"
+        },
+        "tenantId": {
+          "type": "string",
+          "description": "Azure tenant ID"
+        },
+        "secrets": {
+          "type": "array",
+          "description": "Map Key Vault secret names to Kubernetes secret keys",
+          "items": {
+            "type": "object",
+            "properties": {
+              "keyVaultSecretName": {
+                "type": "string",
+                "description": "Name of the secret in Azure Key Vault"
+              },
+              "keyVaultSecretType": {
+                "type": "string",
+                "description": "Type of the Key Vault secret",
+                "enum": ["secret", "key", "cert"],
+                "default": "secret"
+              },
+              "kubernetesSecretKey": {
+                "type": "string",
+                "description": "Key name in the Kubernetes secret"
+              }
+            },
+            "required": ["keyVaultSecretName", "kubernetesSecretKey"]
+          },
+          "default": [
+            {
+              "keyVaultSecretName": "redis-connection-string",
+              "keyVaultSecretType": "secret",
+              "kubernetesSecretKey": "REDIS_URL"
+            },
+            {
+              "keyVaultSecretName": "postgres-connection-string",
+              "kubernetesSecretKey": "PG_URL",
+              "keyVaultSecretType": "secret"
+            },
+            {
+              "keyVaultSecretName": "brainstore-license-key",
+              "keyVaultSecretType": "secret",
+              "kubernetesSecretKey": "BRAINSTORE_LICENSE_KEY"
+            },
+            {
+              "keyVaultSecretName": "function-secret-key",
+              "keyVaultSecretType": "secret",
+              "kubernetesSecretKey": "FUNCTION_SECRET_KEY"
+            },
+            {
+              "keyVaultSecretName": "azure-storage-connection-string",
+              "keyVaultSecretType": "secret",
+              "kubernetesSecretKey": "AZURE_STORAGE_CONNECTION_STRING"
+            }
+          ]
+        }
+      }
+    }
+  },
+  "required": ["global", "cloud"]
+}

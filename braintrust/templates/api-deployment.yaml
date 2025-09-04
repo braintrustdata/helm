@@ -3,16 +3,17 @@ kind: Deployment
 metadata:
   name: {{ .Values.api.name }}
   namespace: {{ .Values.global.namespace }}
-  {{- with (merge .Values.global.labels .Values.api.labels) }}
   labels:
-    {{- toYaml . | nindent 4 }}
-  {{- end }}
+    {{- include "apps.service-labels" (dict "context" . "service" .Values.api) | nindent 4 }}
   {{- with .Values.api.annotations.deployment }}
   annotations:
     {{- toYaml . | nindent 4 }}
   {{- end }}
 spec:
+  revisionHistoryLimit: {{ .Values.global.revisionHistoryLimit }}
+  {{- if not .Values.api.autoscaling.hpaEnabled }}
   replicas: {{ .Values.api.replicas }}
+  {{- end }}
   selector:
     matchLabels:
       app: {{ .Values.api.name }}
@@ -23,9 +24,7 @@ spec:
         {{- if eq .Values.cloud "azure" }}
         azure.workload.identity/use: "true"
         {{- end }}
-        {{- with (merge .Values.global.labels .Values.api.labels) }}
-        {{- toYaml . | nindent 8 }}
-        {{- end }}
+        {{- include "apps.service-labels" (dict "context" . "service" .Values.api) | nindent 8 }}
       annotations:
         {{- with .Values.api.annotations.pod }}
         {{- toYaml . | nindent 8 }}
@@ -40,9 +39,20 @@ spec:
             - containerPort: {{ .Values.api.service.port }}
           resources:
             {{- toYaml .Values.api.resources | nindent 12 }}
+          {{- if .Values.api.livenessProbe.enabled }}
+          livenessProbe:
+            {{- toYaml (omit .Values.api.livenessProbe "enabled") | nindent 12 }}
+          {{- end }}
+          {{- if .Values.api.readinessProbe.enabled }}
+          readinessProbe:
+            {{- toYaml (omit .Values.api.readinessProbe "enabled") | nindent 12 }}
+          {{- end }}
           envFrom:
             - configMapRef:
                 name: {{ .Values.api.name }}
+            {{- if .Values.api.extraEnvFrom }}
+            {{- toYaml .Values.api.extraEnvFrom | nindent 12 }}
+            {{- end }}
           env:
             - name: PG_URL
               valueFrom:
@@ -87,6 +97,22 @@ spec:
               mountPath: "/mnt/secrets-store"
               readOnly: true
           {{- end }}
+      {{- with .Values.api.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.api.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.api.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.api.topologySpreadConstraints }}
+      topologySpreadConstraints:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       {{- if .Values.azureKeyVaultCSI.enabled }}
       volumes:
         - name: secrets-store-inline

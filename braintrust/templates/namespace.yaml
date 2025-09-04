@@ -5,9 +5,7 @@ metadata:
   name: {{ .Values.global.namespace }}
   labels:
     name: {{ .Values.global.namespace }}
-    {{- with .Values.global.labels }}
-    {{- toYaml . | nindent 4 }}
-    {{- end }}
+    {{- include "apps.labels" . | nindent 4 }}
   annotations:
     {{- if eq .Values.cloud "azure" }}
     azure.workload.identity/use: "true"

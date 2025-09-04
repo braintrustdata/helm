@@ -1,0 +1,7 @@
+*.log
+**/*.tgz
+**/charts/*/charts
+
+output.yaml
+.DS_Store
+Chart.lock

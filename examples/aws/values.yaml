@@ -1,0 +1,86 @@
+# Global configs
+global:
+  orgName: "my-org-name"
+  createNamespace: false
+  labels:
+    environment: "preprod"
+  pdb:
+    minAvailable: "50%"
+braintrust:
+  cloud: "aws"
+  objectStorage:
+    aws:
+      brainstoreBucket: "preprod-my-company-braintrust-brainstore"
+      responseBucket: "preprod-my-company-braintrust-response"
+      codeBundleBucket: "preprod-my-company-braintrust-code-bundle"
+  api:
+    name: "braintrust-api"
+    labels:
+      component: "api"
+    service:
+      name: "braintrust-api"
+    serviceAccount:
+      name: "braintrust-api"
+      awsRoleArn: "arn:aws:iam::123:role/my-dataplane-role"
+    enableHistoricalFullBackfill: false
+    extraEnvVars:
+      - name: "DD_ENV"
+        value: "preprod"
+      - name: "LOG_LEVEL"
+        value: "info"
+    extraEnvFrom:
+      - configMapRef:
+          name: "api-extra-config"
+          optional: true
+      - secretRef:
+          name: "api-extra-secrets"
+          optional: false 
+    nodeSelector:
+      karpenter.sh/nodepool: default
+      kubernetes.io/os: linux
+    tolerations:
+      - key: karpenter-nodepool-name
+        operator: Equal
+        value: default  
+    livenessProbe:
+      enabled: true
+    readinessProbe:
+      enabled: true
+    autoscaling:
+      hpaEnabled: true
+    pdb:
+      enabled: true
+  brainstore:
+    enabled: true
+    name: "brainstore"
+    labels:
+      component: "brainstore"
+    service:
+      name: "brainstore-service"
+    serviceAccount:
+      name: "brainstore"
+      awsRoleArn: "arn:aws:iam::123456789012:role/braintrust-brainstore-role"
+    extraEnvVars:
+      - name: "DD_ENV"
+        value: "preprod"
+      - name: "LOG_LEVEL"
+        value: "info"
+    extraEnvFrom:
+      - configMapRef:
+          name: "brainstore-extra-config"
+          optional: true
+    nodeSelector:
+      karpenter.sh/nodepool: default
+      kubernetes.io/os: linux
+    tolerations:
+      - key: karpenter-nodepool-name
+        operator: Equal
+        value: default
+    livenessProbe:
+      enabled: true
+    readinessProbe:
+      enabled: true
+    autoscaling:
+      hpaEnabled: true
+    pdb:
+      enabled: true

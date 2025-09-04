@@ -3,10 +3,8 @@ kind: Service
 metadata:
   name: {{ .Values.brainstore.service.name | default .Values.brainstore.name }}
   namespace: {{ .Values.global.namespace }}
-  {{- with (merge .Values.global.labels .Values.brainstore.labels) }}
   labels:
-    {{- toYaml . | nindent 4 }}
-  {{- end }}
+    {{- include "apps.service-labels" (dict "context" . "service" .Values.brainstore) | nindent 4 }}
   {{- with .Values.brainstore.annotations.service }}
   annotations:
     {{- toYaml . | nindent 4 }}
