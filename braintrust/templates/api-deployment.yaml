@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ .Values.api.name }}
-  namespace: {{ .Values.global.namespace }}
+  namespace: {{ include "braintrust.namespace" . }}
   {{- with (merge .Values.global.labels .Values.api.labels) }}
   labels:
     {{- toYaml . | nindent 4 }}
