@@ -1,0 +1,9 @@
+apiVersion: v2
+name: apps-chart
+type: application
+version: 1.3.0
+appVersion: "1.0.0"
+dependencies:
+  - name: braintrust
+    version: "0.10.2-prerelease"
+    repository: "file://../../braintrust"

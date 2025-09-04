@@ -3,16 +3,17 @@ kind: Deployment
 metadata:
   name: {{ .Values.brainstore.name }}
   namespace: {{ .Values.global.namespace }}
-  {{- with (merge .Values.global.labels .Values.brainstore.labels) }}
   labels:
-    {{- toYaml . | nindent 4 }}
-  {{- end }}
+    {{- include "apps.service-labels" (dict "context" . "service" .Values.brainstore) | nindent 4 }}
   {{- with .Values.brainstore.annotations.deployment }}
   annotations:
     {{- toYaml . | nindent 4 }}
   {{- end }}
 spec:
+  revisionHistoryLimit: {{ .Values.global.revisionHistoryLimit }}
+  {{- if not .Values.brainstore.autoscaling.hpaEnabled }}
   replicas: {{ .Values.brainstore.replicas }}
+  {{- end }}
   selector:
     matchLabels:
       app: {{ .Values.brainstore.name }}
@@ -26,9 +27,7 @@ spec:
         {{- if eq .Values.cloud "google" }}
         gke-workload-identity/use: "true"
         {{- end }}
-        {{- with (merge .Values.global.labels .Values.brainstore.labels) }}
-        {{- toYaml . | nindent 8 }}
-        {{- end }}
+        {{- include "apps.service-labels" (dict "context" . "service" .Values.brainstore) | nindent 8 }}
       annotations:
         {{- if eq .Values.cloud "google" }}
         iam.gke.io/gcp-service-account: {{ .Values.brainstore.serviceAccount.googleServiceAccount }}
@@ -48,9 +47,20 @@ spec:
             - containerPort: {{ .Values.brainstore.service.port }}
           resources:
             {{- toYaml .Values.brainstore.resources | nindent 12 }}
+          {{- if .Values.brainstore.livenessProbe.enabled }}
+          livenessProbe:
+            {{- toYaml (omit .Values.brainstore.livenessProbe "enabled") | nindent 12 }}
+          {{- end }}
+          {{- if .Values.brainstore.readinessProbe.enabled }}
+          readinessProbe:
+            {{- toYaml (omit .Values.brainstore.readinessProbe "enabled") | nindent 12 }}
+          {{- end }}
           envFrom:
             - configMapRef:
                 name: {{ .Values.brainstore.name }}
+            {{- if .Values.brainstore.extraEnvFrom }}
+            {{- toYaml .Values.brainstore.extraEnvFrom | nindent 12 }}
+            {{- end }}
           env:
             - name: BRAINSTORE_METADATA_URI
               valueFrom:
@@ -86,7 +96,7 @@ spec:
       volumes:
         - name: cache-volume
           emptyDir:
-            sizeLimit: {{ .Values.brainstore.cacheSizeLimit | quote }}
+            sizeLimit: {{ .Values.brainstore.objectStoreCacheFileSize | quote }}
         {{- if .Values.azureKeyVaultCSI.enabled }}
         - name: secrets-store-inline
           csi:
@@ -95,3 +105,19 @@ spec:
             volumeAttributes:
               secretProviderClass: {{ .Values.azureKeyVaultCSI.name }}
         {{- end }}
+      {{- with .Values.brainstore.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.brainstore.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.brainstore.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.brainstore.topologySpreadConstraints }}
+      topologySpreadConstraints:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

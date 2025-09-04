@@ -4,10 +4,8 @@ kind: ConfigMap
 metadata:
   name: {{ .Values.brainstore.name }}
   namespace: {{ .Values.global.namespace }}
-  {{- with (merge .Values.global.labels .Values.brainstore.labels) }}
   labels:
-    {{- toYaml . | nindent 4 }}
-  {{- end }}
+    {{- include "apps.service-labels" (dict "context" . "service" .Values.brainstore) | nindent 4 }}
   {{- with .Values.brainstore.annotations.configmap }}
   annotations:
     {{- toYaml . | nindent 4 }}

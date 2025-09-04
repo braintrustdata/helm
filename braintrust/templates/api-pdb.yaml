@@ -1,0 +1,26 @@
+{{- if .Values.api.pdb.enabled }}
+{{- $mycontext := dict "context" . "service" .Values.api }}
+{{- $serviceDefinition := .Values.api }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "apps.servicefullname" $mycontext }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "apps.service-labels" $mycontext | nindent 4 }}
+  {{- with ($serviceDefinition.pdb).annotations }}
+  annotations:
+    {{- range $key, $value := . }}
+    {{ $key }}: {{ $value | quote }}
+    {{- end }}
+  {{- end }}
+spec:
+  {{- with ($serviceDefinition.pdb).maxUnavailable }}
+  maxUnavailable: {{ $serviceDefinition.pdb.maxUnavailable }}
+  {{- else }}
+  minAvailable: {{ ($serviceDefinition.pdb).minAvailable | default .Values.global.pdb.minAvailable | quote }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "apps.serviceSelectorLabels" $mycontext | nindent 6 }}
+{{- end }}

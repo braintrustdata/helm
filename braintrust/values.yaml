@@ -5,6 +5,10 @@ global:
   namespace: "braintrust"
   namespaceAnnotations: {}
   labels: {}
+  revisionHistoryLimit: 10
+  # Default PDB configuration
+  pdb:
+    minAvailable: 1
 
 # Cloud provider configuration
 cloud: "google"  # or "azure" or "aws"
@@ -45,7 +49,7 @@ api:
   image:
     repository: public.ecr.aws/braintrust/standalone-api
     tag: v1.1.21
-    pullPolicy: Always
+    pullPolicy: IfNotPresent
   service:
     # Optional name for service object. If not specified (empty), the api.name
     # is used.
@@ -71,12 +75,56 @@ api:
   backfillNewObjects: true
   backfillDisableHistorical: false
   backfillDisableNonhistorical: false
-  extraEnvVars:
+  extraEnvVars: []
     # Example:
     # - name: MY_ENV_VAR
     #   value: "my-value"
     # - name: ANOTHER_VAR
     #   value: "another-value"
+  extraEnvFrom: []
+  # Node scheduling configuration
+  nodeSelector: {}
+  affinity: {}
+  tolerations: []
+  topologySpreadConstraints: []
+  
+  # Health check configuration
+  livenessProbe:
+    enabled: false
+    httpGet:
+      path: /v1 # there is no health check for brainstore but we use v1 as ping
+      port: 8000
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+  
+  readinessProbe:
+    enabled: false
+    httpGet:
+      path: /v1 # there is no health check for brainstore but we use v1 as ping
+      port: 8000
+    initialDelaySeconds: 5
+    periodSeconds: 5
+    timeoutSeconds: 3
+    failureThreshold: 3
+  
+  # Autoscaling configuration
+  autoscaling:
+    hpaEnabled: false
+    minReplicas: 2
+    maxReplicas: 10
+    stabilizationWindowSeconds: 300
+    targetCPUUtilizationPercentage: 70
+    targetMemoryUtilizationPercentage: 80
+  
+  # PodDisruptionBudget configuration
+  pdb:
+    enabled: false
+    # Either minAvailable or maxUnavailable should be specified, not both
+    # minAvailable: 1
+    # maxUnavailable: 1
+    annotations: {}
 
 # Brainstore configuration
 brainstore:
@@ -93,7 +141,7 @@ brainstore:
   image:
     repository: public.ecr.aws/braintrust/brainstore
     tag: v1.1.21
-    pullPolicy: Always
+    pullPolicy: IfNotPresent
   service:
     # Optional name for service object. If not specified (empty), the
     # brainstore.name is used.
@@ -117,12 +165,56 @@ brainstore:
   objectStoreCacheMemoryLimit: "1Gi"
   objectStoreCacheFileSize: "50Gi"
   verbose: true
-  extraEnvVars:
+  extraEnvVars: []
     # Example:
     # - name: MY_ENV_VAR
     #   value: "my-value"
     # - name: ANOTHER_VAR
     #   value: "another-value"
+  
+  # Node scheduling configuration
+  nodeSelector: {}
+  affinity: {}
+  tolerations: []
+  topologySpreadConstraints: []
+  
+  # Health check configuration
+  livenessProbe:
+    enabled: false
+    httpGet:
+      path: /v1 # there is no health check for brainstore but we use v1 as ping
+      port: 4000
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+  
+  readinessProbe:
+    enabled: false
+    httpGet:
+      path: /v1 # there is no health check for brainstore but we use v1 as ping
+      port: 4000
+    initialDelaySeconds: 5
+    periodSeconds: 5
+    timeoutSeconds: 3
+    failureThreshold: 3
+  
+  # Autoscaling configuration
+  autoscaling:
+    hpaEnabled: false
+    minReplicas: 2
+    maxReplicas: 10
+    stabilizationWindowSeconds: 300
+    targetCPUUtilizationPercentage: 70
+    targetMemoryUtilizationPercentage: 80
+  
+  # PodDisruptionBudget configuration
+  pdb:
+    enabled: false
+    # Either minAvailable or maxUnavailable should be specified, not both
+    # minAvailable: 1
+    # maxUnavailable: 1
+    annotations: {}
 
 # Optional Azure Key Vault CSI configuration for syncing secrets from Azure Key Vault
 azureKeyVaultCSI:

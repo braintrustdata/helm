@@ -1,0 +1,36 @@
+{{- if and .Values.brainstore.enabled .Values.brainstore.autoscaling.hpaEnabled }}
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ .Values.brainstore.name }}-hpa
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    {{- include "apps.service-labels" (dict "context" . "service" .Values.brainstore) | nindent 4 }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ .Values.brainstore.name }}
+  minReplicas: {{ .Values.brainstore.autoscaling.minReplicas }}
+  maxReplicas: {{ .Values.brainstore.autoscaling.maxReplicas }}
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: {{ .Values.brainstore.autoscaling.stabilizationWindowSeconds }}
+  metrics:
+    {{- if .Values.brainstore.autoscaling.targetMemoryUtilizationPercentage }}
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: {{ .Values.brainstore.autoscaling.targetMemoryUtilizationPercentage }}
+    {{- end }}
+    {{- if .Values.brainstore.autoscaling.targetCPUUtilizationPercentage }}
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: {{ .Values.brainstore.autoscaling.targetCPUUtilizationPercentage }}
+    {{- end }}
+{{- end }}
