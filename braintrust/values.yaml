@@ -7,7 +7,7 @@ global:
   labels: {}
 
 # Cloud provider configuration
-cloud: "google"  # or "azure" or "aws"
+cloud: "google" # or "azure" or "aws"
 
 objectStorage:
   # Azure specific configuration
@@ -77,6 +77,16 @@ api:
     #   value: "my-value"
     # - name: ANOTHER_VAR
     #   value: "another-value"
+  nodeSelector: {}
+    # Example:
+    # kubernetes.io/arch: amd64
+    # node-type: compute
+  tolerations: []
+    # Example:
+    # - key: "key1"
+    #   operator: "Equal"
+    #   value: "value1"
+    #   effect: "NoSchedule"
 
 # Brainstore configuration
 brainstore:
@@ -123,6 +133,16 @@ brainstore:
     #   value: "my-value"
     # - name: ANOTHER_VAR
     #   value: "another-value"
+  nodeSelector: {}
+    # Example:
+    # kubernetes.io/arch: amd64
+    # node-type: compute
+  tolerations: []
+    # Example:
+    # - key: "key1"
+    #   operator: "Equal"
+    #   value: "value1"
+    #   effect: "NoSchedule"
 
 # Optional Azure Key Vault CSI configuration for syncing secrets from Azure Key Vault
 azureKeyVaultCSI:
@@ -157,4 +177,3 @@ azureKeyVaultCSI:
     - keyVaultSecretName: "azure-storage-connection-string"
       keyVaultSecretType: "secret"
       kubernetesSecretKey: "AZURE_STORAGE_CONNECTION_STRING"
-
