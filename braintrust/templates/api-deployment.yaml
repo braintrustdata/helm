@@ -32,6 +32,14 @@ spec:
         {{- end }}
     spec:
       serviceAccountName: {{ .Values.api.serviceAccount.name }}
+      {{- with .Values.api.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.api.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       containers:
         - name: api
           image: "{{ .Values.api.image.repository }}:{{ .Values.api.image.tag }}"
@@ -96,4 +104,3 @@ spec:
             volumeAttributes:
               secretProviderClass: {{ .Values.azureKeyVaultCSI.name }}
       {{- end }}
-
