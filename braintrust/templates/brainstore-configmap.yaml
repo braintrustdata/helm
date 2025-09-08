@@ -33,4 +33,5 @@ data:
   BRAINSTORE_INDEX_URI: "gs://{{ .Values.objectStorage.google.brainstoreBucket }}/brainstore/index"
   BRAINSTORE_REALTIME_WAL_URI: "gs://{{ .Values.objectStorage.google.brainstoreBucket }}/brainstore/wal"
   {{- end }}
+  BRAINSTORE_CONTROL_PLANE_TELEMETRY: {{ .Values.global.controlPlaneTelemetry | quote }}
   NO_COLOR: "1"
