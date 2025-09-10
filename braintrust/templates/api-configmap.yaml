@@ -42,3 +42,4 @@ data:
   BRAINSTORE_BACKFILL_NEW_OBJECTS: {{ .Values.api.backfillNewObjects | quote }}
   BRAINSTORE_BACKFILL_DISABLE_HISTORICAL: {{ .Values.api.backfillDisableHistorical | quote }}
   BRAINSTORE_BACKFILL_DISABLE_NONHISTORICAL: {{ .Values.api.backfillDisableNonhistorical | quote }}
+  CONTROL_PLANE_TELEMETRY: {{ .Values.global.controlPlaneTelemetry | quote }}

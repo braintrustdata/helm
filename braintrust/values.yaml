@@ -7,6 +7,18 @@ global:
   namespace: "braintrust"
   namespaceAnnotations: {}
   labels: {}
+  # Control plane telemetry configuration (applies to both API and Brainstore)
+  # Available options (comma-separated):
+  #   - status: Health check information (default)
+  #   - metrics: System metrics (CPU/memory) and Braintrust-specific metrics like indexing lag (default)
+  #   - usage: Billing usage telemetry for aggregate usage metrics
+  #   - memprof: Memory profiling statistics and heap usage patterns
+  #   - logs: Application logs
+  #   - traces: Distributed tracing data
+  # NOTE: If you previously configured BRAINSTORE_CONTROL_PLANE_TELEMETRY or CONTROL_PLANE_TELEMETRY
+  # as extraEnvVars, you can remove those entries and use this global setting instead.
+  # ExtraEnvVars values will override this global setting if both are present.
+  controlPlaneTelemetry: "status,metrics,usage"
 
 # Cloud provider configuration
 cloud: "google"  # or "azure" or "aws"
