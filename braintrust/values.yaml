@@ -92,7 +92,7 @@ api:
   livenessProbe:
     enabled: false
     httpGet:
-      path: /v1 # there is no health check for brainstore but we use v1 as ping
+      path: / # there is no health check for brainstore but we use v1 as ping
       port: 8000
     initialDelaySeconds: 30
     periodSeconds: 10
@@ -102,7 +102,7 @@ api:
   readinessProbe:
     enabled: false
     httpGet:
-      path: /v1 # there is no health check for brainstore but we use v1 as ping
+      path: / # there is no health check for brainstore but we use v1 as ping
       port: 8000
     initialDelaySeconds: 5
     periodSeconds: 5
@@ -182,7 +182,7 @@ brainstore:
   livenessProbe:
     enabled: false
     httpGet:
-      path: /v1 # there is no health check for brainstore but we use v1 as ping
+      path: /status # https://braintrustdata.notion.site/Brainstore-configuration-documentation-180f7858028980bd94c2ee4b911544cb
       port: 4000
     initialDelaySeconds: 30
     periodSeconds: 10
@@ -192,7 +192,7 @@ brainstore:
   readinessProbe:
     enabled: false
     httpGet:
-      path: /v1 # there is no health check for brainstore but we use v1 as ping
+      path: /status # https://braintrustdata.notion.site/Brainstore-configuration-documentation-180f7858028980bd94c2ee4b911544cb
       port: 4000
     initialDelaySeconds: 5
     periodSeconds: 5
