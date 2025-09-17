@@ -86,7 +86,7 @@ spec:
       volumes:
         - name: cache-volume
           emptyDir:
-            sizeLimit: {{ .Values.brainstore.writer.cacheSizeLimit | quote }}
+            sizeLimit: {{ .Values.brainstore.writer.objectStoreCacheFileSize | quote }}
         {{- if .Values.azureKeyVaultCSI.enabled }}
         - name: secrets-store-inline
           csi:
