@@ -92,46 +92,83 @@ api:
     # - name: ANOTHER_VAR
     #   value: "another-value"
 
-# Brainstore configuration
+# Brainstore configuration (split into reader and writer)
 brainstore:
-  enabled: true
-  name: "brainstore"
+  # Shared service account configuration
   labels: {}
   annotations:
-    configmap: {}
-    deployment: {}
-    service: {}
-    pod: {}
     serviceaccount: {}
-  replicas: 2
-  image:
-    repository: public.ecr.aws/braintrust/brainstore
-    tag: v1.1.21
-    pullPolicy: Always
-  service:
-    # Optional name for service object. If not specified (empty), the
-    # brainstore.name is used.
-    name: ""
-    type: ClusterIP
-    port: 4000
-    portName: http
   serviceAccount:
     name: "brainstore"
     awsRoleArn: ""
     azureClientId: ""
     googleServiceAccount: ""
-  resources:
-    requests:
-      cpu: "8"
-      memory: "16Gi"
-    limits:
-      cpu: "16"
-      memory: "32Gi"
-  cacheDir: "/mnt/tmp/brainstore"
-  objectStoreCacheMemoryLimit: "1Gi"
-  objectStoreCacheFileSize: "50Gi"
-  verbose: true
-  extraEnvVars:
+
+  # Brainstore Reader configuration
+  reader:
+    name: "brainstore-reader"
+    labels: {}
+    annotations:
+      configmap: {}
+      deployment: {}
+      service: {}
+      pod: {}
+    replicas: 2
+    image:
+      repository: public.ecr.aws/braintrust/brainstore
+      tag: v1.1.21
+      pullPolicy: Always
+    service:
+      name: ""
+      type: ClusterIP
+      port: 4000
+      portName: http
+    resources:
+      requests:
+        cpu: "8"
+        memory: "16Gi"
+      limits:
+        cpu: "16"
+        memory: "32Gi"
+    cacheDir: "/mnt/tmp/brainstore"
+    cacheSizeLimit: "50Gi"
+    objectStoreCacheMemoryLimit: "1Gi"
+    objectStoreCacheFileSize: "50Gi"
+    verbose: true
+    extraEnvVars: []
+
+  # Brainstore Writer configuration
+  writer:
+    name: "brainstore-writer"
+    labels: {}
+    annotations:
+      configmap: {}
+      deployment: {}
+      service: {}
+      pod: {}
+    replicas: 2
+    image:
+      repository: public.ecr.aws/braintrust/brainstore
+      tag: v1.1.21
+      pullPolicy: Always
+    service:
+      name: ""
+      type: ClusterIP
+      port: 4000
+      portName: http
+    resources:
+      requests:
+        cpu: "8"
+        memory: "16Gi"
+      limits:
+        cpu: "16"
+        memory: "32Gi"
+    cacheDir: "/mnt/tmp/brainstore"
+    cacheSizeLimit: "50Gi"
+    objectStoreCacheMemoryLimit: "1Gi"
+    objectStoreCacheFileSize: "50Gi"
+    verbose: true
+    extraEnvVars: []
     # Example:
     # - name: MY_ENV_VAR
     #   value: "my-value"

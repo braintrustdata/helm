@@ -18,6 +18,6 @@ helm install braintrust oci://public.ecr.aws/braintrust/helm/braintrust --versio
 
 ## Prerequisites
 
-Before installing the Braintrust Helm chart, ensure you have run the braintrust terraform module to deploy the base infrastructure.
+Before installing the Braintrust Helm chart, ensure you have run the appropriate braintrust terraform module [https://github.com/braintrustdata/terraform-google-braintrust-data-plane](Google) or [https://github.com/braintrustdata/terraform-azure-braintrust-data-plane](Azure) to deploy the base infrastructure.
 
 See the [Braintrust Helm Chart](./braintrust/README.md) for more details.

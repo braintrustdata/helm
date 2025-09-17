@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.brainstore.writer.service.name | default .Values.brainstore.writer.name }}
+  namespace: {{ include "braintrust.namespace" . }}
+  {{- with (merge .Values.global.labels .Values.brainstore.writer.labels) }}
+  labels:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with .Values.brainstore.writer.annotations.service }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  selector:
+    app: {{ .Values.brainstore.writer.name }}
+  ports:
+    - name: {{ .Values.brainstore.writer.service.portName }}
+      protocol: TCP
+      port: {{ .Values.brainstore.writer.service.port }}
+      targetPort: {{ .Values.brainstore.writer.service.port }}
+  type: {{ .Values.brainstore.writer.service.type }}
