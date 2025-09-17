@@ -8,21 +8,9 @@ This release introduces a significant architectural change that splits the Brain
 
 ### Breaking Changes
 
-#### 1. Brainstore Service Split
+You will need to update your helm values.yaml overrides if you are upgrading from a 0.9.x/1.x Helm chart to our 2.x Helm chart. The structure of the `braintrust` section in values.yaml has changed so that there is now a `reader` and `writer` section.
 
-The single `brainstore` service has been split into two separate services:
-
-- **brainstore-reader**: Handles read-only operations (`BRAINSTORE_READER_ONLY_MODE: true`)
-- **brainstore-writer**: Handles write operations (`BRAINSTORE_READER_ONLY_MODE: false`)
-
-#### 2. API Environment Variables
-
-The API now uses separate URLs for read and write operations:
-
-- **BRAINSTORE_URL**: Points to brainstore-reader service
-- **BRAINSTORE_WRITER_URL**: Points to brainstore-writer service (new)
-
-#### 3. Values.yaml Structure Changes
+#### Overview of Values.yaml Structure Changes
 
 **Before (v1.x):**
 
@@ -107,7 +95,6 @@ brainstore:
         cpu: "16"
         memory: "32Gi"
     cacheDir: "/mnt/tmp/brainstore"
-    cacheSizeLimit: "50Gi"  # NEW: required field
     objectStoreCacheMemoryLimit: "1Gi"
     objectStoreCacheFileSize: "50Gi"
     verbose: true
@@ -122,7 +109,7 @@ brainstore:
       deployment: {}
       service: {}
       pod: {}
-    replicas: 1  # CHANGED: can be scaled independently
+    replicas: 1  # CHANGED: Only needs 1 minimum
     service:
       name: ""
       type: ClusterIP
@@ -136,7 +123,6 @@ brainstore:
         cpu: "16"
         memory: "32Gi"
     cacheDir: "/mnt/tmp/brainstore"
-    cacheSizeLimit: "50Gi"  # NEW: required field
     objectStoreCacheMemoryLimit: "1Gi"
     objectStoreCacheFileSize: "50Gi"
     verbose: true
@@ -145,9 +131,9 @@ brainstore:
 
 ### Required Migration Steps
 
-#### Step 1: Update your values.yaml structure
+#### Update your values.yaml overrides structure
 
-1. **Move serviceAccount annotations:**
+1. **Move any serviceAccount annotations:**
 
    ```yaml
    # OLD
@@ -161,67 +147,48 @@ brainstore:
        annotations: {}
    ```
 
-2. **Move image configuration to shared section:**
+2. **Split brainstore configuration into reader/writer sections:**
+   - Any configuration changes you made to the `brainstore` section will need to be moved and duplicated into both `brainstore.reader` and `brainstore.writer`
+   - Fields include: `replicas`, `service` (e.g. `service.name` or `service.port`), `resources`, `objectStoreCache*`, or `extraEnvVars
+   - Special note on `resources` if you modified them:
+     - There should be at least two brainstore readers for HA purposes, but they can be half the CPU and Memory of the previous defaults.
+     - There only needs to be one brainstore writer since it is a background worker and can tolerate rare short outages. 
 
-   ```yaml
-   # OLD (under brainstore directly)
-   brainstore:
-     image:
-       repository: public.ecr.aws/braintrust/brainstore
-       tag: v1.1.21
-       pullPolicy: Always
-
-   # NEW (shared between reader/writer)
-   brainstore:
-     image:
-       repository: public.ecr.aws/braintrust/brainstore
-       tag: v1.1.21
-       pullPolicy: IfNotPresent
-   ```
-
-3. **Split brainstore configuration into reader/writer sections:**
-   - Copy your existing brainstore config to both `brainstore.reader` and `brainstore.writer`
-   - Remove the old top-level brainstore fields (except shared ones)
-   - Add `cacheSizeLimit: "50Gi"` to both reader and writer sections
-
-#### Step 2: Update replica counts and resources (optional)
+#### Update replica counts and resources (optional)
 
 You can now scale readers and writers independently:
+- There should be at least two brainstore readers for HA purposes, but they can be half the CPU and Memory of the previous defaults.
+- There only needs to be one brainstore writer since it is a background worker and can tolerate rare short outages.
 
 ```yaml
 brainstore:
   reader:
-    replicas: 2  # Scale for read workload
+    replicas: 2
     resources:
       requests:
         cpu: "4"    # Readers may need less CPU
         memory: "8Gi"
   writer:
-    replicas: 1  # Fewer writers needed
+    replicas: 1
     resources:
       requests:
-        cpu: "8"    # Writers may need more CPU
+        cpu: "8"
         memory: "16Gi"
 ```
 
 #### Step 3: Deploy the upgrade
 
+If you are unsure about any of the changes above, reach out to the Braintrust team on Slack and paste your before and after values.yaml so we can double-check for you.
+
 ```bash
 helm upgrade braintrust ./braintrust -f your-values.yaml
 ```
-
-### New Features
-
-1. **Independent Scaling**: Scale readers and writers based on workload patterns
-2. **Performance Optimization**: Dedicated read-only replicas for better read performance
-3. **Resource Allocation**: Allocate different resources to readers vs writers
-4. **Improved Caching**: Better cache management with separate reader/writer instances
 
 ### Rollback Instructions
 
 If you need to rollback to v1.x:
 
-1. **Restore old values.yaml structure** (see "Before" example above)
+1. **Restore old values.yaml structure**
 2. **Rollback Helm release:**
 
    ```bash
