@@ -13,6 +13,7 @@ metadata:
     {{- toYaml . | nindent 4 }}
   {{- end }}
 data:
+  BRAINSTORE_READER_ONLY_MODE: "true"
   BRAINSTORE_VERBOSE: {{ (or (eq (toString .Values.brainstore.reader.verbose) "true") (eq (toString .Values.brainstore.reader.verbose) "1")) | ternary "1" "0" | quote }}
   BRAINSTORE_PORT: {{ .Values.brainstore.reader.service.port | quote }}
   BRAINSTORE_CACHE_DIR: {{ .Values.brainstore.reader.cacheDir | quote }}

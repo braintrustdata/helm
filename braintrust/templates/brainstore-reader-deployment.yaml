@@ -52,8 +52,6 @@ spec:
             - configMapRef:
                 name: {{ .Values.brainstore.reader.name }}
           env:
-            - name: BRAINSTORE_READER_ONLY_MODE
-              value: "true"
             - name: BRAINSTORE_METADATA_URI
               valueFrom:
                 secretKeyRef:
