@@ -40,8 +40,8 @@ spec:
       serviceAccountName: {{ .Values.brainstore.serviceAccount.name }}
       containers:
         - name: brainstore-reader
-          image: "{{ .Values.brainstore.reader.image.repository }}:{{ .Values.brainstore.reader.image.tag }}"
-          imagePullPolicy: {{ .Values.brainstore.reader.image.pullPolicy }}
+          image: "{{ .Values.brainstore.image.repository }}:{{ .Values.brainstore.image.tag }}"
+          imagePullPolicy: {{ .Values.brainstore.image.pullPolicy }}
           command: ["brainstore"]
           args: ["web"]
           ports:

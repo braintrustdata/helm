@@ -94,7 +94,7 @@ api:
 
 # Brainstore configuration (split into reader and writer)
 brainstore:
-  # Shared service account configuration
+  # Shared configuration
   labels: {}
   annotations:
     serviceaccount: {}
@@ -103,6 +103,11 @@ brainstore:
     awsRoleArn: ""
     azureClientId: ""
     googleServiceAccount: ""
+  # Shared image configuration
+  image:
+    repository: public.ecr.aws/braintrust/brainstore
+    tag: v1.1.21
+    pullPolicy: IfNotPresent
 
   # Brainstore Reader configuration
   reader:
@@ -114,10 +119,6 @@ brainstore:
       service: {}
       pod: {}
     replicas: 2
-    image:
-      repository: public.ecr.aws/braintrust/brainstore
-      tag: v1.1.21
-      pullPolicy: IfNotPresent
     service:
       name: ""
       type: ClusterIP
@@ -147,10 +148,6 @@ brainstore:
       service: {}
       pod: {}
     replicas: 2
-    image:
-      repository: public.ecr.aws/braintrust/brainstore
-      tag: v1.1.21
-      pullPolicy: IfNotPresent
     service:
       name: ""
       type: ClusterIP
