@@ -147,7 +147,7 @@ brainstore:
       deployment: {}
       service: {}
       pod: {}
-    replicas: 2
+    replicas: 1
     service:
       name: ""
       type: ClusterIP
