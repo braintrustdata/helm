@@ -96,13 +96,12 @@ api:
 brainstore:
   # Shared configuration
   labels: {}
-  annotations:
-    serviceaccount: {}
   serviceAccount:
     name: "brainstore"
     awsRoleArn: ""
     azureClientId: ""
     googleServiceAccount: ""
+    annotations: {}
   # Shared image configuration
   image:
     repository: public.ecr.aws/braintrust/brainstore
