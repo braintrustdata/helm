@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.brainstore.reader.service.name | default .Values.brainstore.reader.name }}
+  namespace: {{ include "braintrust.namespace" . }}
+  {{- with (merge .Values.global.labels .Values.brainstore.reader.labels) }}
+  labels:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with .Values.brainstore.reader.annotations.service }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  selector:
+    app: {{ .Values.brainstore.reader.name }}
+  ports:
+    - name: {{ .Values.brainstore.reader.service.portName }}
+      protocol: TCP
+      port: {{ .Values.brainstore.reader.service.port }}
+      targetPort: {{ .Values.brainstore.reader.service.port }}
+  type: {{ .Values.brainstore.reader.service.type }}

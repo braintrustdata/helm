@@ -1,56 +1,56 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ .Values.brainstore.name }}
+  name: {{ .Values.brainstore.reader.name }}
   namespace: {{ include "braintrust.namespace" . }}
-  {{- with (merge .Values.global.labels .Values.brainstore.labels) }}
+  {{- with (merge .Values.global.labels .Values.brainstore.reader.labels) }}
   labels:
     {{- toYaml . | nindent 4 }}
   {{- end }}
-  {{- with .Values.brainstore.annotations.deployment }}
+  {{- with .Values.brainstore.reader.annotations.deployment }}
   annotations:
     {{- toYaml . | nindent 4 }}
   {{- end }}
 spec:
-  replicas: {{ .Values.brainstore.replicas }}
+  replicas: {{ .Values.brainstore.reader.replicas }}
   selector:
     matchLabels:
-      app: {{ .Values.brainstore.name }}
+      app: {{ .Values.brainstore.reader.name }}
   template:
     metadata:
       labels:
-        app: {{ .Values.brainstore.name }}
+        app: {{ .Values.brainstore.reader.name }}
         {{- if eq .Values.cloud "azure" }}
         azure.workload.identity/use: "true"
         {{- end }}
         {{- if eq .Values.cloud "google" }}
         gke-workload-identity/use: "true"
         {{- end }}
-        {{- with (merge .Values.global.labels .Values.brainstore.labels) }}
+        {{- with (merge .Values.global.labels .Values.brainstore.reader.labels) }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
       annotations:
         {{- if eq .Values.cloud "google" }}
         iam.gke.io/gcp-service-account: {{ .Values.brainstore.serviceAccount.googleServiceAccount }}
         {{- end }}
-        {{- with .Values.brainstore.annotations.pod }}
+        {{- with .Values.brainstore.reader.annotations.pod }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
     spec:
       serviceAccountName: {{ .Values.brainstore.serviceAccount.name }}
       containers:
-        - name: brainstore
+        - name: brainstore-reader
           image: "{{ .Values.brainstore.image.repository }}:{{ .Values.brainstore.image.tag }}"
           imagePullPolicy: {{ .Values.brainstore.image.pullPolicy }}
           command: ["brainstore"]
           args: ["web"]
           ports:
-            - containerPort: {{ .Values.brainstore.service.port }}
+            - containerPort: {{ .Values.brainstore.reader.service.port }}
           resources:
-            {{- toYaml .Values.brainstore.resources | nindent 12 }}
+            {{- toYaml .Values.brainstore.reader.resources | nindent 12 }}
           envFrom:
             - configMapRef:
-                name: {{ .Values.brainstore.name }}
+                name: {{ .Values.brainstore.reader.name }}
           env:
             - name: BRAINSTORE_METADATA_URI
               valueFrom:
@@ -72,12 +72,12 @@ spec:
                 secretKeyRef:
                   name: braintrust-secrets
                   key: BRAINSTORE_LICENSE_KEY
-            {{- if .Values.brainstore.extraEnvVars }}
-            {{- toYaml .Values.brainstore.extraEnvVars | nindent 12 }}
+            {{- if .Values.brainstore.reader.extraEnvVars }}
+            {{- toYaml .Values.brainstore.reader.extraEnvVars | nindent 12 }}
             {{- end }}
           volumeMounts:
             - name: cache-volume
-              mountPath: {{ .Values.brainstore.cacheDir }}
+              mountPath: {{ .Values.brainstore.reader.cacheDir }}
             {{- if .Values.azureKeyVaultCSI.enabled }}
             - name: secrets-store-inline
               mountPath: "/mnt/secrets-store"
@@ -86,7 +86,7 @@ spec:
       volumes:
         - name: cache-volume
           emptyDir:
-            sizeLimit: {{ .Values.brainstore.cacheSizeLimit | quote }}
+            sizeLimit: {{ .Values.brainstore.reader.objectStoreCacheFileSize | quote }}
         {{- if .Values.azureKeyVaultCSI.enabled }}
         - name: secrets-store-inline
           csi:

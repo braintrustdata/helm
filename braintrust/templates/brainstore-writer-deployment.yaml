@@ -1,0 +1,97 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.brainstore.writer.name }}
+  namespace: {{ include "braintrust.namespace" . }}
+  {{- with (merge .Values.global.labels .Values.brainstore.writer.labels) }}
+  labels:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with .Values.brainstore.writer.annotations.deployment }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  replicas: {{ .Values.brainstore.writer.replicas }}
+  selector:
+    matchLabels:
+      app: {{ .Values.brainstore.writer.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.brainstore.writer.name }}
+        {{- if eq .Values.cloud "azure" }}
+        azure.workload.identity/use: "true"
+        {{- end }}
+        {{- if eq .Values.cloud "google" }}
+        gke-workload-identity/use: "true"
+        {{- end }}
+        {{- with (merge .Values.global.labels .Values.brainstore.writer.labels) }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      annotations:
+        {{- if eq .Values.cloud "google" }}
+        iam.gke.io/gcp-service-account: {{ .Values.brainstore.serviceAccount.googleServiceAccount }}
+        {{- end }}
+        {{- with .Values.brainstore.writer.annotations.pod }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      serviceAccountName: {{ .Values.brainstore.serviceAccount.name }}
+      containers:
+        - name: brainstore-writer
+          image: "{{ .Values.brainstore.image.repository }}:{{ .Values.brainstore.image.tag }}"
+          imagePullPolicy: {{ .Values.brainstore.image.pullPolicy }}
+          command: ["brainstore"]
+          args: ["web"]
+          ports:
+            - containerPort: {{ .Values.brainstore.writer.service.port }}
+          resources:
+            {{- toYaml .Values.brainstore.writer.resources | nindent 12 }}
+          envFrom:
+            - configMapRef:
+                name: {{ .Values.brainstore.writer.name }}
+          env:
+            - name: BRAINSTORE_METADATA_URI
+              valueFrom:
+                secretKeyRef:
+                  name: braintrust-secrets
+                  key: PG_URL
+            - name: BRAINSTORE_WAL_URI
+              valueFrom:
+                secretKeyRef:
+                  name: braintrust-secrets
+                  key: PG_URL
+            - name: BRAINSTORE_LOCKS_URI
+              valueFrom:
+                secretKeyRef:
+                  name: braintrust-secrets
+                  key: REDIS_URL
+            - name: BRAINSTORE_LICENSE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: braintrust-secrets
+                  key: BRAINSTORE_LICENSE_KEY
+            {{- if .Values.brainstore.writer.extraEnvVars }}
+            {{- toYaml .Values.brainstore.writer.extraEnvVars | nindent 12 }}
+            {{- end }}
+          volumeMounts:
+            - name: cache-volume
+              mountPath: {{ .Values.brainstore.writer.cacheDir }}
+            {{- if .Values.azureKeyVaultCSI.enabled }}
+            - name: secrets-store-inline
+              mountPath: "/mnt/secrets-store"
+              readOnly: true
+            {{- end }}
+      volumes:
+        - name: cache-volume
+          emptyDir:
+            sizeLimit: {{ .Values.brainstore.writer.objectStoreCacheFileSize | quote }}
+        {{- if .Values.azureKeyVaultCSI.enabled }}
+        - name: secrets-store-inline
+          csi:
+            driver: secrets-store.csi.k8s.io
+            readOnly: true
+            volumeAttributes:
+              secretProviderClass: {{ .Values.azureKeyVaultCSI.name }}
+        {{- end }}

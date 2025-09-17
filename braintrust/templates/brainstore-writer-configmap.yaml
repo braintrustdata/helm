@@ -1,0 +1,38 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.brainstore.writer.name }}
+  namespace: {{ include "braintrust.namespace" . }}
+  {{- with (merge .Values.global.labels .Values.brainstore.writer.labels) }}
+  labels:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with .Values.brainstore.writer.annotations.configmap }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+data:
+  BRAINSTORE_READER_ONLY_MODE: "false"
+  BRAINSTORE_VERBOSE: {{ (or (eq (toString .Values.brainstore.writer.verbose) "true") (eq (toString .Values.brainstore.writer.verbose) "1")) | ternary "1" "0" | quote }}
+  BRAINSTORE_PORT: {{ .Values.brainstore.writer.service.port | quote }}
+  BRAINSTORE_CACHE_DIR: {{ .Values.brainstore.writer.cacheDir | quote }}
+  BRAINSTORE_OBJECT_STORE_CACHE_MEMORY_LIMIT: {{ .Values.brainstore.writer.objectStoreCacheMemoryLimit | quote }}
+  BRAINSTORE_OBJECT_STORE_CACHE_FILE_SIZE: {{ .Values.brainstore.writer.objectStoreCacheFileSize | quote }}
+  {{- if eq .Values.cloud "azure" }}
+  # See here for reference:
+  # https://docs.rs/object_store/latest/object_store/azure/struct.MicrosoftAzureBuilder.html
+  AZURE_STORAGE_ACCOUNT_NAME: {{ .Values.objectStorage.azure.storageAccountName | quote }}
+  # This will create odd paths like az://brainstore/brainstore/index, but it maintains the naming and prefix conventions
+  # with AWS and avoids confusion with env vars.
+  BRAINSTORE_INDEX_URI: "az://{{ .Values.objectStorage.azure.brainstoreContainer }}/brainstore/index"
+  BRAINSTORE_REALTIME_WAL_URI: "az://{{ .Values.objectStorage.azure.brainstoreContainer }}/brainstore/wal"
+  {{- else if eq .Values.cloud "aws" }}
+  BRAINSTORE_INDEX_URI: "s3://{{ .Values.objectStorage.aws.brainstoreBucket }}/brainstore/index"
+  BRAINSTORE_REALTIME_WAL_URI: "s3://{{ .Values.objectStorage.aws.brainstoreBucket }}/brainstore/wal"
+  {{- else if eq .Values.cloud "google" }}
+  BRAINSTORE_INDEX_URI: "gs://{{ .Values.objectStorage.google.brainstoreBucket }}/brainstore/index"
+  BRAINSTORE_REALTIME_WAL_URI: "gs://{{ .Values.objectStorage.google.brainstoreBucket }}/brainstore/wal"
+  {{- end }}
+  BRAINSTORE_CONTROL_PLANE_TELEMETRY: {{ .Values.global.controlPlaneTelemetry | quote }}
+  NO_COLOR: "1"

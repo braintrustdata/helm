@@ -2,22 +2,23 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ .Values.brainstore.name }}
+  name: {{ .Values.brainstore.reader.name }}
   namespace: {{ include "braintrust.namespace" . }}
-  {{- with (merge .Values.global.labels .Values.brainstore.labels) }}
+  {{- with (merge .Values.global.labels .Values.brainstore.reader.labels) }}
   labels:
     {{- toYaml . | nindent 4 }}
   {{- end }}
-  {{- with .Values.brainstore.annotations.configmap }}
+  {{- with .Values.brainstore.reader.annotations.configmap }}
   annotations:
     {{- toYaml . | nindent 4 }}
   {{- end }}
 data:
-  BRAINSTORE_VERBOSE: {{ (or (eq (toString .Values.brainstore.verbose) "true") (eq (toString .Values.brainstore.verbose) "1")) | ternary "1" "0" | quote }}
-  BRAINSTORE_PORT: {{ .Values.brainstore.service.port | quote }}
-  BRAINSTORE_CACHE_DIR: {{ .Values.brainstore.cacheDir | quote }}
-  BRAINSTORE_OBJECT_STORE_CACHE_MEMORY_LIMIT: {{ .Values.brainstore.objectStoreCacheMemoryLimit | quote }}
-  BRAINSTORE_OBJECT_STORE_CACHE_FILE_SIZE: {{ .Values.brainstore.objectStoreCacheFileSize | quote }}
+  BRAINSTORE_READER_ONLY_MODE: "true"
+  BRAINSTORE_VERBOSE: {{ (or (eq (toString .Values.brainstore.reader.verbose) "true") (eq (toString .Values.brainstore.reader.verbose) "1")) | ternary "1" "0" | quote }}
+  BRAINSTORE_PORT: {{ .Values.brainstore.reader.service.port | quote }}
+  BRAINSTORE_CACHE_DIR: {{ .Values.brainstore.reader.cacheDir | quote }}
+  BRAINSTORE_OBJECT_STORE_CACHE_MEMORY_LIMIT: {{ .Values.brainstore.reader.objectStoreCacheMemoryLimit | quote }}
+  BRAINSTORE_OBJECT_STORE_CACHE_FILE_SIZE: {{ .Values.brainstore.reader.objectStoreCacheFileSize | quote }}
   {{- if eq .Values.cloud "azure" }}
   # See here for reference:
   # https://docs.rs/object_store/latest/object_store/azure/struct.MicrosoftAzureBuilder.html
