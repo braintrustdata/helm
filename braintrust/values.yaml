@@ -59,7 +59,7 @@ api:
   image:
     repository: public.ecr.aws/braintrust/standalone-api
     tag: v1.1.21
-    pullPolicy: Always
+    pullPolicy: IfNotPresent
   service:
     # Optional name for service object. If not specified (empty), the api.name
     # is used.
@@ -117,7 +117,7 @@ brainstore:
     image:
       repository: public.ecr.aws/braintrust/brainstore
       tag: v1.1.21
-      pullPolicy: Always
+      pullPolicy: IfNotPresent
     service:
       name: ""
       type: ClusterIP
@@ -150,7 +150,7 @@ brainstore:
     image:
       repository: public.ecr.aws/braintrust/brainstore
       tag: v1.1.21
-      pullPolicy: Always
+      pullPolicy: IfNotPresent
     service:
       name: ""
       type: ClusterIP
