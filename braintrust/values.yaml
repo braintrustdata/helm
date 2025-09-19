@@ -91,6 +91,7 @@ api:
     #   value: "my-value"
     # - name: ANOTHER_VAR
     #   value: "another-value"
+  nodeSelector: {}
 
 # Brainstore configuration (split into reader and writer)
 brainstore:
@@ -136,6 +137,7 @@ brainstore:
     objectStoreCacheFileSize: "50Gi"
     verbose: true
     extraEnvVars: []
+    nodeSelector: {}
 
   # Brainstore Writer configuration
   writer:
@@ -170,6 +172,7 @@ brainstore:
     #   value: "my-value"
     # - name: ANOTHER_VAR
     #   value: "another-value"
+    nodeSelector: {}
 
 # Optional Azure Key Vault CSI configuration for syncing secrets from Azure Key Vault
 azureKeyVaultCSI:
