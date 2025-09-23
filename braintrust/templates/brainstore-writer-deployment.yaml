@@ -42,6 +42,10 @@ spec:
       nodeSelector:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      {{- with .Values.brainstore.writer.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       containers:
         - name: brainstore-writer
           image: "{{ .Values.brainstore.image.repository }}:{{ .Values.brainstore.image.tag }}"
