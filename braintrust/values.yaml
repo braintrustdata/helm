@@ -133,7 +133,6 @@ brainstore:
         cpu: "8"
         memory: "16Gi"
     cacheDir: "/mnt/tmp/brainstore"
-    cacheSizeLimit: "50Gi"
     objectStoreCacheMemoryLimit: "1Gi"
     objectStoreCacheFileSize: "50Gi"
     verbose: true
@@ -164,7 +163,6 @@ brainstore:
         cpu: "16"
         memory: "32Gi"
     cacheDir: "/mnt/tmp/brainstore"
-    cacheSizeLimit: "50Gi"
     objectStoreCacheMemoryLimit: "1Gi"
     objectStoreCacheFileSize: "50Gi"
     verbose: true
