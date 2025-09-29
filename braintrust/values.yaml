@@ -93,6 +93,7 @@ api:
     #   value: "another-value"
   nodeSelector: {}
   tolerations: []
+  affinity: {}
 
 # Brainstore configuration (split into reader and writer)
 brainstore:
@@ -139,6 +140,7 @@ brainstore:
     extraEnvVars: []
     nodeSelector: {}
     tolerations: []
+    affinity: {}
 
   # Brainstore Writer configuration
   writer:
@@ -174,6 +176,7 @@ brainstore:
     #   value: "another-value"
     nodeSelector: {}
     tolerations: []
+    affinity: {}
 
 # Optional Azure Key Vault CSI configuration for syncing secrets from Azure Key Vault
 azureKeyVaultCSI:
