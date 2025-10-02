@@ -1,0 +1,36 @@
+# Helm chart dependencies
+charts/*/charts/
+*.tgz
+
+# Helm chart lock file
+Chart.lock
+
+# Values files with secrets or local overrides
+**/secrets.yaml
+**/secrets.yml
+values-local.yaml
+values-local.yml
+
+# Helm output and temporary files
+*.tmp
+*.bak
+*.swp
+*~
+
+# IDE and editor files
+.vscode/
+.idea/
+*.iml
+.DS_Store
+.claude
+
+# CI/CD and testing artifacts
+.helmignore
+test-output/
+*.log
+
+# Rendered manifests and debugging
+manifests/
+rendered/
+debug/
+
