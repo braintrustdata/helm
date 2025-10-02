@@ -22,10 +22,8 @@ values-local.yml
 .idea/
 *.iml
 .DS_Store
-.claude
 
 # CI/CD and testing artifacts
-.helmignore
 test-output/
 *.log
 
