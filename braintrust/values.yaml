@@ -85,6 +85,8 @@ api:
   backfillNewObjects: true
   backfillDisableHistorical: false
   backfillDisableNonhistorical: false
+  allowInvalidBase64: false
+  nodeMemoryPercent: "80"
   extraEnvVars:
     # Example:
     # - name: MY_ENV_VAR
