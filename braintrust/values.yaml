@@ -94,6 +94,11 @@ api:
   nodeSelector: {}
   tolerations: []
   affinity: {}
+  securityContext: {}
+    # Example for enabling ptrace for debugging:
+    # capabilities:
+    #   add:
+    #     - SYS_PTRACE
 
 # Brainstore configuration (split into reader and writer)
 brainstore:
@@ -141,6 +146,11 @@ brainstore:
     nodeSelector: {}
     tolerations: []
     affinity: {}
+    securityContext: {}
+      # Example for enabling ptrace for debugging:
+      # capabilities:
+      #   add:
+      #     - SYS_PTRACE
 
   # Brainstore Writer configuration
   writer:
@@ -177,6 +187,11 @@ brainstore:
     nodeSelector: {}
     tolerations: []
     affinity: {}
+    securityContext: {}
+      # Example for enabling ptrace for debugging:
+      # capabilities:
+      #   add:
+      #     - SYS_PTRACE
 
 # Optional Azure Key Vault CSI configuration for syncing secrets from Azure Key Vault
 azureKeyVaultCSI:
