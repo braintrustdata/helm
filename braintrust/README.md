@@ -52,6 +52,103 @@ The CSI driver will:
 2. Automatically sync them to the `braintrust-secrets` Kubernetes secret
 3. Keep the secrets in sync as they change in Key Vault
 
+## GKE with Local SSDs
+
+Braintrust requires local SSDs for maximum disk performance. Configuration varies depending on whether you're using GKE Autopilot or Standard mode.
+
+### GKE Autopilot
+
+For Autopilot clusters, simply set the mode and the chart will automatically configure local SSDs:
+
+```yaml
+cloud: "google"
+
+google:
+  mode: "autopilot"
+  autopilotMachineFamily: "c4"  # Machine family that supports local SSDs
+
+brainstore:
+  reader:
+    volume:
+      size: "375Gi"  # Local SSDs come in 375Gi increments (375, 750, 1125, etc.)
+    resources:
+      requests:
+        cpu: "8"
+        memory: "16Gi"
+  writer:
+    volume:
+      size: "375Gi"
+    resources:
+      requests:
+        cpu: "32"
+        memory: "64Gi"
+```
+
+**What happens:**
+- Autopilot automatically provisions C4 nodes with local SSDs
+- Node selectors are added automatically (including `compute-class: Performance` for dedicated nodes)
+- Ephemeral-storage requests ensure proper SSD allocation
+- Each brainstore pod gets its own dedicated node with full access to local SSDs
+
+**Supported machine families:** c4, c4d, c3d, n4
+
+### GKE Standard Mode
+
+For Standard mode clusters, create node pools with local SSDs, then deploy:
+
+**Configure the Helm chart:**
+   ```yaml
+   cloud: "google"
+
+   google:
+     mode: "standard"  # Optional - can omit for default behavior
+
+   brainstore:
+     reader:
+       nodeSelector:
+         cloud.google.com/gke-nodepool: "brainstore"  # Target your node pool
+       resources:
+         requests:
+           cpu: "44"
+           memory: "160Gi"
+       # Prevent readers and writers from sharing nodes
+       affinity:
+         podAntiAffinity:
+           requiredDuringSchedulingIgnoredDuringExecution:
+             - labelSelector:
+                 matchExpressions:
+                   - key: app
+                     operator: In
+                     values:
+                       - brainstore-reader
+                       - brainstore-writer
+               topologyKey: kubernetes.io/hostname
+     writer:
+       nodeSelector:
+         cloud.google.com/gke-nodepool: "brainstore"
+       resources:
+         requests:
+           cpu: "44"
+           memory: "160Gi"
+       # Prevent readers and writers from sharing nodes
+       affinity:
+         podAntiAffinity:
+           requiredDuringSchedulingIgnoredDuringExecution:
+             - labelSelector:
+                 matchExpressions:
+                   - key: app
+                     operator: In
+                     values:
+                       - brainstore-reader
+                       - brainstore-writer
+               topologyKey: kubernetes.io/hostname
+   ```
+
+**What happens:**
+- Pods are scheduled on your pre-configured node pools
+- Local SSDs are automatically available via emptyDir volumes
+- Pod anti-affinity ensures readers and writers don't share nodes (each pod gets dedicated node access)
+
 ## Notes
 
 - The `AZURE_STORAGE_CONNECTION_STRING` may or may not contain an AccountKey or SAS token depending on the storage account configuration. If a key or token is not provided, workload identity will be used.
