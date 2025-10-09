@@ -95,7 +95,7 @@ api:
   backfillNewObjects: true
   backfillDisableHistorical: false
   backfillDisableNonhistorical: false
-  allowInvalidBase64: false #add a comment explaining this
+  allowInvalidBase64: false # By default, we will error on invalid base64 strings. Setting this to true will allow invalid base64 strings to be processed.
   nodeMemoryPercent: "80"
   extraEnvVars:
     # Example:
