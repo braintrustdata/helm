@@ -90,7 +90,7 @@ brainstore:
 - Ephemeral-storage requests ensure proper SSD allocation
 - Each brainstore pod gets its own dedicated node with full access to local SSDs
 
-**Supported machine families:** c4, c4d, c3d, n4
+**Supported machine families:** c4, c4d,
 
 ### GKE Standard Mode
 
@@ -101,7 +101,7 @@ For Standard mode clusters, create node pools with local SSDs, then deploy:
    cloud: "google"
 
    google:
-     mode: "standard"  # Optional - can omit for default behavior
+     mode: "standard" 
 
    brainstore:
      reader:
