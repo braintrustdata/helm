@@ -23,6 +23,16 @@ global:
 # Cloud provider configuration
 cloud: "google"  # or "azure" or "aws"
 
+# Optional: Google Cloud specific configuration
+google:
+  # GKE mode: "autopilot" or "standard"
+  # When "autopilot": Automatically configures node selectors for local SSDs
+  # When "standard": Uses default emptyDir (assumes nodes have local SSDs if configured)
+  mode: "autopilot"  # Set to "autopilot" for GKE Autopilot and "standard" for GKE with manual node pools
+  # Machine family for Autopilot mode (used when mode is "autopilot") Must be a machine family that supports local SSDs
+  # Options: c4, c4d, 
+  autopilotMachineFamily: "c4"
+
 objectStorage:
   # Azure specific configuration
   azure:
@@ -85,6 +95,8 @@ api:
   backfillNewObjects: true
   backfillDisableHistorical: false
   backfillDisableNonhistorical: false
+  allowInvalidBase64: false # By default, we will error on invalid base64 strings. Setting this to true will allow invalid base64 strings to be processed.
+  nodeMemoryPercent: "80"
   extraEnvVars:
     # Example:
     # - name: MY_ENV_VAR
@@ -110,6 +122,13 @@ brainstore:
     repository: public.ecr.aws/braintrust/brainstore
     tag: v1.1.23
     pullPolicy: IfNotPresent
+  # Locks backend configuration
+  # Options: "redis" (default) or "objectStorage"
+  # When "redis": Uses Redis for distributed locks (REDIS_URL must be configured in secrets)
+  # When "objectStorage": Uses cloud object storage for distributed locks
+  # WARNING: If you have an existing deployment, DO NOT change this setting.
+  # Changing the locks backend on an existing deployment could cause data corruption at this time.
+  locksBackend: "redis"
 
   # Brainstore Reader configuration
   reader:
@@ -137,6 +156,11 @@ brainstore:
     objectStoreCacheMemoryLimit: "1Gi"
     objectStoreCacheFileSize: "50Gi"
     verbose: true
+    # Optional: Volume configuration for cache storage
+    # When not set, uses default emptyDir: {} (backward compatible)
+    volume:
+      # Storage size for ephemeral storage requests (used with GKE Autopilot local SSDs)
+      size: ""
     extraEnvVars: []
     nodeSelector: {}
     tolerations: []
@@ -168,6 +192,11 @@ brainstore:
     objectStoreCacheMemoryLimit: "1Gi"
     objectStoreCacheFileSize: "50Gi"
     verbose: true
+    # Optional: Volume configuration for cache storage
+    # When not set, uses default emptyDir: {} (backward compatible)
+    volume:
+      # Storage size for ephemeral storage requests (used with GKE Autopilot local SSDs)
+      size: ""
     extraEnvVars: []
     # Example:
     # - name: MY_ENV_VAR

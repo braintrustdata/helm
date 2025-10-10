@@ -38,9 +38,16 @@ spec:
         {{- end }}
     spec:
       serviceAccountName: {{ .Values.brainstore.serviceAccount.name }}
-      {{- with .Values.brainstore.writer.nodeSelector }}
+      {{- if or .Values.brainstore.writer.nodeSelector (and (eq .Values.cloud "google") (eq .Values.google.mode "autopilot")) }}
       nodeSelector:
+        {{- with .Values.brainstore.writer.nodeSelector }}
         {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- if and (eq .Values.cloud "google") (eq .Values.google.mode "autopilot") }}
+        cloud.google.com/machine-family: {{ .Values.google.autopilotMachineFamily | default "c4" }}
+        cloud.google.com/gke-ephemeral-storage-local-ssd: "true"
+        cloud.google.com/compute-class: "Performance"
+        {{- end }}
       {{- end }}
       {{- with .Values.brainstore.writer.tolerations }}
       tolerations:
@@ -59,7 +66,15 @@ spec:
           ports:
             - containerPort: {{ .Values.brainstore.writer.service.port }}
           resources:
-            {{- toYaml .Values.brainstore.writer.resources | nindent 12 }}
+            requests:
+              cpu: {{ .Values.brainstore.writer.resources.requests.cpu | quote }}
+              memory: {{ .Values.brainstore.writer.resources.requests.memory | quote }}
+              {{- if and (eq .Values.cloud "google") (eq .Values.google.mode "autopilot") .Values.brainstore.writer.volume.size }}
+              ephemeral-storage: {{ .Values.brainstore.writer.volume.size | quote }}
+              {{- end }}
+            limits:
+              cpu: {{ .Values.brainstore.writer.resources.limits.cpu | quote }}
+              memory: {{ .Values.brainstore.writer.resources.limits.memory | quote }}
           envFrom:
             - configMapRef:
                 name: {{ .Values.brainstore.writer.name }}
@@ -74,11 +89,13 @@ spec:
                 secretKeyRef:
                   name: braintrust-secrets
                   key: PG_URL
+            {{- if eq .Values.brainstore.locksBackend "redis" }}
             - name: BRAINSTORE_LOCKS_URI
               valueFrom:
                 secretKeyRef:
                   name: braintrust-secrets
                   key: REDIS_URL
+            {{- end }}
             - name: BRAINSTORE_LICENSE_KEY
               valueFrom:
                 secretKeyRef:

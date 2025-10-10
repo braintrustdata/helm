@@ -71,6 +71,11 @@ spec:
                 secretKeyRef:
                   name: braintrust-secrets
                   key: FUNCTION_SECRET_KEY
+            - name: BRAINSTORE_LICENSE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: braintrust-secrets
+                  key: BRAINSTORE_LICENSE_KEY
             {{- if eq .Values.cloud "azure" }}
             - name: AZURE_STORAGE_CONNECTION_STRING
               valueFrom:
