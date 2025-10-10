@@ -66,11 +66,15 @@ spec:
           ports:
             - containerPort: {{ .Values.brainstore.reader.service.port }}
           resources:
-            {{- toYaml .Values.brainstore.reader.resources | nindent 12 }}
-            {{- if and (eq .Values.cloud "google") (eq .Values.google.mode "autopilot") .Values.brainstore.reader.volume.size }}
             requests:
-              ephemeral-storage: {{ .Values.brainstore.reader.volume.size }}
-            {{- end }}
+              cpu: {{ .Values.brainstore.reader.resources.requests.cpu | quote }}
+              memory: {{ .Values.brainstore.reader.resources.requests.memory | quote }}
+              {{- if and (eq .Values.cloud "google") (eq .Values.google.mode "autopilot") .Values.brainstore.reader.volume.size }}
+              ephemeral-storage: {{ .Values.brainstore.reader.volume.size | quote }}
+              {{- end }}
+            limits:
+              cpu: {{ .Values.brainstore.reader.resources.limits.cpu | quote }}
+              memory: {{ .Values.brainstore.reader.resources.limits.memory | quote }}
           envFrom:
             - configMapRef:
                 name: {{ .Values.brainstore.reader.name }}
