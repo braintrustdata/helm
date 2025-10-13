@@ -65,6 +65,10 @@ spec:
         - name: brainstore-reader
           image: "{{ .Values.brainstore.image.repository }}:{{ .Values.brainstore.image.tag }}"
           imagePullPolicy: {{ .Values.brainstore.image.pullPolicy }}
+          {{- with .Values.brainstore.reader.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           command: ["brainstore"]
           args: ["web"]
           ports:
