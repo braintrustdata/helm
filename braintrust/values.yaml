@@ -93,6 +93,11 @@ api:
   #   runAsUser: 1000
   #   runAsGroup: 1000
   #   fsGroup: 1000
+  # Optional: Container-level security context
+  # securityContext:
+  #   capabilities:
+  #     drop:
+  #       - ALL
   # Allow running user generated code functions (e.g. scorers/tools)
   allowCodeFunctionExecution: true
   # Brainstore backfill configuration. These defaults are fine for most cases.
@@ -162,6 +167,11 @@ brainstore:
     #   runAsUser: 1000
     #   runAsGroup: 1000
     #   fsGroup: 1000
+    # Optional: Container-level security context
+    # securityContext:
+    #   capabilities:
+    #     drop:
+    #       - ALL
     cacheDir: "/mnt/tmp/brainstore"
     objectStoreCacheMemoryLimit: "1Gi"
     objectStoreCacheFileSize: "50Gi"
@@ -203,6 +213,11 @@ brainstore:
     #   runAsUser: 1000
     #   runAsGroup: 1000
     #   fsGroup: 1000
+    # Optional: Container-level security context
+    # securityContext:
+    #   capabilities:
+    #     drop:
+    #       - ALL
     cacheDir: "/mnt/tmp/brainstore"
     objectStoreCacheMemoryLimit: "1Gi"
     objectStoreCacheFileSize: "50Gi"
