@@ -88,6 +88,11 @@ api:
     limits:
       cpu: "4"
       memory: "8Gi"
+  # Optional: Pod-level security context
+  # podSecurityContext:
+  #   runAsUser: 1000
+  #   runAsGroup: 1000
+  #   fsGroup: 1000
   # Allow running user generated code functions (e.g. scorers/tools)
   allowCodeFunctionExecution: true
   # Brainstore backfill configuration. These defaults are fine for most cases.
@@ -152,6 +157,11 @@ brainstore:
       limits:
         cpu: "8"
         memory: "16Gi"
+    # Optional: Pod-level security context
+    # podSecurityContext:
+    #   runAsUser: 1000
+    #   runAsGroup: 1000
+    #   fsGroup: 1000
     cacheDir: "/mnt/tmp/brainstore"
     objectStoreCacheMemoryLimit: "1Gi"
     objectStoreCacheFileSize: "50Gi"
@@ -188,6 +198,11 @@ brainstore:
       limits:
         cpu: "16"
         memory: "32Gi"
+    # Optional: Pod-level security context
+    # podSecurityContext:
+    #   runAsUser: 1000
+    #   runAsGroup: 1000
+    #   fsGroup: 1000
     cacheDir: "/mnt/tmp/brainstore"
     objectStoreCacheMemoryLimit: "1Gi"
     objectStoreCacheFileSize: "50Gi"
