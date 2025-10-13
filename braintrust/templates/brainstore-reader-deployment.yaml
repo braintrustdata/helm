@@ -38,6 +38,10 @@ spec:
         {{- end }}
     spec:
       serviceAccountName: {{ .Values.brainstore.serviceAccount.name }}
+      {{- with .Values.brainstore.reader.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       {{- if or .Values.brainstore.reader.nodeSelector (and (eq .Values.cloud "google") (eq .Values.google.mode "autopilot")) }}
       nodeSelector:
         {{- with .Values.brainstore.reader.nodeSelector }}
