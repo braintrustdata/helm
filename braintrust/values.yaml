@@ -237,6 +237,53 @@ brainstore:
     tolerations: []
     affinity: {}
 
+# Realtime configuration (disabled by default)
+realtime:
+  # Set to true to enable the realtime service
+  enabled: false
+  name: "braintrust-realtime"
+  labels: {}
+  annotations:
+    deployment: {}
+    service: {}
+    pod: {}
+  replicas: 1
+  image:
+    repository: public.ecr.aws/braintrust/standalone-realtime
+    tag: v1.1.23
+    pullPolicy: IfNotPresent
+  service:
+    # Optional name for service object. If not specified (empty), the realtime.name
+    # is used.
+    name: ""
+    type: ClusterIP
+    port: 8788
+    portName: http
+  resources:
+    requests:
+      cpu: "2"
+      memory: "4Gi"
+    limits:
+      cpu: "4"
+      memory: "8Gi"
+  # Optional: Pod-level security context
+  # podSecurityContext:
+  #   runAsUser: 1000
+  #   runAsGroup: 1000
+  #   fsGroup: 1000
+  # Optional: Container-level security context
+  # securityContext:
+  #   capabilities:
+  #     drop:
+  #       - ALL
+  extraEnvVars: []
+    # Example:
+    # - name: MY_ENV_VAR
+    #   value: "my-value"
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
 # Optional Azure Key Vault CSI configuration for syncing secrets from Azure Key Vault
 azureKeyVaultCSI:
   # Set to true to enable Azure Key Vault CSI secret syncing

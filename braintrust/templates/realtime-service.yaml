@@ -1,0 +1,24 @@
+{{- if .Values.realtime.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.realtime.service.name | default .Values.realtime.name }}
+  namespace: {{ include "braintrust.namespace" . }}
+  {{- with (merge .Values.global.labels .Values.realtime.labels) }}
+  labels:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with .Values.realtime.annotations.service }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  selector:
+    app: {{ .Values.realtime.name }}
+  ports:
+    - name: {{ .Values.realtime.service.portName }}
+      protocol: TCP
+      port: {{ .Values.realtime.service.port }}
+      targetPort: {{ .Values.realtime.service.port }}
+  type: {{ .Values.realtime.service.type }}
+{{- end }}
