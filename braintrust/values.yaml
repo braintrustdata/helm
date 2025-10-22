@@ -116,6 +116,8 @@ api:
   nodeSelector: {}
   tolerations: []
   affinity: {}
+  redisTls:
+    enabled: false
 
 # Brainstore configuration (split into reader and writer)
 brainstore:

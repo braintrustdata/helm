@@ -106,19 +106,42 @@ spec:
             {{- if .Values.api.extraEnvVars }}
             {{- toYaml .Values.api.extraEnvVars | nindent 12 }}
             {{- end }}
-          {{- if .Values.azureKeyVaultCSI.enabled }}
+            {{- if .Values.api.redisTls.enabled }}
+            - name: NODE_EXTRA_CA_CERTS
+              value: "/etc/redis/redis-bundle.pem"
+            {{- end }}
+          {{- if or .Values.azureKeyVaultCSI.enabled .Values.api.redisTls.enabled }}
           volumeMounts:
+            {{- if .Values.azureKeyVaultCSI.enabled }}
             - name: secrets-store-inline
               mountPath: "/mnt/secrets-store"
               readOnly: true
+            {{- end }}
+            {{- if .Values.api.redisTls.enabled }}
+            - name: redis-tls-ca
+              mountPath: "/etc/redis"
+              readOnly: true
+            {{- end }}
           {{- end }}
-      {{- if .Values.azureKeyVaultCSI.enabled }}
+      {{- if or .Values.azureKeyVaultCSI.enabled .Values.api.redisTls.enabled }}
       volumes:
+        {{- if .Values.api.redisTls.enabled }}
+        - name: redis-tls-ca
+          projected:
+            sources:
+              - secret:
+                  name: "braintrust-secrets"
+                  items:
+                    - key: "REDIS_CA_PEM"
+                      path: "redis-bundle.pem"
+        {{- end }}
+        {{- if .Values.azureKeyVaultCSI.enabled }}
         - name: secrets-store-inline
           csi:
             driver: secrets-store.csi.k8s.io
             readOnly: true
             volumeAttributes:
               secretProviderClass: {{ .Values.azureKeyVaultCSI.name }}
+        {{- end }}
       {{- end }}
 
