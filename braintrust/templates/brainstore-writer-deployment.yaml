@@ -112,12 +112,21 @@ spec:
             {{- if .Values.brainstore.writer.extraEnvVars }}
             {{- toYaml .Values.brainstore.writer.extraEnvVars | nindent 12 }}
             {{- end }}
+            {{- if and .Values.redisTls.enabled (eq .Values.brainstore.locksBackend "redis") (eq .Values.cloud "google") }}
+            - name: SSL_CERT_FILE
+              value: "/etc/redis/redis-bundle.pem"
+            {{- end }}
           volumeMounts:
             - name: cache-volume
               mountPath: {{ .Values.brainstore.writer.cacheDir }}
             {{- if .Values.azureKeyVaultCSI.enabled }}
             - name: secrets-store-inline
               mountPath: "/mnt/secrets-store"
+              readOnly: true
+            {{- end }}
+            {{- if and .Values.redisTls.enabled (eq .Values.brainstore.locksBackend "redis") (eq .Values.cloud "google") }}
+            - name: redis-tls-ca
+              mountPath: "/etc/redis"
               readOnly: true
             {{- end }}
       volumes:
@@ -130,4 +139,14 @@ spec:
             readOnly: true
             volumeAttributes:
               secretProviderClass: {{ .Values.azureKeyVaultCSI.name }}
+        {{- end }}
+        {{- if and .Values.redisTls.enabled (eq .Values.brainstore.locksBackend "redis") (eq .Values.cloud "google") }}
+        - name: redis-tls-ca
+          projected:
+            sources:
+              - secret:
+                  name: "braintrust-secrets"
+                  items:
+                    - key: "REDIS_CA_PEM"
+                      path: "redis-bundle.pem"
         {{- end }}

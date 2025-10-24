@@ -23,6 +23,13 @@ global:
 # Cloud provider configuration
 cloud: "google"  # or "azure" or "aws"
 
+# Redis TLS configuration (only applies when cloud is "google")
+# When enabled, services will use TLS certificates to connect to Redis
+# - API: Always gets TLS when enabled
+# - Brainstore: Only gets TLS when enabled AND locksBackend is "redis"
+redisTls:
+  enabled: false
+
 # Optional: Google Cloud specific configuration
 google:
   # GKE mode: "autopilot" or "standard"
@@ -116,8 +123,6 @@ api:
   nodeSelector: {}
   tolerations: []
   affinity: {}
-  redisTls:
-    enabled: false
 
 # Brainstore configuration (split into reader and writer)
 brainstore:

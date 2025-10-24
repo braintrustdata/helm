@@ -106,26 +106,26 @@ spec:
             {{- if .Values.api.extraEnvVars }}
             {{- toYaml .Values.api.extraEnvVars | nindent 12 }}
             {{- end }}
-            {{- if .Values.api.redisTls.enabled }}
+            {{- if and .Values.redisTls.enabled (eq .Values.cloud "google") }}
             - name: NODE_EXTRA_CA_CERTS
               value: "/etc/redis/redis-bundle.pem"
             {{- end }}
-          {{- if or .Values.azureKeyVaultCSI.enabled .Values.api.redisTls.enabled }}
+          {{- if or .Values.azureKeyVaultCSI.enabled (and .Values.redisTls.enabled (eq .Values.cloud "google")) }}
           volumeMounts:
             {{- if .Values.azureKeyVaultCSI.enabled }}
             - name: secrets-store-inline
               mountPath: "/mnt/secrets-store"
               readOnly: true
             {{- end }}
-            {{- if .Values.api.redisTls.enabled }}
+            {{- if and .Values.redisTls.enabled (eq .Values.cloud "google") }}
             - name: redis-tls-ca
               mountPath: "/etc/redis"
               readOnly: true
             {{- end }}
           {{- end }}
-      {{- if or .Values.azureKeyVaultCSI.enabled .Values.api.redisTls.enabled }}
+      {{- if or .Values.azureKeyVaultCSI.enabled (and .Values.redisTls.enabled (eq .Values.cloud "google")) }}
       volumes:
-        {{- if .Values.api.redisTls.enabled }}
+        {{- if and .Values.redisTls.enabled (eq .Values.cloud "google") }}
         - name: redis-tls-ca
           projected:
             sources:
