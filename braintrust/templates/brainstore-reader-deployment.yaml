@@ -112,7 +112,7 @@ spec:
             {{- if .Values.brainstore.reader.extraEnvVars }}
             {{- toYaml .Values.brainstore.reader.extraEnvVars | nindent 12 }}
             {{- end }}
-            {{- if and .Values.redisTls.enabled (eq .Values.brainstore.locksBackend "redis") (eq .Values.cloud "google") }}
+            {{- if and .Values.customRedisTLSCABundle (eq .Values.brainstore.locksBackend "redis") }}
             - name: SSL_CERT_FILE
               value: "/etc/redis/redis-bundle.pem"
             {{- end }}
@@ -124,7 +124,7 @@ spec:
               mountPath: "/mnt/secrets-store"
               readOnly: true
             {{- end }}
-            {{- if and .Values.redisTls.enabled (eq .Values.brainstore.locksBackend "redis") (eq .Values.cloud "google") }}
+            {{- if and .Values.customRedisTLSCABundle (eq .Values.brainstore.locksBackend "redis") }}
             - name: redis-tls-ca
               mountPath: "/etc/redis"
               readOnly: true
@@ -140,7 +140,7 @@ spec:
             volumeAttributes:
               secretProviderClass: {{ .Values.azureKeyVaultCSI.name }}
         {{- end }}
-        {{- if and .Values.redisTls.enabled (eq .Values.brainstore.locksBackend "redis") (eq .Values.cloud "google") }}
+        {{- if and .Values.customRedisTLSCABundle (eq .Values.brainstore.locksBackend "redis") }}
         - name: redis-tls-ca
           projected:
             sources:

@@ -23,12 +23,12 @@ global:
 # Cloud provider configuration
 cloud: "google"  # or "azure" or "aws"
 
-# Redis TLS configuration (only applies when cloud is "google")
-# When enabled, services will use TLS certificates to connect to Redis
-# - API: Always gets TLS when enabled
-# - Brainstore: Only gets TLS when enabled AND locksBackend is "redis"
-redisTls:
-  enabled: false
+# Custom Redis TLS CA Bundle configuration
+# When enabled, services will use a custom TLS CA certificate bundle to connect to Redis
+# - API: Always gets TLS CA bundle when enabled
+# - Brainstore: Only gets TLS CA bundle when enabled AND locksBackend is "redis"
+# Requires REDIS_CA_PEM secret to be set (see README for details)
+customRedisTLSCABundle: false
 
 # Optional: Google Cloud specific configuration
 google:
