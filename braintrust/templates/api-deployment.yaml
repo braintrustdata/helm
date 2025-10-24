@@ -106,6 +106,10 @@ spec:
             {{- if .Values.api.extraEnvVars }}
             {{- toYaml .Values.api.extraEnvVars | nindent 12 }}
             {{- end }}
+            {{- if .Values.realtime.enabled }}
+            - name: REALTIME_URL
+              value: "http://{{ .Values.realtime.service.name | default .Values.realtime.name }}:{{ .Values.realtime.service.port }}"
+            {{- end }}
             {{- if and .Values.redisTls.enabled (eq .Values.cloud "google") }}
             - name: NODE_EXTRA_CA_CERTS
               value: "/etc/redis/redis-bundle.pem"
