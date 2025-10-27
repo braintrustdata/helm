@@ -110,26 +110,26 @@ spec:
             - name: REALTIME_URL
               value: "http://{{ .Values.realtime.service.name | default .Values.realtime.name }}:{{ .Values.realtime.service.port }}"
             {{- end }}
-            {{- if .Values.customRedisTLSCABundle }}
+            {{- if .Values.customTLSCABundle }}
             - name: NODE_EXTRA_CA_CERTS
               value: "/etc/redis/redis-bundle.pem"
             {{- end }}
-          {{- if or .Values.azureKeyVaultCSI.enabled .Values.customRedisTLSCABundle }}
+          {{- if or .Values.azureKeyVaultCSI.enabled .Values.customTLSCABundle }}
           volumeMounts:
             {{- if .Values.azureKeyVaultCSI.enabled }}
             - name: secrets-store-inline
               mountPath: "/mnt/secrets-store"
               readOnly: true
             {{- end }}
-            {{- if .Values.customRedisTLSCABundle }}
+            {{- if .Values.customTLSCABundle }}
             - name: redis-tls-ca
               mountPath: "/etc/redis"
               readOnly: true
             {{- end }}
           {{- end }}
-      {{- if or .Values.azureKeyVaultCSI.enabled .Values.customRedisTLSCABundle }}
+      {{- if or .Values.azureKeyVaultCSI.enabled .Values.customTLSCABundle }}
       volumes:
-        {{- if .Values.customRedisTLSCABundle }}
+        {{- if .Values.customTLSCABundle }}
         - name: redis-tls-ca
           projected:
             sources:
