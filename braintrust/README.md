@@ -14,6 +14,7 @@ The `braintrust-secrets` secret must contain the following keys:
 | `PG_URL` | PostgreSQL connection URL | `postgres://<username>:<password>@<host>:<port>/<database>` (append `?sslmode=require` if using TLS) |
 | `BRAINSTORE_LICENSE_KEY` | Brainstore license key | Valid Brainstore license key from the Braintrust Data Plane settings page |
 | `FUNCTION_SECRET_KEY` | Random string for encrypting function secrets | Random string |
+| `CA_PEM` | Custom TLS CA bundle | Full PEM bundle as a multiline string (BEGIN/END blocks). Only required if `customTLSCABundle: true`. |
 | `AZURE_STORAGE_CONNECTION_STRING` | Azure storage connection string | Valid Azure storage connection string (only required if `cloud` is `azure`) |
 | `GCS_ACCESS_KEY_ID` | Google HMAC Access ID string | Valid S3 API Key Id (only required if `cloud` is `google`) |
 | `GCS_SECRET_ACCESS_KEY` | Google HMAC Secret string | Valid S3 Secret string (only required if `cloud` is `google`) |
