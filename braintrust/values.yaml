@@ -27,9 +27,7 @@ cloud: "google"  # or "azure" or "aws"
 # When enabled, appends custom CA certificates to the system trust store for secure connections
 # This is useful for private CAs, self-signed certificates, or custom certificate chains
 # The custom CA bundle is added in addition to the default system CA certificates
-# - API: Always gets TLS CA bundle when enabled (used for Redis and other connections)
-# - Brainstore: Always gets TLS CA bundle when enabled (used for Redis and other connections)
-# Requires REDIS_CA_PEM secret to be set (see README for details)
+# Requires CA_PEM secret to be set (see README for details)
 customTLSCABundle: false
 
 # Optional: Google Cloud specific configuration

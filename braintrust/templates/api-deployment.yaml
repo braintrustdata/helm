@@ -112,7 +112,7 @@ spec:
             {{- end }}
             {{- if .Values.customTLSCABundle }}
             - name: NODE_EXTRA_CA_CERTS
-              value: "/etc/redis/redis-bundle.pem"
+              value: "/etc/braintrust/tls/ca-bundle.pem"
             {{- end }}
           {{- if or .Values.azureKeyVaultCSI.enabled .Values.customTLSCABundle }}
           volumeMounts:
@@ -122,22 +122,22 @@ spec:
               readOnly: true
             {{- end }}
             {{- if .Values.customTLSCABundle }}
-            - name: redis-tls-ca
-              mountPath: "/etc/redis"
+            - name: tls-ca
+              mountPath: "/etc/braintrust/tls"
               readOnly: true
             {{- end }}
           {{- end }}
       {{- if or .Values.azureKeyVaultCSI.enabled .Values.customTLSCABundle }}
       volumes:
         {{- if .Values.customTLSCABundle }}
-        - name: redis-tls-ca
+        - name: tls-ca
           projected:
             sources:
               - secret:
                   name: "braintrust-secrets"
                   items:
-                    - key: "REDIS_CA_PEM"
-                      path: "redis-bundle.pem"
+                    - key: "CA_PEM"
+                      path: "ca-bundle.pem"
         {{- end }}
         {{- if .Values.azureKeyVaultCSI.enabled }}
         - name: secrets-store-inline
