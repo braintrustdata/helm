@@ -89,7 +89,7 @@ spec:
                 secretKeyRef:
                   name: braintrust-secrets
                   key: PG_URL
-            - name: BRAINSTORE_REDIS_URL
+            - name: BRAINSTORE_REDIS_URI
               valueFrom:
                 secretKeyRef:
                   name: braintrust-secrets
