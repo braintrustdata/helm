@@ -180,7 +180,7 @@ jobs:
           ### Installation
           \`\`\`bash
 
-          helm install braintrust oci://${{ steps.push-chart.outputs.chart_url }}/${{ env.CHART_NAME }} --version $CHART_VERSION
+          helm install braintrust ${{ steps.push-chart.outputs.chart_url }}/${{ env.CHART_NAME }} --version $CHART_VERSION
           \`\`\`
           EOF
 
