@@ -205,7 +205,8 @@ brainstore:
     # Optional: Volume configuration for cache storage
     # When not set, uses default emptyDir: {} (backward compatible)
     volume:
-      # Storage size for ephemeral storage requests (used with GKE Autopilot local SSDs)
+      # Storage size for ephemeral storage requests
+      # Used with GKE Autopilot local SSDs and Azure Container Storage CSI
       size: ""
     extraEnvVars: []
     # Example:
