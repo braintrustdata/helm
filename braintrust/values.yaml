@@ -185,7 +185,7 @@ brainstore:
     # Health check probes
     livenessProbe:
       httpGet:
-        path: /health
+        path: /
         port: 4000
       initialDelaySeconds: 60
       periodSeconds: 10
@@ -194,7 +194,7 @@ brainstore:
       successThreshold: 1
     readinessProbe:
       httpGet:
-        path: /ready
+        path: /status
         port: 4000
       initialDelaySeconds: 30
       periodSeconds: 5
@@ -245,7 +245,7 @@ brainstore:
     # Health check probes
     livenessProbe:
       httpGet:
-        path: /health
+        path: /
         port: 4000
       initialDelaySeconds: 90
       periodSeconds: 10
@@ -254,7 +254,7 @@ brainstore:
       successThreshold: 1
     readinessProbe:
       httpGet:
-        path: /ready
+        path: /status
         port: 4000
       initialDelaySeconds: 45
       periodSeconds: 5
