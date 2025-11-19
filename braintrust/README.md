@@ -20,7 +20,7 @@ The `braintrust-secrets` secret must contain the following keys:
 
 ## Azure Key Vault Driver Integration
 
-If you're using Azure, the Azure Key Vault CSI driver is default enabledto automatically sync secrets from Azure Key Vault into Kubernetes. This eliminates the need to manually create and manage the `braintrust-secrets` Kubernetes secret.
+If you're using Azure, the Azure Key Vault CSI driver is default enabled and will automatically sync secrets from Azure Key Vault into Kubernetes. This eliminates the need to manually create and manage the `braintrust-secrets` Kubernetes secret.
 
 To enable this feature:
 
