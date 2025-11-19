@@ -75,6 +75,14 @@ spec:
             limits:
               cpu: {{ .Values.brainstore.reader.resources.limits.cpu | quote }}
               memory: {{ .Values.brainstore.reader.resources.limits.memory | quote }}
+          {{- with .Values.brainstore.reader.livenessProbe }}
+          livenessProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.brainstore.reader.readinessProbe }}
+          readinessProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           envFrom:
             - configMapRef:
                 name: {{ .Values.brainstore.reader.name }}
