@@ -36,9 +36,9 @@ azure:
   tenantId: ""
   # Automatically configures NVMe temporary disks into a single RAID0 volume. It should always be enabled except in rare cases.
   # https://learn.microsoft.com/en-us/azure/storage/container-storage/container-storage-introduction
-  enableAzureContainerStorageCSI: true
-  # Azure Key Vault CSI configuration for syncing secrets from Azure Key Vault
-  enableAzureKeyVaultCSI: true
+  enableAzureContainerStorageDriver: true
+  # Azure Key Vault driver configuration for syncing secrets from Azure Key Vault
+  enableAzureKeyVaultDriver: true
   # This is the client ID of the service principal that has access to the keyvault.
   keyVaultCSIclientID: ""
   # This should come from the terraform module
@@ -218,7 +218,7 @@ brainstore:
     tolerations: []
     affinity: {}
 
-azureKeyVaultCSI:
+azureKeyVaultDriver:
   # Map your Key Vault secret names to the required Kubernetes secret keys
   # Example: If your Redis URL is stored as "my-redis-connection" in Key Vault, set:
   #   keyVaultSecretName: "my-redis-connection"
