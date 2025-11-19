@@ -75,11 +75,11 @@ spec:
             limits:
               cpu: {{ .Values.brainstore.reader.resources.limits.cpu | quote }}
               memory: {{ .Values.brainstore.reader.resources.limits.memory | quote }}
-          {{- with .Values.brainstore.reader.livenessProbe }}
+          {{- with .Values.brainstore.livenessProbe }}
           livenessProbe:
             {{- toYaml . | nindent 12 }}
           {{- end }}
-          {{- with .Values.brainstore.reader.readinessProbe }}
+          {{- with .Values.brainstore.readinessProbe }}
           readinessProbe:
             {{- toYaml . | nindent 12 }}
           {{- end }}
