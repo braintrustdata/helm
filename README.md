@@ -7,13 +7,12 @@ This repository contains the official Helm chart for deploying Braintrust's self
 ### Install from OCI Registry
 
 ```bash
-helm install braintrust oci://public.ecr.aws/braintrust/helm/braintrust
-```
-
-To install a specific version:
-
-```bash
-helm install braintrust oci://public.ecr.aws/braintrust/helm/braintrust --version 1.2.3
+helm upgrade --install \
+  --namespace braintrust --create-namespace \
+  braintrust \
+  oci://public.ecr.aws/braintrust/helm/braintrust \
+  --version 1.2.3 \
+  --values helm-values.yaml
 ```
 
 ## Prerequisites
