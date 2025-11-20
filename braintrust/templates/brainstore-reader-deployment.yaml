@@ -117,19 +117,31 @@ spec:
           volumeMounts:
             - name: cache-volume
               mountPath: {{ .Values.brainstore.reader.cacheDir }}
-            {{- if .Values.azureKeyVaultCSI.enabled }}
+            {{- if .Values.azure.enableAzureKeyVaultDriver }}
             - name: secrets-store-inline
               mountPath: "/mnt/secrets-store"
               readOnly: true
             {{- end }}
       volumes:
         - name: cache-volume
+          {{- if and (eq .Values.cloud "azure") .Values.azure.enableAzureContainerStorageDriver }}
+          ephemeral:
+            volumeClaimTemplate:
+              spec:
+                volumeMode: Filesystem
+                accessModes: ["ReadWriteOnce"]
+                storageClassName: local
+                resources:
+                  requests:
+                    storage: {{ required "brainstore.reader.volume.size must be set" .Values.brainstore.reader.volume.size | quote }}
+          {{- else }}
           emptyDir: {}
-        {{- if .Values.azureKeyVaultCSI.enabled }}
+          {{- end }}
+        {{- if .Values.azure.enableAzureKeyVaultDriver }}
         - name: secrets-store-inline
           csi:
             driver: secrets-store.csi.k8s.io
             readOnly: true
             volumeAttributes:
-              secretProviderClass: {{ .Values.azureKeyVaultCSI.name }}
+              secretProviderClass: {{ .Values.azure.keyVaultName }}
         {{- end }}
