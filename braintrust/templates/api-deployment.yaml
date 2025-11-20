@@ -98,7 +98,7 @@ spec:
             {{- if .Values.api.extraEnvVars }}
             {{- toYaml .Values.api.extraEnvVars | nindent 12 }}
             {{- end }}
-          {{- if .Values.azureKeyVaultDriver.enabled }}
+          {{- if .Values.azure.enableAzureKeyVaultDriver }}
           volumeMounts:
             - name: secrets-store-inline
               mountPath: "/mnt/secrets-store"
@@ -111,6 +111,6 @@ spec:
             driver: secrets-store.csi.k8s.io
             readOnly: true
             volumeAttributes:
-              secretProviderClass: {{ .Values.azureKeyVaultDriver.name }}
+              secretProviderClass: {{ .Values.azure.keyVaultName }}
       {{- end }}
 
