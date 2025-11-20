@@ -104,7 +104,7 @@ spec:
               mountPath: "/mnt/secrets-store"
               readOnly: true
           {{- end }}
-      {{- if .Values.azureKeyVaultDriver.enabled }}
+      {{- if .Values.azure.enableAzureKeyVaultDriver }}
       volumes:
         - name: secrets-store-inline
           csi:
