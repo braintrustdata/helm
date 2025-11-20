@@ -114,7 +114,11 @@ api:
     # - name: ANOTHER_VAR
     #   value: "another-value"
   nodeSelector: {}
-  tolerations: []
+  tolerations:
+  - key: "braintrust.dev/app"
+    operator: Equal
+    value: "api"
+    effect: NoSchedule
   affinity: {}
 
 # Brainstore configuration (split into reader and writer)
@@ -173,7 +177,11 @@ brainstore:
       size: ""
     extraEnvVars: []
     nodeSelector: {}
-    tolerations: []
+    tolerations:
+    - key: "braintrust.dev/app"
+      operator: Equal
+      value: "brainstore"
+      effect: NoSchedule
     affinity: {}
 
   # Brainstore Writer configuration
