@@ -134,6 +134,16 @@ spec:
                 resources:
                   requests:
                     storage: {{ required "brainstore.reader.volume.size must be set" .Values.brainstore.reader.volume.size | quote }}
+          {{- else if .Values.brainstore.reader.volume.ephemeralVolumeStorageClassName }}
+          ephemeral:
+            volumeClaimTemplate:
+              spec:
+                volumeMode: Filesystem
+                accessModes: ["ReadWriteOnce"]
+                storageClassName: {{ .Values.brainstore.reader.volume.ephemeralVolumeStorageClassName }}
+                resources:
+                  requests:
+                    storage: {{ required "brainstore.reader.volume.size must be set" .Values.brainstore.reader.volume.size | quote }}
           {{- else }}
           emptyDir: {}
           {{- end }}
