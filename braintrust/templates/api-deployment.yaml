@@ -98,13 +98,13 @@ spec:
             {{- if .Values.api.extraEnvVars }}
             {{- toYaml .Values.api.extraEnvVars | nindent 12 }}
             {{- end }}
-          {{- if .Values.azure.enableAzureKeyVaultDriver }}
+          {{- if and (eq .Values.cloud "azure") .Values.azure.enableAzureKeyVaultDriver }}
           volumeMounts:
             - name: secrets-store-inline
               mountPath: "/mnt/secrets-store"
               readOnly: true
           {{- end }}
-      {{- if .Values.azure.enableAzureKeyVaultDriver }}
+      {{- if and (eq .Values.cloud "azure") .Values.azure.enableAzureKeyVaultDriver }}
       volumes:
         - name: secrets-store-inline
           csi:
