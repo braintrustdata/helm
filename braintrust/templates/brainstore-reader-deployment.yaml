@@ -117,7 +117,7 @@ spec:
           volumeMounts:
             - name: cache-volume
               mountPath: {{ .Values.brainstore.reader.cacheDir }}
-            {{- if .Values.azure.enableAzureKeyVaultDriver }}
+            {{- if and (eq .Values.cloud "azure") .Values.azure.enableAzureKeyVaultDriver }}
             - name: secrets-store-inline
               mountPath: "/mnt/secrets-store"
               readOnly: true
@@ -137,7 +137,7 @@ spec:
           {{- else }}
           emptyDir: {}
           {{- end }}
-        {{- if .Values.azure.enableAzureKeyVaultDriver }}
+        {{- if and (eq .Values.cloud "azure") .Values.azure.enableAzureKeyVaultDriver }}
         - name: secrets-store-inline
           csi:
             driver: secrets-store.csi.k8s.io
