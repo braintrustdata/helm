@@ -129,7 +129,7 @@ api:
   readinessProbe:
     httpGet:
       path: /status
-      port: 8000
+      port: 8001
     initialDelaySeconds: 10
     periodSeconds: 5
     timeoutSeconds: 3
