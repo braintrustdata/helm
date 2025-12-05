@@ -21,7 +21,7 @@ global:
   controlPlaneTelemetry: "status,metrics,usage"
 
 # Cloud provider configuration
-cloud: "google"  # or "azure" or "aws"
+cloud: ""  # "google" or "azure" or "aws"
 
 # Optional: Google Cloud specific configuration
 google:
@@ -30,8 +30,20 @@ google:
   # When "standard": Uses default emptyDir (assumes nodes have local SSDs if configured)
   mode: "autopilot"  # Set to "autopilot" for GKE Autopilot and "standard" for GKE with manual node pools
   # Machine family for Autopilot mode (used when mode is "autopilot") Must be a machine family that supports local SSDs
-  # Options: c4, c4d, 
   autopilotMachineFamily: "c4"
+
+azure:
+  tenantId: ""
+  # Automatically configures NVMe temporary disks into a single RAID0 volume. It should always be enabled except in rare cases.
+  # https://learn.microsoft.com/en-us/azure/storage/container-storage/container-storage-introduction
+  enableAzureContainerStorageDriver: true
+  # Azure Key Vault driver configuration for syncing secrets from Azure Key Vault
+  enableAzureKeyVaultDriver: true
+  # This is the client ID of the service principal that has access to the keyvault.
+  keyVaultCSIclientID: ""
+  # This should come from the terraform module
+  keyVaultName: ""
+
 
 objectStorage:
   # Azure specific configuration
@@ -68,7 +80,7 @@ api:
   replicas: 2
   image:
     repository: public.ecr.aws/braintrust/standalone-api
-    tag: v1.1.26
+    tag: v1.1.27
     pullPolicy: IfNotPresent
   service:
     # Optional name for service object. If not specified (empty), the api.name
@@ -137,7 +149,7 @@ brainstore:
   # Shared image configuration
   image:
     repository: public.ecr.aws/braintrust/brainstore
-    tag: v1.1.26
+    tag: v1.1.27
     pullPolicy: IfNotPresent
   # Locks backend configuration
   # Options: "redis" (default) or "objectStorage"
@@ -231,7 +243,8 @@ brainstore:
     # Optional: Volume configuration for cache storage
     # When not set, uses default emptyDir: {} (backward compatible)
     volume:
-      # Storage size for ephemeral storage requests (used with GKE Autopilot local SSDs)
+      # Storage size for ephemeral storage requests
+      # Used with GKE Autopilot local SSDs and Azure Container Storage CSI
       size: ""
     extraEnvVars: []
     # Example:
@@ -243,18 +256,7 @@ brainstore:
     tolerations: []
     affinity: {}
 
-# Optional Azure Key Vault CSI configuration for syncing secrets from Azure Key Vault
-azureKeyVaultCSI:
-  # Set to true to enable Azure Key Vault CSI secret syncing
-  enabled: false
-
-  # Name of your Azure Key Vault.
-  # If you use our terraform module, this will be "<deployment-name>-kv" with a default value of "braintrust-kv"
-  name: "braintrust-kv"
-
-  clientID: ""
-  tenantId: ""
-
+azureKeyVaultDriver:
   # Map your Key Vault secret names to the required Kubernetes secret keys
   # Example: If your Redis URL is stored as "my-redis-connection" in Key Vault, set:
   #   keyVaultSecretName: "my-redis-connection"
@@ -276,4 +278,3 @@ azureKeyVaultCSI:
     - keyVaultSecretName: "azure-storage-connection-string"
       keyVaultSecretType: "secret"
       kubernetesSecretKey: "AZURE_STORAGE_CONNECTION_STRING"
-
