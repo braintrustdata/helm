@@ -116,6 +116,25 @@ api:
   nodeSelector: {}
   tolerations: []
   affinity: {}
+  # Health check probes
+  livenessProbe:
+    httpGet:
+      path: /
+      port: 8000
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+    successThreshold: 1
+  readinessProbe:
+    httpGet:
+      path: /status
+      port: 8001
+    initialDelaySeconds: 10
+    periodSeconds: 5
+    timeoutSeconds: 3
+    failureThreshold: 3
+    successThreshold: 1
 
 # Brainstore configuration (split into reader and writer)
 brainstore:
@@ -139,6 +158,25 @@ brainstore:
   # WARNING: If you have an existing deployment, DO NOT change this setting.
   # Changing the locks backend on an existing deployment could cause data corruption at this time.
   locksBackend: "redis"
+  # Health check probes (applies to both reader and writer)
+  livenessProbe:
+    httpGet:
+      path: /
+      port: 4000
+    initialDelaySeconds: 60
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+    successThreshold: 1
+  readinessProbe:
+    httpGet:
+      path: /status
+      port: 4000
+    initialDelaySeconds: 30
+    periodSeconds: 5
+    timeoutSeconds: 3
+    failureThreshold: 3
+    successThreshold: 1
 
   # Brainstore Reader configuration
   reader:

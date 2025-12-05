@@ -52,6 +52,14 @@ spec:
             - containerPort: {{ .Values.api.service.port }}
           resources:
             {{- toYaml .Values.api.resources | nindent 12 }}
+          {{- with .Values.api.livenessProbe }}
+          livenessProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.api.readinessProbe }}
+          readinessProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           envFrom:
             - configMapRef:
                 name: {{ .Values.api.name }}
@@ -95,6 +103,10 @@ spec:
                   name: braintrust-secrets
                   key: GCS_SECRET_ACCESS_KEY
             {{- end }}
+            - name: TS_API_HEALTHSERVER_HOST
+              value: "0.0.0.0"
+            - name: TS_API_HEALTHSERVER_PORT
+              value: "8001"
             {{- if .Values.api.extraEnvVars }}
             {{- toYaml .Values.api.extraEnvVars | nindent 12 }}
             {{- end }}
