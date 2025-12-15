@@ -104,9 +104,9 @@ spec:
                   key: GCS_SECRET_ACCESS_KEY
             {{- end }}
             - name: TS_API_HEALTHSERVER_HOST
-              value: "0.0.0.0"
+              value: {{ .Values.api.healthServer.host | quote }}
             - name: TS_API_HEALTHSERVER_PORT
-              value: "8001"
+              value: {{ .Values.api.healthServer.port | quote }}
             {{- if .Values.api.extraEnvVars }}
             {{- toYaml .Values.api.extraEnvVars | nindent 12 }}
             {{- end }}

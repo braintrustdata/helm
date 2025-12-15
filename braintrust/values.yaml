@@ -135,6 +135,10 @@ api:
     timeoutSeconds: 3
     failureThreshold: 3
     successThreshold: 1
+  # Health server configuration
+  healthServer:
+    host: "0.0.0.0"
+    port: "8001"
 
 # Brainstore configuration (split into reader and writer)
 brainstore:
