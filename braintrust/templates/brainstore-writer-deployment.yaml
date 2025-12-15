@@ -83,6 +83,14 @@ spec:
             limits:
               cpu: {{ .Values.brainstore.writer.resources.limits.cpu | quote }}
               memory: {{ .Values.brainstore.writer.resources.limits.memory | quote }}
+          {{- with .Values.brainstore.livenessProbe }}
+          livenessProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.brainstore.readinessProbe }}
+          readinessProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           envFrom:
             - configMapRef:
                 name: {{ .Values.brainstore.writer.name }}
@@ -114,6 +122,11 @@ spec:
                 secretKeyRef:
                   name: braintrust-secrets
                   key: BRAINSTORE_LICENSE_KEY
+            - name: FUNCTION_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: braintrust-secrets
+                  key: FUNCTION_SECRET_KEY
             {{- if .Values.brainstore.writer.extraEnvVars }}
             {{- toYaml .Values.brainstore.writer.extraEnvVars | nindent 12 }}
             {{- end }}
@@ -124,7 +137,7 @@ spec:
           volumeMounts:
             - name: cache-volume
               mountPath: {{ .Values.brainstore.writer.cacheDir }}
-            {{- if .Values.azureKeyVaultCSI.enabled }}
+            {{- if and (eq .Values.cloud "azure") .Values.azure.enableAzureKeyVaultDriver }}
             - name: secrets-store-inline
               mountPath: "/mnt/secrets-store"
               readOnly: true
@@ -136,14 +149,26 @@ spec:
             {{- end }}
       volumes:
         - name: cache-volume
+          {{- if and (eq .Values.cloud "azure") .Values.azure.enableAzureContainerStorageDriver }}
+          ephemeral:
+            volumeClaimTemplate:
+              spec:
+                volumeMode: Filesystem
+                accessModes: ["ReadWriteOnce"]
+                storageClassName: local
+                resources:
+                  requests:
+                    storage: {{ required "brainstore.writer.volume.size must be set" .Values.brainstore.writer.volume.size | quote }}
+          {{- else }}
           emptyDir: {}
-        {{- if .Values.azureKeyVaultCSI.enabled }}
+          {{- end }}
+        {{- if and (eq .Values.cloud "azure") .Values.azure.enableAzureKeyVaultDriver }}
         - name: secrets-store-inline
           csi:
             driver: secrets-store.csi.k8s.io
             readOnly: true
             volumeAttributes:
-              secretProviderClass: {{ .Values.azureKeyVaultCSI.name }}
+              secretProviderClass: {{ .Values.azure.keyVaultName }}
         {{- end }}
         {{- if .Values.customTLSCABundle }}
         - name: tls-ca

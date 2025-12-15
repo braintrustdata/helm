@@ -21,7 +21,7 @@ global:
   controlPlaneTelemetry: "status,metrics,usage"
 
 # Cloud provider configuration
-cloud: "google"  # or "azure" or "aws"
+cloud: ""  # "google" or "azure" or "aws"
 
 # Custom TLS CA Bundle configuration
 # When enabled, appends custom CA certificates to the system trust store for secure connections
@@ -37,8 +37,20 @@ google:
   # When "standard": Uses default emptyDir (assumes nodes have local SSDs if configured)
   mode: "autopilot"  # Set to "autopilot" for GKE Autopilot and "standard" for GKE with manual node pools
   # Machine family for Autopilot mode (used when mode is "autopilot") Must be a machine family that supports local SSDs
-  # Options: c4, c4d, 
   autopilotMachineFamily: "c4"
+
+azure:
+  tenantId: ""
+  # Automatically configures NVMe temporary disks into a single RAID0 volume. It should always be enabled except in rare cases.
+  # https://learn.microsoft.com/en-us/azure/storage/container-storage/container-storage-introduction
+  enableAzureContainerStorageDriver: true
+  # Azure Key Vault driver configuration for syncing secrets from Azure Key Vault
+  enableAzureKeyVaultDriver: true
+  # This is the client ID of the service principal that has access to the keyvault.
+  keyVaultCSIclientID: ""
+  # This should come from the terraform module
+  keyVaultName: ""
+
 
 objectStorage:
   # Azure specific configuration
@@ -75,7 +87,7 @@ api:
   replicas: 2
   image:
     repository: public.ecr.aws/braintrust/standalone-api
-    tag: v1.1.23
+    tag: v1.1.28
     pullPolicy: IfNotPresent
   service:
     # Optional name for service object. If not specified (empty), the api.name
@@ -121,6 +133,25 @@ api:
   nodeSelector: {}
   tolerations: []
   affinity: {}
+  # Health check probes
+  livenessProbe:
+    httpGet:
+      path: /
+      port: 8000
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+    successThreshold: 1
+  readinessProbe:
+    httpGet:
+      path: /status
+      port: 8001
+    initialDelaySeconds: 10
+    periodSeconds: 5
+    timeoutSeconds: 3
+    failureThreshold: 3
+    successThreshold: 1
 
 # Brainstore configuration (split into reader and writer)
 brainstore:
@@ -135,7 +166,7 @@ brainstore:
   # Shared image configuration
   image:
     repository: public.ecr.aws/braintrust/brainstore
-    tag: v1.1.23
+    tag: v1.1.28
     pullPolicy: IfNotPresent
   # Locks backend configuration
   # Options: "redis" (default) or "objectStorage"
@@ -144,6 +175,25 @@ brainstore:
   # WARNING: If you have an existing deployment, DO NOT change this setting.
   # Changing the locks backend on an existing deployment could cause data corruption at this time.
   locksBackend: "redis"
+  # Health check probes (applies to both reader and writer)
+  livenessProbe:
+    httpGet:
+      path: /
+      port: 4000
+    initialDelaySeconds: 60
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+    successThreshold: 1
+  readinessProbe:
+    httpGet:
+      path: /status
+      port: 4000
+    initialDelaySeconds: 30
+    periodSeconds: 5
+    timeoutSeconds: 3
+    failureThreshold: 3
+    successThreshold: 1
 
   # Brainstore Reader configuration
   reader:
@@ -230,7 +280,8 @@ brainstore:
     # Optional: Volume configuration for cache storage
     # When not set, uses default emptyDir: {} (backward compatible)
     volume:
-      # Storage size for ephemeral storage requests (used with GKE Autopilot local SSDs)
+      # Storage size for ephemeral storage requests
+      # Used with GKE Autopilot local SSDs and Azure Container Storage CSI
       size: ""
     extraEnvVars: []
     # Example:
@@ -289,18 +340,7 @@ realtime:
   tolerations: []
   affinity: {}
 
-# Optional Azure Key Vault CSI configuration for syncing secrets from Azure Key Vault
-azureKeyVaultCSI:
-  # Set to true to enable Azure Key Vault CSI secret syncing
-  enabled: false
-
-  # Name of your Azure Key Vault.
-  # If you use our terraform module, this will be "<deployment-name>-kv" with a default value of "braintrust-kv"
-  name: "braintrust-kv"
-
-  clientID: ""
-  tenantId: ""
-
+azureKeyVaultDriver:
   # Map your Key Vault secret names to the required Kubernetes secret keys
   # Example: If your Redis URL is stored as "my-redis-connection" in Key Vault, set:
   #   keyVaultSecretName: "my-redis-connection"
@@ -322,4 +362,3 @@ azureKeyVaultCSI:
     - keyVaultSecretName: "azure-storage-connection-string"
       keyVaultSecretType: "secret"
       kubernetesSecretKey: "AZURE_STORAGE_CONNECTION_STRING"
-

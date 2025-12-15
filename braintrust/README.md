@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-This helm chart requires a Kubernetes secret named `braintrust-secrets` to exist in the namespace where the chart is installed. Azure users can optionally use the Azure Key Vault CSI driver to automatically sync secrets from Azure Key Vault into Kubernetes (see below for details).
+This helm chart requires a Kubernetes secret named `braintrust-secrets` to exist in the namespace where the chart is installed. Azure users will automatically sync secrets from Azure Key Vault into Kubernetes (see below for details). AWS and Google users will need to manually create and manage the `braintrust-secrets` Kubernetes secret.
 
 ## Required Secrets
 
@@ -19,32 +19,30 @@ The `braintrust-secrets` secret must contain the following keys:
 | `GCS_ACCESS_KEY_ID` | Google HMAC Access ID string | Valid S3 API Key Id (only required if `cloud` is `google`) |
 | `GCS_SECRET_ACCESS_KEY` | Google HMAC Secret string | Valid S3 Secret string (only required if `cloud` is `google`) |
 
-## Azure Key Vault CSI Integration (Optional)
+## Azure Key Vault Driver Integration
 
-If you're using Azure, you can optionally use the Azure Key Vault CSI driver to automatically sync secrets from Azure Key Vault into Kubernetes. This eliminates the need to manually create and manage the `braintrust-secrets` Kubernetes secret.
+If you're using Azure, the Azure Key Vault CSI driver is default enabled and will automatically sync secrets from Azure Key Vault into Kubernetes. This eliminates the need to manually create and manage the `braintrust-secrets` Kubernetes secret.
 
 To enable this feature:
 
-1. Set `azureKeyVaultCSI.enabled: true` in your values.yaml
-2. Configure your Key Vault details:
+1. Configure your Key Vault details:
 
    ```yaml
-   azureKeyVaultCSI:
-     enabled: true
-     name: "your-keyvault-name"
-     userAssignedIdentityID: "your-identity-id"
-     clientID: "your-client-id"
+   azure:
+     keyVaultName: "your-keyvault-name"
+     keyVaultCSIclientID: "your-client-id" # This should come from the terraform module
      tenantId: "your-tenant-id"
    ```
 
-3. Optionally map your Key Vault secret names to the required Kubernetes secret keys. This is only required if you aren't using our terraform module. The defaults assume you are using the Braintrust terraform module to deploy the base infrastructure.
+2. Optionally map your Key Vault secret names to the required Kubernetes secret keys. This is only required if you aren't using our terraform module. The defaults assume you are using the Braintrust terraform module to deploy the base infrastructure.
 
    ```yaml
-   secrets:
-     - keyVaultSecretName: "your-redis-secret-name"
-       kubernetesSecretKey: "REDIS_URL"
-       keyVaultSecretType: "secret"
-     # ... other secret mappings
+   azureKeyVaultDriver:
+     secrets:
+       - keyVaultSecretName: "your-redis-secret-name"
+         kubernetesSecretKey: "REDIS_URL"
+         keyVaultSecretType: "secret"
+       # ... other secret mappings
    ```
 
 The CSI driver will:
@@ -91,7 +89,7 @@ brainstore:
 - Ephemeral-storage requests ensure proper SSD allocation
 - Each brainstore pod gets its own dedicated node with full access to local SSDs
 
-**Supported machine families:** c4, c4d,
+**Supported machine families:** c4, c4d
 
 ### GKE Standard Mode
 
@@ -102,7 +100,7 @@ For Standard mode clusters, create node pools with local SSDs, then deploy:
    cloud: "google"
 
    google:
-     mode: "standard" 
+     mode: "standard"
 
    brainstore:
      reader:
@@ -150,10 +148,6 @@ For Standard mode clusters, create node pools with local SSDs, then deploy:
 - Local SSDs are automatically available via emptyDir volumes
 - Pod anti-affinity ensures readers and writers don't share nodes (each pod gets dedicated node access)
 
-## Notes
-
-- The `AZURE_STORAGE_CONNECTION_STRING` may or may not contain an AccountKey or SAS token depending on the storage account configuration. If a key or token is not provided, workload identity will be used.
-- When using Azure Key Vault CSI, ensure your AKS cluster has the CSI driver installed and the managed identity has the correct permissions in Key Vault.
 
 ## Breaking Changes
 

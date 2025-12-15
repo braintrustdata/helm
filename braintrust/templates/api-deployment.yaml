@@ -60,6 +60,14 @@ spec:
             - containerPort: {{ .Values.api.service.port }}
           resources:
             {{- toYaml .Values.api.resources | nindent 12 }}
+          {{- with .Values.api.livenessProbe }}
+          livenessProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.api.readinessProbe }}
+          readinessProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           envFrom:
             - configMapRef:
                 name: {{ .Values.api.name }}
@@ -103,6 +111,10 @@ spec:
                   name: braintrust-secrets
                   key: GCS_SECRET_ACCESS_KEY
             {{- end }}
+            - name: TS_API_HEALTHSERVER_HOST
+              value: "0.0.0.0"
+            - name: TS_API_HEALTHSERVER_PORT
+              value: "8001"
             {{- if .Values.api.extraEnvVars }}
             {{- toYaml .Values.api.extraEnvVars | nindent 12 }}
             {{- end }}
@@ -114,9 +126,9 @@ spec:
             - name: NODE_EXTRA_CA_CERTS
               value: "/etc/braintrust/tls/ca-bundle.pem"
             {{- end }}
-          {{- if or .Values.azureKeyVaultCSI.enabled .Values.customTLSCABundle }}
+          {{- if or (and (eq .Values.cloud "azure") .Values.azure.enableAzureKeyVaultDriver) .Values.customTLSCABundle }}
           volumeMounts:
-            {{- if .Values.azureKeyVaultCSI.enabled }}
+            {{- if and (eq .Values.cloud "azure") .Values.azure.enableAzureKeyVaultDriver }}
             - name: secrets-store-inline
               mountPath: "/mnt/secrets-store"
               readOnly: true
@@ -127,7 +139,7 @@ spec:
               readOnly: true
             {{- end }}
           {{- end }}
-      {{- if or .Values.azureKeyVaultCSI.enabled .Values.customTLSCABundle }}
+      {{- if or (and (eq .Values.cloud "azure") .Values.azure.enableAzureKeyVaultDriver) .Values.customTLSCABundle }}
       volumes:
         {{- if .Values.customTLSCABundle }}
         - name: tls-ca
@@ -139,13 +151,13 @@ spec:
                     - key: "CA_PEM"
                       path: "ca-bundle.pem"
         {{- end }}
-        {{- if .Values.azureKeyVaultCSI.enabled }}
+        {{- if and (eq .Values.cloud "azure") .Values.azure.enableAzureKeyVaultDriver }}
         - name: secrets-store-inline
           csi:
             driver: secrets-store.csi.k8s.io
             readOnly: true
             volumeAttributes:
-              secretProviderClass: {{ .Values.azureKeyVaultCSI.name }}
+              secretProviderClass: {{ .Values.azure.keyVaultName }}
         {{- end }}
       {{- end }}
 
