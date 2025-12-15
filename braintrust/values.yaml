@@ -362,3 +362,7 @@ azureKeyVaultDriver:
     - keyVaultSecretName: "azure-storage-connection-string"
       keyVaultSecretType: "secret"
       kubernetesSecretKey: "AZURE_STORAGE_CONNECTION_STRING"
+    # Optional: Only needed if customTLSCABundle is enabled
+    # - keyVaultSecretName: "ca-pem"
+    #   keyVaultSecretType: "secret"
+    #   kubernetesSecretKey: "CA_PEM"
