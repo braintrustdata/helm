@@ -10,6 +10,8 @@ Chart.lock
 **/secrets.yml
 values-local.yaml
 values-local.yml
+values-*.yaml
+values-*.yml
 
 # Helm output and temporary files
 *.tmp

@@ -1,0 +1,69 @@
+{{- if .Values.realtime.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.realtime.name }}
+  namespace: {{ include "braintrust.namespace" . }}
+  {{- with (merge .Values.global.labels .Values.realtime.labels) }}
+  labels:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with .Values.realtime.annotations.deployment }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  replicas: {{ .Values.realtime.replicas }}
+  selector:
+    matchLabels:
+      app: {{ .Values.realtime.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.realtime.name }}
+        {{- with (merge .Values.global.labels .Values.realtime.labels) }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      annotations:
+        {{- with .Values.realtime.annotations.pod }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- with .Values.realtime.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.realtime.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.realtime.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.realtime.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: realtime
+          image: "{{ .Values.realtime.image.repository }}:{{ .Values.realtime.image.tag }}"
+          imagePullPolicy: {{ .Values.realtime.image.pullPolicy }}
+          {{- with .Values.realtime.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          ports:
+            - containerPort: {{ .Values.realtime.service.port }}
+          resources:
+            {{- toYaml .Values.realtime.resources | nindent 12 }}
+          env:
+            - name: REDIS_URL
+              valueFrom:
+                secretKeyRef:
+                  name: braintrust-secrets
+                  key: REDIS_URL
+            {{- if .Values.realtime.extraEnvVars }}
+            {{- toYaml .Values.realtime.extraEnvVars | nindent 12 }}
+            {{- end }}
+{{- end }}
