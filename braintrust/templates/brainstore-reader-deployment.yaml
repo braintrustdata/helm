@@ -18,7 +18,6 @@ spec:
     rollingUpdate:
       maxSurge: 100%
       maxUnavailable: 0
-  minReadySeconds: 30
   selector:
     matchLabels:
       app: {{ .Values.brainstore.reader.name }}
