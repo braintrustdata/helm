@@ -80,7 +80,7 @@ api:
   replicas: 2
   image:
     repository: public.ecr.aws/braintrust/standalone-api
-    tag: v1.1.29
+    tag: v1.1.30
     pullPolicy: IfNotPresent
   service:
     # Optional name for service object. If not specified (empty), the api.name
@@ -153,7 +153,7 @@ brainstore:
   # Shared image configuration
   image:
     repository: public.ecr.aws/braintrust/brainstore
-    tag: v1.1.29
+    tag: v1.1.30
     pullPolicy: IfNotPresent
   # Locks backend configuration
   # Options: "redis" (default) or "objectStorage"
