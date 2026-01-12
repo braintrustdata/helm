@@ -13,6 +13,11 @@ metadata:
   {{- end }}
 spec:
   replicas: {{ .Values.brainstore.reader.replicas }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 100%
+      maxUnavailable: 0
   selector:
     matchLabels:
       app: {{ .Values.brainstore.reader.name }}
