@@ -93,6 +93,9 @@ api:
     name: "braintrust-api"
     awsRoleArn: ""
     azureClientId: ""
+    googleServiceAccount: ""
+  # Enable native GCS authentication via workload identity (defaults to false for S3-compatible access)
+  enableGcsAuth: false
   resources:
     requests:
       cpu: "2"

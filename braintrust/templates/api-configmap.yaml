@@ -31,7 +31,11 @@ data:
   CODE_BUNDLE_BUCKET: {{ .Values.objectStorage.google.apiBucket | quote }}
   CODE_BUNDLE_BUCKET_PREFIX: "code-bundle/"
   BRAINSTORE_REALTIME_WAL_BUCKET: {{ .Values.objectStorage.google.brainstoreBucket | quote }}
+  {{- if .Values.api.enableGcsAuth }}
+  ENABLE_GCS_AUTH: "true"
+  {{- else }}
   AWS_ENDPOINT_URL: "https://storage.googleapis.com"
+  {{- end }}
   {{- end }}
 
   ALLOW_CODE_FUNCTION_EXECUTION: {{ .Values.api.allowCodeFunctionExecution | quote }}
