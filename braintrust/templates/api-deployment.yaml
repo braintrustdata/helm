@@ -13,6 +13,11 @@ metadata:
   {{- end }}
 spec:
   replicas: {{ .Values.api.replicas }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 100%
+      maxUnavailable: 0
   selector:
     matchLabels:
       app: {{ .Values.api.name }}
@@ -23,10 +28,16 @@ spec:
         {{- if eq .Values.cloud "azure" }}
         azure.workload.identity/use: "true"
         {{- end }}
+        {{- if and (eq .Values.cloud "google") .Values.api.enableGcsAuth }}
+        gke-workload-identity/use: "true"
+        {{- end }}
         {{- with (merge .Values.global.labels .Values.api.labels) }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
       annotations:
+        {{- if and (eq .Values.cloud "google") .Values.api.enableGcsAuth }}
+        iam.gke.io/gcp-service-account: {{ required "api.serviceAccount.googleServiceAccount is required when api.enableGcsAuth is true" .Values.api.serviceAccount.googleServiceAccount }}
+        {{- end }}
         {{- with .Values.api.annotations.pod }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
@@ -99,7 +110,7 @@ spec:
                   name: braintrust-secrets
                   key: AZURE_STORAGE_CONNECTION_STRING
             {{- end }}
-            {{- if eq .Values.cloud "google" }}
+            {{- if and (eq .Values.cloud "google") (not .Values.api.enableGcsAuth) }}
             - name: AWS_ACCESS_KEY_ID
               valueFrom:
                 secretKeyRef:
@@ -112,9 +123,9 @@ spec:
                   key: GCS_SECRET_ACCESS_KEY
             {{- end }}
             - name: TS_API_HEALTHSERVER_HOST
-              value: "0.0.0.0"
+              value: {{ .Values.api.healthServer.host | quote }}
             - name: TS_API_HEALTHSERVER_PORT
-              value: "8001"
+              value: {{ .Values.api.healthServer.port | quote }}
             {{- if .Values.api.extraEnvVars }}
             {{- toYaml .Values.api.extraEnvVars | nindent 12 }}
             {{- end }}

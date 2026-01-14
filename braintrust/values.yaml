@@ -87,7 +87,7 @@ api:
   replicas: 2
   image:
     repository: public.ecr.aws/braintrust/standalone-api
-    tag: v1.1.28
+    tag: v1.1.30
     pullPolicy: IfNotPresent
   service:
     # Optional name for service object. If not specified (empty), the api.name
@@ -100,6 +100,9 @@ api:
     name: "braintrust-api"
     awsRoleArn: ""
     azureClientId: ""
+    googleServiceAccount: ""
+  # Enable native GCS authentication via workload identity (defaults to false for S3-compatible access)
+  enableGcsAuth: false
   resources:
     requests:
       cpu: "2"
@@ -152,6 +155,10 @@ api:
     timeoutSeconds: 3
     failureThreshold: 3
     successThreshold: 1
+  # Health server configuration
+  healthServer:
+    host: "0.0.0.0"
+    port: "8001"
 
 # Brainstore configuration (split into reader and writer)
 brainstore:
@@ -166,7 +173,7 @@ brainstore:
   # Shared image configuration
   image:
     repository: public.ecr.aws/braintrust/brainstore
-    tag: v1.1.28
+    tag: v1.1.30
     pullPolicy: IfNotPresent
   # Locks backend configuration
   # Options: "redis" (default) or "objectStorage"

@@ -13,6 +13,11 @@ metadata:
   {{- end }}
 spec:
   replicas: {{ .Values.brainstore.writer.replicas }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 100%
+      maxUnavailable: 0
   selector:
     matchLabels:
       app: {{ .Values.brainstore.writer.name }}
@@ -31,7 +36,7 @@ spec:
         {{- end }}
       annotations:
         {{- if eq .Values.cloud "google" }}
-        iam.gke.io/gcp-service-account: {{ .Values.brainstore.serviceAccount.googleServiceAccount }}
+        iam.gke.io/gcp-service-account: {{ required "brainstore.serviceAccount.googleServiceAccount is required when cloud is google" .Values.brainstore.serviceAccount.googleServiceAccount }}
         {{- end }}
         {{- with .Values.brainstore.writer.annotations.pod }}
         {{- toYaml . | nindent 8 }}
