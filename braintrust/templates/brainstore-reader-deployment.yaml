@@ -66,8 +66,13 @@ spec:
         - name: brainstore-reader
           image: "{{ .Values.brainstore.image.repository }}:{{ .Values.brainstore.image.tag }}"
           imagePullPolicy: {{ .Values.brainstore.image.pullPolicy }}
+          {{- if .Values.brainstore.reader.podTTL.enabled }}
+          command: ["/bin/sh"]
+          args: ["/scripts/ttl-wrapper.sh", "brainstore", "web"]
+          {{- else }}
           command: ["brainstore"]
           args: ["web"]
+          {{- end }}
           ports:
             - containerPort: {{ .Values.brainstore.reader.service.port }}
           resources:
@@ -124,6 +129,14 @@ spec:
                 secretKeyRef:
                   name: braintrust-secrets
                   key: FUNCTION_SECRET_KEY
+            {{- if .Values.brainstore.reader.podTTL.enabled }}
+            - name: POD_TTL_ENABLED
+              value: "true"
+            - name: POD_BASE_TTL_SECONDS
+              value: {{ .Values.brainstore.reader.podTTL.baseTTLSeconds | quote }}
+            - name: POD_RANDOM_RANGE_SECONDS
+              value: {{ .Values.brainstore.reader.podTTL.randomRangeSeconds | quote }}
+            {{- end }}
             {{- if .Values.brainstore.reader.extraEnvVars }}
             {{- toYaml .Values.brainstore.reader.extraEnvVars | nindent 12 }}
             {{- end }}
@@ -133,6 +146,11 @@ spec:
             {{- if and (eq .Values.cloud "azure") .Values.azure.enableAzureKeyVaultDriver }}
             - name: secrets-store-inline
               mountPath: "/mnt/secrets-store"
+              readOnly: true
+            {{- end }}
+            {{- if .Values.brainstore.reader.podTTL.enabled }}
+            - name: ttl-scripts
+              mountPath: /scripts
               readOnly: true
             {{- end }}
       volumes:
@@ -157,4 +175,13 @@ spec:
             readOnly: true
             volumeAttributes:
               secretProviderClass: {{ .Values.azure.keyVaultName }}
+        {{- end }}
+        {{- if .Values.brainstore.reader.podTTL.enabled }}
+        - name: ttl-scripts
+          configMap:
+            name: {{ .Values.brainstore.reader.name }}
+            items:
+              - key: ttl-wrapper.sh
+                path: ttl-wrapper.sh
+                mode: 0755
         {{- end }}

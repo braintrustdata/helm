@@ -49,5 +49,118 @@ data:
   BRAINSTORE_INSERT_ROW_REFS: "true"
   # Logs v2 table. Requires pg_partman extension (default enabled in our TF modules)
   INSERT_LOGS2: "true"
-  ALLOW_INVALID_BASE64: {{ .Values.api.allowInvalidBase64 | default "false" | quote }} 
+  ALLOW_INVALID_BASE64: {{ .Values.api.allowInvalidBase64 | default "false" | quote }}
   NODE_MEMORY_PERCENT: {{ .Values.api.nodeMemoryPercent | default "80" | quote }}
+
+  # TTL wrapper script for automatic time-based pod restarts
+  ttl-wrapper.sh: |
+    #!/bin/sh
+    # Time-based pod restart wrapper
+    # This script wraps the application process and terminates it after a configured TTL
+
+    set -e
+
+    # Configuration from environment variables
+    TTL_ENABLED="${POD_TTL_ENABLED:-false}"
+    BASE_TTL_SECONDS="${POD_BASE_TTL_SECONDS:-172800}"  # Default 48 hours
+    RANDOM_RANGE_SECONDS="${POD_RANDOM_RANGE_SECONDS:-21600}"  # Default ±6 hours
+
+    # Exit immediately if TTL is disabled
+    if [ "$TTL_ENABLED" != "true" ]; then
+        echo "[TTL-WRAPPER] TTL disabled, executing command directly: $@"
+        exec "$@"
+    fi
+
+    # Calculate pod-specific TTL with randomization
+    calculate_ttl() {
+        local pod_name="${HOSTNAME:-unknown}"
+        local current_time=$(date +%s)
+
+        # Hash pod name to get consistent offset (using cksum as it's more portable than sha256sum)
+        local pod_hash=$(echo "$pod_name" | cksum | awk '{print $1}')
+        local pod_offset=$((pod_hash % RANDOM_RANGE_SECONDS))
+
+        # Add startup time component for additional entropy
+        local startup_offset=$((current_time % RANDOM_RANGE_SECONDS))
+
+        # Combine offsets and center around zero
+        local combined_offset=$(( (pod_offset + startup_offset) % RANDOM_RANGE_SECONDS ))
+        local centered_offset=$((combined_offset - (RANDOM_RANGE_SECONDS / 2)))
+
+        # Calculate final TTL
+        local ttl=$((BASE_TTL_SECONDS + centered_offset))
+        echo "$ttl"
+    }
+
+    # Format seconds to human-readable duration
+    format_duration() {
+        local seconds=$1
+        local hours=$((seconds / 3600))
+        local minutes=$(( (seconds % 3600) / 60 ))
+        echo "${hours}h ${minutes}m"
+    }
+
+    TTL=$(calculate_ttl)
+    TTL_HUMAN=$(format_duration $TTL)
+    RESTART_TIME=$(date -d "@$(($(date +%s) + TTL))" '+%Y-%m-%d %H:%M:%S' 2>/dev/null || date -r $(($(date +%s) + TTL)) '+%Y-%m-%d %H:%M:%S' 2>/dev/null || echo "in $TTL_HUMAN")
+
+    echo "[TTL-WRAPPER] Pod: ${HOSTNAME:-unknown}"
+    echo "[TTL-WRAPPER] Base TTL: $(format_duration $BASE_TTL_SECONDS)"
+    echo "[TTL-WRAPPER] Random range: ±$(format_duration $((RANDOM_RANGE_SECONDS / 2)))"
+    echo "[TTL-WRAPPER] Calculated TTL: $TTL_HUMAN ($TTL seconds)"
+    echo "[TTL-WRAPPER] Scheduled restart: $RESTART_TIME"
+    echo "[TTL-WRAPPER] Starting application: $@"
+
+    # Start the application in the background
+    "$@" &
+    APP_PID=$!
+
+    echo "[TTL-WRAPPER] Application started with PID $APP_PID"
+
+    # Trap signals to forward to application
+    trap "echo '[TTL-WRAPPER] Received signal, forwarding to application'; kill -TERM $APP_PID 2>/dev/null || true; wait $APP_PID; exit" TERM INT
+
+    # Monitor loop
+    ELAPSED=0
+    CHECK_INTERVAL=60  # Check every 60 seconds
+
+    while [ $ELAPSED -lt $TTL ]; do
+        # Check if application is still running
+        if ! kill -0 $APP_PID 2>/dev/null; then
+            echo "[TTL-WRAPPER] Application process $APP_PID exited unexpectedly"
+            wait $APP_PID
+            exit $?
+        fi
+
+        # Sleep for check interval or remaining time, whichever is shorter
+        REMAINING=$((TTL - ELAPSED))
+        SLEEP_TIME=$((REMAINING < CHECK_INTERVAL ? REMAINING : CHECK_INTERVAL))
+        sleep $SLEEP_TIME
+        ELAPSED=$((ELAPSED + SLEEP_TIME))
+    done
+
+    # TTL expired - initiate graceful shutdown
+    echo "[TTL-WRAPPER] TTL expired after $TTL_HUMAN. Initiating graceful restart."
+    echo "[TTL-WRAPPER] Sending SIGTERM to application (PID $APP_PID)"
+
+    # Send SIGTERM for graceful shutdown
+    kill -TERM $APP_PID 2>/dev/null || true
+
+    # Wait for graceful shutdown with timeout
+    SHUTDOWN_TIMEOUT=30
+    SHUTDOWN_ELAPSED=0
+    while [ $SHUTDOWN_ELAPSED -lt $SHUTDOWN_TIMEOUT ]; do
+        if ! kill -0 $APP_PID 2>/dev/null; then
+            echo "[TTL-WRAPPER] Application shut down gracefully"
+            wait $APP_PID
+            exit 0
+        fi
+        sleep 1
+        SHUTDOWN_ELAPSED=$((SHUTDOWN_ELAPSED + 1))
+    done
+
+    # Force kill if graceful shutdown failed
+    echo "[TTL-WRAPPER] Graceful shutdown timeout, sending SIGKILL"
+    kill -KILL $APP_PID 2>/dev/null || true
+    wait $APP_PID
+    exit 0

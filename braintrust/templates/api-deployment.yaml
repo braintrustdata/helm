@@ -59,6 +59,10 @@ spec:
         - name: api
           image: "{{ .Values.api.image.repository }}:{{ .Values.api.image.tag }}"
           imagePullPolicy: {{ .Values.api.image.pullPolicy }}
+          {{- if .Values.api.podTTL.enabled }}
+          command: ["/bin/sh"]
+          args: ["/scripts/ttl-wrapper.sh", "./docker_entrypoint_loader.sh", "python", "docker_entrypoint.py"]
+          {{- end }}
           ports:
             - containerPort: {{ .Values.api.service.port }}
           resources:
@@ -118,22 +122,48 @@ spec:
               value: {{ .Values.api.healthServer.host | quote }}
             - name: TS_API_HEALTHSERVER_PORT
               value: {{ .Values.api.healthServer.port | quote }}
+            {{- if .Values.api.podTTL.enabled }}
+            - name: POD_TTL_ENABLED
+              value: "true"
+            - name: POD_BASE_TTL_SECONDS
+              value: {{ .Values.api.podTTL.baseTTLSeconds | quote }}
+            - name: POD_RANDOM_RANGE_SECONDS
+              value: {{ .Values.api.podTTL.randomRangeSeconds | quote }}
+            {{- end }}
             {{- if .Values.api.extraEnvVars }}
             {{- toYaml .Values.api.extraEnvVars | nindent 12 }}
             {{- end }}
-          {{- if and (eq .Values.cloud "azure") .Values.azure.enableAzureKeyVaultDriver }}
+          {{- if or (and (eq .Values.cloud "azure") .Values.azure.enableAzureKeyVaultDriver) .Values.api.podTTL.enabled }}
           volumeMounts:
+            {{- if and (eq .Values.cloud "azure") .Values.azure.enableAzureKeyVaultDriver }}
             - name: secrets-store-inline
               mountPath: "/mnt/secrets-store"
               readOnly: true
+            {{- end }}
+            {{- if .Values.api.podTTL.enabled }}
+            - name: ttl-scripts
+              mountPath: /scripts
+              readOnly: true
+            {{- end }}
           {{- end }}
-      {{- if and (eq .Values.cloud "azure") .Values.azure.enableAzureKeyVaultDriver }}
+      {{- if or (and (eq .Values.cloud "azure") .Values.azure.enableAzureKeyVaultDriver) .Values.api.podTTL.enabled }}
       volumes:
+        {{- if and (eq .Values.cloud "azure") .Values.azure.enableAzureKeyVaultDriver }}
         - name: secrets-store-inline
           csi:
             driver: secrets-store.csi.k8s.io
             readOnly: true
             volumeAttributes:
               secretProviderClass: {{ .Values.azure.keyVaultName }}
+        {{- end }}
+        {{- if .Values.api.podTTL.enabled }}
+        - name: ttl-scripts
+          configMap:
+            name: {{ .Values.api.name }}
+            items:
+              - key: ttl-wrapper.sh
+                path: ttl-wrapper.sh
+                mode: 0755
+        {{- end }}
       {{- end }}
 

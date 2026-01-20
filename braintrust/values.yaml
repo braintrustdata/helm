@@ -142,6 +142,15 @@ api:
   healthServer:
     host: "0.0.0.0"
     port: "8001"
+  # Pod TTL configuration for automatic time-based restarts
+  podTTL:
+    # Enable time-based pod restarts (enabled by default)
+    enabled: true
+    # Base TTL in seconds (48 hours = 172800 seconds)
+    baseTTLSeconds: 172800
+    # Random range in seconds (±6 hours = 21600 seconds)
+    # Adds randomization to prevent simultaneous pod restarts
+    randomRangeSeconds: 21600
 
 # Brainstore configuration (split into reader and writer)
 brainstore:
@@ -220,6 +229,15 @@ brainstore:
     nodeSelector: {}
     tolerations: []
     affinity: {}
+    # Pod TTL configuration for automatic time-based restarts
+    podTTL:
+      # Enable time-based pod restarts (enabled by default)
+      enabled: true
+      # Base TTL in seconds (72 hours = 259200 seconds)
+      baseTTLSeconds: 259200
+      # Random range in seconds (±6 hours = 21600 seconds)
+      # Adds randomization to prevent simultaneous pod restarts
+      randomRangeSeconds: 21600
 
   # Brainstore Writer configuration
   writer:
@@ -262,6 +280,15 @@ brainstore:
     nodeSelector: {}
     tolerations: []
     affinity: {}
+    # Pod TTL configuration for automatic time-based restarts
+    podTTL:
+      # Enable time-based pod restarts (enabled by default)
+      enabled: true
+      # Base TTL in seconds (72 hours = 259200 seconds)
+      baseTTLSeconds: 259200
+      # Random range in seconds (±6 hours = 21600 seconds)
+      # Adds randomization to prevent simultaneous pod restarts
+      randomRangeSeconds: 21600
 
 azureKeyVaultDriver:
   # Map your Key Vault secret names to the required Kubernetes secret keys
