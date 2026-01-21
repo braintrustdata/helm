@@ -89,7 +89,7 @@ spec:
           restartPolicy: Never
           containers:
             - name: restart
-              image: "{{ .Values.scheduledRestart.image.repository }}:{{ default .Capabilities.KubeVersion.Version .Values.scheduledRestart.image.tag }}"
+              image: "{{ .Values.scheduledRestart.image.repository }}:{{ default "latest" .Values.scheduledRestart.image.tag }}"
               imagePullPolicy: {{ .Values.scheduledRestart.image.pullPolicy }}
               command:
                 - kubectl
@@ -142,7 +142,7 @@ spec:
           restartPolicy: Never
           containers:
             - name: restart
-              image: "{{ .Values.scheduledRestart.image.repository }}:{{ default .Capabilities.KubeVersion.Version .Values.scheduledRestart.image.tag }}"
+              image: "{{ .Values.scheduledRestart.image.repository }}:{{ default "latest" .Values.scheduledRestart.image.tag }}"
               imagePullPolicy: {{ .Values.scheduledRestart.image.pullPolicy }}
               command:
                 - kubectl
@@ -195,7 +195,7 @@ spec:
           restartPolicy: Never
           containers:
             - name: restart
-              image: "{{ .Values.scheduledRestart.image.repository }}:{{ default .Capabilities.KubeVersion.Version .Values.scheduledRestart.image.tag }}"
+              image: "{{ .Values.scheduledRestart.image.repository }}:{{ default "latest" .Values.scheduledRestart.image.tag }}"
               imagePullPolicy: {{ .Values.scheduledRestart.image.pullPolicy }}
               command:
                 - kubectl

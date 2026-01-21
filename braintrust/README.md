@@ -37,11 +37,11 @@ scheduledRestart:
   targets:
     brainstoreWriter: false  # Opt out of writer restarts
   image:
-    tag: "v1.29.6"  # Optional: pin kubectl version
+    repository: "chainguard/kubectl"
+    tag: "latest"  # Optional: pin a specific version
 ```
 
-If `scheduledRestart.image.tag` is left blank, the chart defaults to the
-cluster's Kubernetes version for compatibility.
+Defaults to `chainguard/kubectl:latest` from Docker Hub.
 
 If you already manage RBAC or service accounts, set
 `scheduledRestart.serviceAccount.create` and `scheduledRestart.rbac.create` to

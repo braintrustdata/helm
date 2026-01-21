@@ -80,9 +80,8 @@ scheduledRestart:
     brainstoreReader: "10 * * * *"
     brainstoreWriter: "20 * * * *"
   image:
-    repository: "registry.k8s.io/kubectl"
-    # Defaults to the cluster Kubernetes version when left blank.
-    tag: ""
+    repository: "chainguard/kubectl"
+    tag: "latest"
     pullPolicy: IfNotPresent
   serviceAccount:
     create: true
