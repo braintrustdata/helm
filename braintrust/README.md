@@ -149,21 +149,13 @@ For Standard mode clusters, create node pools with local SSDs, then deploy:
 
 ## Testing
 
-This Helm chart includes comprehensive automated tests. See [TESTING.md](TESTING.md) for detailed information on:
-
-- Running tests locally
-- Understanding test structure
-- Adding new tests
-- CI integration
+This Helm chart includes comprehensive automated tests. See [TESTING.md](TESTING.md).
 
 Quick start:
 
 ```bash
 # Run all tests
 ./test.sh
-
-# Run only unit tests
-helm unittest braintrust
 ```
 
 ## Breaking Changes

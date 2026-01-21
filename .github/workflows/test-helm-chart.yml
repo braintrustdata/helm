@@ -1,0 +1,74 @@
+name: Test Helm Chart
+
+on:
+  pull_request:
+    paths:
+      - 'braintrust/**'
+      - '.github/workflows/test-helm-chart.yml'
+  push:
+    branches:
+      - main
+      - master
+    paths:
+      - 'braintrust/**'
+      - '.github/workflows/test-helm-chart.yml'
+
+jobs:
+  unittest:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: 'latest'
+
+      - name: Install helm-unittest
+        run: |
+          helm plugin install https://github.com/quintush/helm-unittest
+
+      - name: Run unit tests
+        run: |
+          helm unittest braintrust
+
+  lint-test:
+    name: Lint and Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: 'latest'
+
+      - name: Lint chart
+        run: helm lint braintrust --strict
+
+  test-values:
+    name: Test with Values Files
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        values-file:
+          - braintrust/ci/values-azure.yaml
+          - braintrust/ci/values-google.yaml
+          - braintrust/ci/values-aws.yaml
+          - braintrust/ci/values-minimal.yaml
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: 'latest'
+
+      - name: Test chart rendering with ${{ matrix.values-file }}
+        run: |
+          helm template test-release braintrust --values ${{ matrix.values-file }} > /dev/null
+          echo "✅ Chart rendered successfully with ${{ matrix.values-file }}"
