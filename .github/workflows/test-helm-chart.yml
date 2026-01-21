@@ -2,16 +2,9 @@ name: Test Helm Chart
 
 on:
   pull_request:
-    paths:
-      - 'braintrust/**'
-      - '.github/workflows/test-helm-chart.yml'
   push:
     branches:
       - main
-      - master
-    paths:
-      - 'braintrust/**'
-      - '.github/workflows/test-helm-chart.yml'
 
 jobs:
   unittest:
