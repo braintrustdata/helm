@@ -68,6 +68,39 @@ objectStorage:
     # Single API bucket with paths for responses and code bundles
     apiBucket: ""
 
+scheduledRestart:
+  # Perform rolling restarts on a schedule using kubectl rollout restart.
+  enabled: true
+  targets:
+    api: true
+    brainstoreReader: true
+    brainstoreWriter: true
+  schedules:
+    api: "0 * * * *"
+    brainstoreReader: "10 * * * *"
+    brainstoreWriter: "20 * * * *"
+  image:
+    repository: "registry.k8s.io/kubectl"
+    # Defaults to the cluster Kubernetes version when left blank.
+    tag: ""
+    pullPolicy: IfNotPresent
+  serviceAccount:
+    create: true
+    name: "braintrust-restart"
+    annotations: {}
+  rbac:
+    create: true
+  concurrencyPolicy: "Forbid"
+  startingDeadlineSeconds: 600
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  backoffLimit: 1
+  # Set to enable automatic cleanup of finished jobs.
+  ttlSecondsAfterFinished: ""
+  resources: {}
+  labels: {}
+  annotations: {}
+
 api:
   name: "braintrust-api"
   labels: {}

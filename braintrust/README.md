@@ -18,6 +18,35 @@ The `braintrust-secrets` secret must contain the following keys:
 | `GCS_ACCESS_KEY_ID` | Google HMAC Access ID string | Valid S3 API Key Id (only required if `cloud` is `google`) |
 | `GCS_SECRET_ACCESS_KEY` | Google HMAC Secret string | Valid S3 Secret string (only required if `cloud` is `google`) |
 
+## Scheduled Restarts
+
+By default, the chart creates CronJobs that perform rolling restarts of the API,
+Brainstore reader, and Brainstore writer Deployments once per hour using
+`kubectl rollout restart`. This keeps restarts graceful and leverages the
+Deployment rolling update strategy.
+
+You can customize or disable the schedules:
+
+```yaml
+scheduledRestart:
+  enabled: true
+  schedules:
+    api: "0 * * * *"
+    brainstoreReader: "10 * * * *"
+    brainstoreWriter: "20 * * * *"
+  targets:
+    brainstoreWriter: false  # Opt out of writer restarts
+  image:
+    tag: "v1.29.6"  # Optional: pin kubectl version
+```
+
+If `scheduledRestart.image.tag` is left blank, the chart defaults to the
+cluster's Kubernetes version for compatibility.
+
+If you already manage RBAC or service accounts, set
+`scheduledRestart.serviceAccount.create` and `scheduledRestart.rbac.create` to
+false and provide a `scheduledRestart.serviceAccount.name`.
+
 ## Azure Key Vault Driver Integration
 
 If you're using Azure, the Azure Key Vault CSI driver is default enabled and will automatically sync secrets from Azure Key Vault into Kubernetes. This eliminates the need to manually create and manage the `braintrust-secrets` Kubernetes secret.

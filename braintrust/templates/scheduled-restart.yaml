@@ -1,0 +1,213 @@
+{{- if .Values.scheduledRestart.enabled }}
+{{- $namespace := include "braintrust.namespace" . }}
+{{- $saName := default "braintrust-restart" .Values.scheduledRestart.serviceAccount.name }}
+{{- $labels := merge .Values.global.labels .Values.scheduledRestart.labels }}
+{{- if .Values.scheduledRestart.serviceAccount.create }}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ $saName }}
+  namespace: {{ $namespace }}
+  {{- with .Values.scheduledRestart.serviceAccount.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with $labels }}
+  labels:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- end }}
+{{- if .Values.scheduledRestart.rbac.create }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ $saName }}
+  namespace: {{ $namespace }}
+  {{- with $labels }}
+  labels:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+rules:
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["get", "list", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ $saName }}
+  namespace: {{ $namespace }}
+  {{- with $labels }}
+  labels:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ $saName }}
+    namespace: {{ $namespace }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ $saName }}
+{{- end }}
+{{- if .Values.scheduledRestart.targets.api }}
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ .Values.api.name }}-restart
+  namespace: {{ $namespace }}
+  {{- with $labels }}
+  labels:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with .Values.scheduledRestart.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  schedule: {{ required "scheduledRestart.schedules.api is required" .Values.scheduledRestart.schedules.api | quote }}
+  concurrencyPolicy: {{ .Values.scheduledRestart.concurrencyPolicy | default "Forbid" }}
+  startingDeadlineSeconds: {{ .Values.scheduledRestart.startingDeadlineSeconds | default 600 }}
+  successfulJobsHistoryLimit: {{ .Values.scheduledRestart.successfulJobsHistoryLimit | default 1 }}
+  failedJobsHistoryLimit: {{ .Values.scheduledRestart.failedJobsHistoryLimit | default 3 }}
+  jobTemplate:
+    spec:
+      backoffLimit: {{ .Values.scheduledRestart.backoffLimit | default 1 }}
+      {{- with .Values.scheduledRestart.ttlSecondsAfterFinished }}
+      ttlSecondsAfterFinished: {{ . }}
+      {{- end }}
+      template:
+        metadata:
+          {{- with $labels }}
+          labels:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+        spec:
+          serviceAccountName: {{ $saName }}
+          restartPolicy: Never
+          containers:
+            - name: restart
+              image: "{{ .Values.scheduledRestart.image.repository }}:{{ default .Capabilities.KubeVersion.Version .Values.scheduledRestart.image.tag }}"
+              imagePullPolicy: {{ .Values.scheduledRestart.image.pullPolicy }}
+              command:
+                - kubectl
+              args:
+                - rollout
+                - restart
+                - deployment/{{ .Values.api.name }}
+                - --namespace
+                - {{ $namespace | quote }}
+              {{- with .Values.scheduledRestart.resources }}
+              resources:
+                {{- toYaml . | nindent 16 }}
+              {{- end }}
+{{- end }}
+{{- if .Values.scheduledRestart.targets.brainstoreReader }}
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ .Values.brainstore.reader.name }}-restart
+  namespace: {{ $namespace }}
+  {{- with $labels }}
+  labels:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with .Values.scheduledRestart.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  schedule: {{ required "scheduledRestart.schedules.brainstoreReader is required" .Values.scheduledRestart.schedules.brainstoreReader | quote }}
+  concurrencyPolicy: {{ .Values.scheduledRestart.concurrencyPolicy | default "Forbid" }}
+  startingDeadlineSeconds: {{ .Values.scheduledRestart.startingDeadlineSeconds | default 600 }}
+  successfulJobsHistoryLimit: {{ .Values.scheduledRestart.successfulJobsHistoryLimit | default 1 }}
+  failedJobsHistoryLimit: {{ .Values.scheduledRestart.failedJobsHistoryLimit | default 3 }}
+  jobTemplate:
+    spec:
+      backoffLimit: {{ .Values.scheduledRestart.backoffLimit | default 1 }}
+      {{- with .Values.scheduledRestart.ttlSecondsAfterFinished }}
+      ttlSecondsAfterFinished: {{ . }}
+      {{- end }}
+      template:
+        metadata:
+          {{- with $labels }}
+          labels:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+        spec:
+          serviceAccountName: {{ $saName }}
+          restartPolicy: Never
+          containers:
+            - name: restart
+              image: "{{ .Values.scheduledRestart.image.repository }}:{{ default .Capabilities.KubeVersion.Version .Values.scheduledRestart.image.tag }}"
+              imagePullPolicy: {{ .Values.scheduledRestart.image.pullPolicy }}
+              command:
+                - kubectl
+              args:
+                - rollout
+                - restart
+                - deployment/{{ .Values.brainstore.reader.name }}
+                - --namespace
+                - {{ $namespace | quote }}
+              {{- with .Values.scheduledRestart.resources }}
+              resources:
+                {{- toYaml . | nindent 16 }}
+              {{- end }}
+{{- end }}
+{{- if .Values.scheduledRestart.targets.brainstoreWriter }}
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ .Values.brainstore.writer.name }}-restart
+  namespace: {{ $namespace }}
+  {{- with $labels }}
+  labels:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with .Values.scheduledRestart.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  schedule: {{ required "scheduledRestart.schedules.brainstoreWriter is required" .Values.scheduledRestart.schedules.brainstoreWriter | quote }}
+  concurrencyPolicy: {{ .Values.scheduledRestart.concurrencyPolicy | default "Forbid" }}
+  startingDeadlineSeconds: {{ .Values.scheduledRestart.startingDeadlineSeconds | default 600 }}
+  successfulJobsHistoryLimit: {{ .Values.scheduledRestart.successfulJobsHistoryLimit | default 1 }}
+  failedJobsHistoryLimit: {{ .Values.scheduledRestart.failedJobsHistoryLimit | default 3 }}
+  jobTemplate:
+    spec:
+      backoffLimit: {{ .Values.scheduledRestart.backoffLimit | default 1 }}
+      {{- with .Values.scheduledRestart.ttlSecondsAfterFinished }}
+      ttlSecondsAfterFinished: {{ . }}
+      {{- end }}
+      template:
+        metadata:
+          {{- with $labels }}
+          labels:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+        spec:
+          serviceAccountName: {{ $saName }}
+          restartPolicy: Never
+          containers:
+            - name: restart
+              image: "{{ .Values.scheduledRestart.image.repository }}:{{ default .Capabilities.KubeVersion.Version .Values.scheduledRestart.image.tag }}"
+              imagePullPolicy: {{ .Values.scheduledRestart.image.pullPolicy }}
+              command:
+                - kubectl
+              args:
+                - rollout
+                - restart
+                - deployment/{{ .Values.brainstore.writer.name }}
+                - --namespace
+                - {{ $namespace | quote }}
+              {{- with .Values.scheduledRestart.resources }}
+              resources:
+                {{- toYaml . | nindent 16 }}
+              {{- end }}
+{{- end }}
+{{- end }}
