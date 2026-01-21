@@ -1,0 +1,107 @@
+suite: test Brainstore Writer service template
+templates:
+  - brainstore-writer-service.yaml
+tests:
+  - it: should render Brainstore Writer service with default values
+    values:
+      - __fixtures__/base-values.yaml
+    release:
+      namespace: "braintrust"
+    asserts:
+      - isKind:
+          of: Service
+      - equal:
+          path: metadata.name
+          value: brainstore-writer
+      - equal:
+          path: spec.type
+          value: ClusterIP
+      - equal:
+          path: spec.selector.app
+          value: brainstore-writer
+
+  - it: should use custom service name when provided
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      brainstore.writer.service.name: "custom-writer-service"
+    release:
+      namespace: "braintrust"
+    asserts:
+      - equal:
+          path: metadata.name
+          value: custom-writer-service
+
+  - it: should configure port correctly
+    values:
+      - __fixtures__/base-values.yaml
+    release:
+      namespace: "braintrust"
+    asserts:
+      - equal:
+          path: spec.ports[0].name
+          value: http
+      - equal:
+          path: spec.ports[0].port
+          value: 4000
+      - equal:
+          path: spec.ports[0].targetPort
+          value: 4000
+      - equal:
+          path: spec.ports[0].protocol
+          value: TCP
+
+  - it: should use correct namespace from helper when createNamespace is false
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      global.namespace: "custom-ns"
+      global.createNamespace: false
+    release:
+      namespace: "release-namespace"
+    asserts:
+      - equal:
+          path: metadata.namespace
+          value: release-namespace
+
+  - it: should use global namespace when createNamespace is true
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      global.namespace: "custom-ns"
+      global.createNamespace: true
+    release:
+      namespace: "release-namespace"
+    asserts:
+      - equal:
+          path: metadata.namespace
+          value: custom-ns
+
+  - it: should merge global and writer labels
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      brainstore.writer.labels.component: "brainstore-writer"
+      global.labels.environment: "production"
+    release:
+      namespace: "braintrust"
+    asserts:
+      - equal:
+          path: metadata.labels.environment
+          value: production
+      - equal:
+          path: metadata.labels.component
+          value: brainstore-writer
+
+  - it: should include service annotations when provided
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      brainstore.writer.annotations.service:
+        custom-annotation: "value"
+    release:
+      namespace: "braintrust"
+    asserts:
+      - equal:
+          path: metadata.annotations["custom-annotation"]
+          value: value

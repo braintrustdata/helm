@@ -1,0 +1,241 @@
+suite: test API deployment template
+templates:
+  - api-deployment.yaml
+tests:
+  - it: should render API deployment with default values
+    values:
+      - __fixtures__/base-values.yaml
+    release:
+      namespace: "braintrust"
+    asserts:
+      - isKind:
+          of: Deployment
+      - equal:
+          path: metadata.name
+          value: braintrust-api
+      - equal:
+          path: spec.replicas
+          value: 1
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: test/api:v1.0.0
+      - equal:
+          path: spec.template.spec.containers[0].imagePullPolicy
+          value: IfNotPresent
+
+  - it: should use correct namespace from helper when createNamespace is false
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      global.namespace: "custom-ns"
+      global.createNamespace: false
+    release:
+      namespace: "release-namespace"
+    asserts:
+      - equal:
+          path: metadata.namespace
+          value: release-namespace
+
+  - it: should use global namespace when createNamespace is true
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      global.namespace: "custom-ns"
+      global.createNamespace: true
+    release:
+      namespace: "release-namespace"
+    asserts:
+      - equal:
+          path: metadata.namespace
+          value: custom-ns
+
+  - it: should include azure workload identity label when cloud is azure
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/azure-values.yaml
+    release:
+      namespace: "braintrust"
+    asserts:
+      - equal:
+          path: spec.template.metadata.labels["azure.workload.identity/use"]
+          value: "true"
+
+  - it: should include Azure storage connection string env var when cloud is azure
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/azure-values.yaml
+    release:
+      namespace: "braintrust"
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: AZURE_STORAGE_CONNECTION_STRING
+            valueFrom:
+              secretKeyRef:
+                name: braintrust-secrets
+                key: AZURE_STORAGE_CONNECTION_STRING
+
+  - it: should include GCS env vars when cloud is google
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/google-values.yaml
+    release:
+      namespace: "braintrust"
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: AWS_ACCESS_KEY_ID
+            valueFrom:
+              secretKeyRef:
+                name: braintrust-secrets
+                key: GCS_ACCESS_KEY_ID
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: AWS_SECRET_ACCESS_KEY
+            valueFrom:
+              secretKeyRef:
+                name: braintrust-secrets
+                key: GCS_SECRET_ACCESS_KEY
+
+  - it: should include Azure Key Vault volume when enabled
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/azure-values.yaml
+    release:
+      namespace: "braintrust"
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: secrets-store-inline
+            mountPath: "/mnt/secrets-store"
+            readOnly: true
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: secrets-store-inline
+            csi:
+              driver: secrets-store.csi.k8s.io
+              readOnly: true
+              volumeAttributes:
+                secretProviderClass: test-keyvault
+
+  - it: should not include Azure Key Vault volume when disabled
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/azure-values.yaml
+    set:
+      azure.enableAzureKeyVaultDriver: false
+    release:
+      namespace: "braintrust"
+    asserts:
+      - isNull:
+          path: spec.template.spec.volumes
+
+  - it: should include extraEnvVars when provided
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      api.extraEnvVars:
+        - name: CUSTOM_VAR
+          value: "custom-value"
+        - name: ANOTHER_VAR
+          value: "another-value"
+    release:
+      namespace: "braintrust"
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: CUSTOM_VAR
+            value: "custom-value"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: ANOTHER_VAR
+            value: "another-value"
+
+  - it: should merge global and api labels
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      api.labels.component: "api"
+      global.labels.environment: "production"
+    release:
+      namespace: "braintrust"
+    asserts:
+      - equal:
+          path: metadata.labels.environment
+          value: production
+      - equal:
+          path: metadata.labels.component
+          value: api
+
+  - it: should include livenessProbe when configured
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      api.livenessProbe:
+        httpGet:
+          path: /
+          port: 8000
+        initialDelaySeconds: 30
+        periodSeconds: 10
+    release:
+      namespace: "braintrust"
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.httpGet.path
+          value: /
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.httpGet.port
+          value: 8000
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.initialDelaySeconds
+          value: 30
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.periodSeconds
+          value: 10
+
+  - it: should include readinessProbe when configured
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      api.readinessProbe:
+        httpGet:
+          path: /status
+          port: 8001
+        initialDelaySeconds: 10
+        periodSeconds: 5
+    release:
+      namespace: "braintrust"
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.httpGet.path
+          value: /status
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.httpGet.port
+          value: 8001
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.initialDelaySeconds
+          value: 10
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.periodSeconds
+          value: 5
+
+  - it: should not include probes when explicitly disabled
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      api.livenessProbe: null
+      api.readinessProbe: null
+    release:
+      namespace: "braintrust"
+    asserts:
+      - isNull:
+          path: spec.template.spec.containers[0].livenessProbe
+      - isNull:
+          path: spec.template.spec.containers[0].readinessProbe

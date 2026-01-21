@@ -1,0 +1,16 @@
+# Google Cloud-specific test values
+# Extends base-values.yaml with GCP configuration
+cloud: "google"
+
+google:
+  mode: "autopilot"
+  autopilotMachineFamily: "c4"
+
+objectStorage:
+  google:
+    brainstoreBucket: "test-brainstore-bucket"
+    apiBucket: "test-api-bucket"
+
+brainstore:
+  serviceAccount:
+    googleServiceAccount: "test@project.iam.gserviceaccount.com"

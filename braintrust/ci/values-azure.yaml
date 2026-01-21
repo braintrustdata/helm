@@ -1,0 +1,127 @@
+# Test values for Azure deployment
+global:
+  orgName: "test-org"
+  createNamespace: false
+  namespace: "braintrust"
+  labels: {}
+  namespaceAnnotations: {}
+  controlPlaneTelemetry: "status,metrics,usage"
+
+cloud: "azure"
+
+azure:
+  tenantId: "test-tenant-id"
+  enableAzureContainerStorageDriver: true
+  enableAzureKeyVaultDriver: true
+  keyVaultCSIclientID: "test-client-id"
+  keyVaultName: "test-keyvault"
+
+objectStorage:
+  azure:
+    storageAccountName: "teststorageaccount"
+    brainstoreContainer: "brainstore"
+    responseContainer: "responses"
+    codeBundleContainer: "code-bundles"
+
+api:
+  name: "braintrust-api"
+  replicas: 1
+  image:
+    repository: "public.ecr.aws/braintrust/standalone-api"
+    tag: "v1.1.28"
+    pullPolicy: "IfNotPresent"
+  service:
+    type: ClusterIP
+    port: 8000
+  serviceAccount:
+    name: "braintrust-api"
+  resources:
+    requests:
+      cpu: "2"
+      memory: "4Gi"
+    limits:
+      cpu: "4"
+      memory: "8Gi"
+  allowCodeFunctionExecution: true
+  backfillDisableHistorical: false
+  backfillDisableNonhistorical: false
+  allowInvalidBase64: false
+  nodeMemoryPercent: "80"
+  extraEnvVars: []
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+brainstore:
+  serviceAccount:
+    name: "brainstore"
+    annotations: {}
+  image:
+    repository: "public.ecr.aws/braintrust/brainstore"
+    tag: "v1.1.28"
+    pullPolicy: "IfNotPresent"
+  locksBackend: "redis"
+  reader:
+    name: "brainstore-reader"
+    replicas: 1
+    service:
+      type: ClusterIP
+      port: 4000
+    resources:
+      requests:
+        cpu: "4"
+        memory: "8Gi"
+      limits:
+        cpu: "8"
+        memory: "16Gi"
+    cacheDir: "/mnt/tmp/brainstore"
+    objectStoreCacheMemoryLimit: "1Gi"
+    objectStoreCacheFileSize: "50Gi"
+    verbose: true
+    volume:
+      size: "100Gi"
+    extraEnvVars: []
+    nodeSelector: {}
+    tolerations: []
+    affinity: {}
+  writer:
+    name: "brainstore-writer"
+    replicas: 1
+    service:
+      type: ClusterIP
+      port: 4000
+    resources:
+      requests:
+        cpu: "8"
+        memory: "16Gi"
+      limits:
+        cpu: "16"
+        memory: "32Gi"
+    cacheDir: "/mnt/tmp/brainstore"
+    objectStoreCacheMemoryLimit: "1Gi"
+    objectStoreCacheFileSize: "50Gi"
+    verbose: true
+    volume:
+      size: "200Gi"
+    extraEnvVars: []
+    nodeSelector: {}
+    tolerations: []
+    affinity: {}
+
+azureKeyVaultDriver:
+  secrets:
+    - keyVaultSecretName: "redis-connection-string"
+      keyVaultSecretType: "secret"
+      kubernetesSecretKey: "REDIS_URL"
+    - keyVaultSecretName: "postgres-connection-string"
+      kubernetesSecretKey: "PG_URL"
+      keyVaultSecretType: "secret"
+    - keyVaultSecretName: "brainstore-license-key"
+      keyVaultSecretType: "secret"
+      kubernetesSecretKey: "BRAINSTORE_LICENSE_KEY"
+    - keyVaultSecretName: "function-secret-key"
+      keyVaultSecretType: "secret"
+      kubernetesSecretKey: "FUNCTION_SECRET_KEY"
+    - keyVaultSecretName: "azure-storage-connection-string"
+      keyVaultSecretType: "secret"
+      kubernetesSecretKey: "AZURE_STORAGE_CONNECTION_STRING"

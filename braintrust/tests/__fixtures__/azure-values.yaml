@@ -1,0 +1,43 @@
+# Azure-specific test values
+# Extends base-values.yaml with Azure configuration
+cloud: "azure"
+
+azure:
+  tenantId: "test-tenant-id"
+  enableAzureContainerStorageDriver: true
+  enableAzureKeyVaultDriver: true
+  keyVaultCSIclientID: "test-client-id"
+  keyVaultName: "test-keyvault"
+
+objectStorage:
+  azure:
+    storageAccountName: "teststorageaccount"
+    brainstoreContainer: "brainstore"
+    responseContainer: "responses"
+    codeBundleContainer: "code-bundles"
+
+api:
+  serviceAccount:
+    azureClientId: "test-api-client-id"
+
+brainstore:
+  serviceAccount:
+    azureClientId: "test-brainstore-client-id"
+
+azureKeyVaultDriver:
+  secrets:
+    - keyVaultSecretName: "redis-connection-string"
+      keyVaultSecretType: "secret"
+      kubernetesSecretKey: "REDIS_URL"
+    - keyVaultSecretName: "postgres-connection-string"
+      kubernetesSecretKey: "PG_URL"
+      keyVaultSecretType: "secret"
+    - keyVaultSecretName: "brainstore-license-key"
+      keyVaultSecretType: "secret"
+      kubernetesSecretKey: "BRAINSTORE_LICENSE_KEY"
+    - keyVaultSecretName: "function-secret-key"
+      keyVaultSecretType: "secret"
+      kubernetesSecretKey: "FUNCTION_SECRET_KEY"
+    - keyVaultSecretName: "azure-storage-connection-string"
+      keyVaultSecretType: "secret"
+      kubernetesSecretKey: "AZURE_STORAGE_CONNECTION_STRING"

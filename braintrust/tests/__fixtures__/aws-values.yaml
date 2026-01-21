@@ -1,0 +1,17 @@
+# AWS-specific test values
+# Extends base-values.yaml with AWS configuration
+cloud: "aws"
+
+objectStorage:
+  aws:
+    brainstoreBucket: "test-brainstore-bucket"
+    responseBucket: "test-response-bucket"
+    codeBundleBucket: "test-code-bundle-bucket"
+
+api:
+  serviceAccount:
+    awsRoleArn: "arn:aws:iam::123456789012:role/test-api-role"
+
+brainstore:
+  serviceAccount:
+    awsRoleArn: "arn:aws:iam::123456789012:role/test-brainstore-role"

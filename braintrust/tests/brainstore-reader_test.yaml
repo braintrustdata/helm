@@ -1,0 +1,205 @@
+suite: test Brainstore Reader deployment template
+templates:
+  - brainstore-reader-deployment.yaml
+tests:
+  - it: should render Brainstore Reader deployment with default values
+    values:
+      - __fixtures__/base-values.yaml
+    release:
+      namespace: "braintrust"
+    asserts:
+      - isKind:
+          of: Deployment
+      - equal:
+          path: metadata.name
+          value: brainstore-reader
+      - equal:
+          path: spec.replicas
+          value: 1
+      - equal:
+          path: spec.template.spec.containers[0].name
+          value: brainstore-reader
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: test/brainstore:v1.0.0
+
+  - it: should include azure workload identity label when cloud is azure
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/azure-values.yaml
+    release:
+      namespace: "braintrust"
+    asserts:
+      - equal:
+          path: spec.template.metadata.labels["azure.workload.identity/use"]
+          value: "true"
+
+  - it: should include gke workload identity label when cloud is google
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/google-values.yaml
+    release:
+      namespace: "braintrust"
+    asserts:
+      - equal:
+          path: spec.template.metadata.labels["gke-workload-identity/use"]
+          value: "true"
+      - equal:
+          path: spec.template.metadata.annotations["iam.gke.io/gcp-service-account"]
+          value: test@project.iam.gserviceaccount.com
+
+  - it: should use Azure Container Storage volume when enabled
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/azure-values.yaml
+    release:
+      namespace: "braintrust"
+    asserts:
+      - isNotNull:
+          path: spec.template.spec.volumes[0].ephemeral.volumeClaimTemplate
+      - equal:
+          path: spec.template.spec.volumes[0].ephemeral.volumeClaimTemplate.spec.storageClassName
+          value: local
+      - equal:
+          path: spec.template.spec.volumes[0].ephemeral.volumeClaimTemplate.spec.resources.requests.storage
+          value: "100Gi"
+
+  - it: should use emptyDir volume when Azure Container Storage is disabled
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/google-values.yaml
+    release:
+      namespace: "braintrust"
+    asserts:
+      - isNotNull:
+          path: spec.template.spec.volumes[0].emptyDir
+
+  - it: should include Azure Key Vault volume mount when enabled
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/azure-values.yaml
+    release:
+      namespace: "braintrust"
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: secrets-store-inline
+            mountPath: "/mnt/secrets-store"
+            readOnly: true
+
+  - it: should include nodeSelector for GKE Autopilot when enabled
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/google-values.yaml
+    release:
+      namespace: "braintrust"
+    asserts:
+      - equal:
+          path: spec.template.spec.nodeSelector["cloud.google.com/machine-family"]
+          value: c4
+      - equal:
+          path: spec.template.spec.nodeSelector["cloud.google.com/gke-ephemeral-storage-local-ssd"]
+          value: "true"
+      - equal:
+          path: spec.template.spec.nodeSelector["cloud.google.com/compute-class"]
+          value: "Performance"
+
+  - it: should include BRAINSTORE_LOCKS_URI when locksBackend is redis
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      brainstore.locksBackend: "redis"
+    release:
+      namespace: "braintrust"
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: BRAINSTORE_LOCKS_URI
+            valueFrom:
+              secretKeyRef:
+                name: braintrust-secrets
+                key: REDIS_URL
+
+  - it: should include extraEnvVars when provided
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      brainstore.reader.extraEnvVars:
+        - name: CUSTOM_VAR
+          value: "custom-value"
+    release:
+      namespace: "braintrust"
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: CUSTOM_VAR
+            value: "custom-value"
+
+  - it: should include livenessProbe when configured
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      brainstore.livenessProbe:
+        httpGet:
+          path: /
+          port: 4000
+        initialDelaySeconds: 60
+        periodSeconds: 10
+    release:
+      namespace: "braintrust"
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.httpGet.path
+          value: /
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.httpGet.port
+          value: 4000
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.initialDelaySeconds
+          value: 60
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.periodSeconds
+          value: 10
+
+  - it: should include readinessProbe when configured
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      brainstore.readinessProbe:
+        httpGet:
+          path: /status
+          port: 4000
+        initialDelaySeconds: 30
+        periodSeconds: 5
+    release:
+      namespace: "braintrust"
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.httpGet.path
+          value: /status
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.httpGet.port
+          value: 4000
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.initialDelaySeconds
+          value: 30
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.periodSeconds
+          value: 5
+
+  - it: should not include probes when explicitly disabled
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      brainstore.livenessProbe: null
+      brainstore.readinessProbe: null
+    release:
+      namespace: "braintrust"
+    asserts:
+      - isNull:
+          path: spec.template.spec.containers[0].livenessProbe
+      - isNull:
+          path: spec.template.spec.containers[0].readinessProbe
