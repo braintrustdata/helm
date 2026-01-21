@@ -21,7 +21,7 @@ jobs:
 
       - name: Install helm-unittest
         run: |
-          helm plugin install https://github.com/quintush/helm-unittest
+          helm plugin install https://github.com/quintush/helm-unittest --verify=false
 
       - name: Run unit tests
         run: |
