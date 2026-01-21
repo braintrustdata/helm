@@ -20,7 +20,7 @@ The `braintrust-secrets` secret must contain the following keys:
 
 ## Scheduled Restarts
 
-By default, the chart creates CronJobs that perform rolling restarts of the API,
+By default, the chart creates a CronJob that performs rolling restarts of the API,
 Brainstore reader, and Brainstore writer Deployments once per hour using
 `kubectl rollout restart`. This keeps restarts graceful and leverages the
 Deployment rolling update strategy.
@@ -30,10 +30,7 @@ You can customize or disable the schedules:
 ```yaml
 scheduledRestart:
   enabled: true
-  schedules:
-    api: "0 * * * *"
-    brainstoreReader: "10 * * * *"
-    brainstoreWriter: "20 * * * *"
+  schedule: "0 * * * *"
   targets:
     brainstoreWriter: false  # Opt out of writer restarts
   image:
