@@ -45,13 +45,6 @@ jobs:
   test-values:
     name: Test with Values Files
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        values-file:
-          - braintrust/ci/values-azure.yaml
-          - braintrust/ci/values-google.yaml
-          - braintrust/ci/values-aws.yaml
-          - braintrust/ci/values-minimal.yaml
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -61,7 +54,22 @@ jobs:
         with:
           version: 'latest'
 
-      - name: Test chart rendering with ${{ matrix.values-file }}
+      - name: Test chart rendering with Azure values
         run: |
-          helm template test-release braintrust --values ${{ matrix.values-file }} > /dev/null
-          echo "✅ Chart rendered successfully with ${{ matrix.values-file }}"
+          helm template test-release braintrust --values braintrust/ci/values-azure.yaml > /dev/null
+          echo "✅ Chart rendered successfully with braintrust/ci/values-azure.yaml"
+
+      - name: Test chart rendering with Google values
+        run: |
+          helm template test-release braintrust --values braintrust/ci/values-google.yaml > /dev/null
+          echo "✅ Chart rendered successfully with braintrust/ci/values-google.yaml"
+
+      - name: Test chart rendering with AWS values
+        run: |
+          helm template test-release braintrust --values braintrust/ci/values-aws.yaml > /dev/null
+          echo "✅ Chart rendered successfully with braintrust/ci/values-aws.yaml"
+
+      - name: Test chart rendering with Minimal values
+        run: |
+          helm template test-release braintrust --values braintrust/ci/values-minimal.yaml > /dev/null
+          echo "✅ Chart rendered successfully with braintrust/ci/values-minimal.yaml"
