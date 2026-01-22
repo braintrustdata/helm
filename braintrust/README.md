@@ -147,6 +147,14 @@ For Standard mode clusters, create node pools with local SSDs, then deploy:
 - Local SSDs are automatically available via emptyDir volumes
 - Pod anti-affinity ensures readers and writers don't share nodes (each pod gets dedicated node access)
 
+## Testing
+
+This Helm chart includes comprehensive automated unit tests.
+
+```bash
+# Run all tests
+./test.sh
+```
 
 ## Breaking Changes
 

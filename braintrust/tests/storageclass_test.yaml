@@ -1,0 +1,52 @@
+suite: test StorageClass template
+templates:
+  - storageclass.yaml
+tests:
+  - it: should not render when cloud is not azure
+    set:
+      cloud: "google"
+      azure.enableAzureContainerStorageDriver: true
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should not render when cloud is azure but enableAzureContainerStorageDriver is false
+    set:
+      cloud: "azure"
+      azure.enableAzureContainerStorageDriver: false
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should render StorageClass when cloud is azure and enableAzureContainerStorageDriver is true
+    set:
+      cloud: "azure"
+      azure.enableAzureContainerStorageDriver: true
+    asserts:
+      - hasDocuments:
+          count: 1
+      - isKind:
+          of: StorageClass
+      - equal:
+          path: metadata.name
+          value: local
+      - equal:
+          path: provisioner
+          value: localdisk.csi.acstor.io
+      - equal:
+          path: reclaimPolicy
+          value: Delete
+      - equal:
+          path: volumeBindingMode
+          value: WaitForFirstConsumer
+      - equal:
+          path: allowVolumeExpansion
+          value: true
+
+  - it: should not render when cloud is aws
+    set:
+      cloud: "aws"
+      azure.enableAzureContainerStorageDriver: true
+    asserts:
+      - hasDocuments:
+          count: 0

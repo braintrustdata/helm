@@ -1,0 +1,184 @@
+suite: test Brainstore Writer configmap template
+templates:
+  - brainstore-writer-configmap.yaml
+tests:
+  - it: should render Brainstore Writer configmap with default values
+    values:
+      - __fixtures__/base-values.yaml
+    release:
+      namespace: "braintrust"
+    asserts:
+      - isKind:
+          of: ConfigMap
+      - equal:
+          path: metadata.name
+          value: brainstore-writer
+      - equal:
+          path: data.BRAINSTORE_READER_ONLY_MODE
+          value: "false"
+      - equal:
+          path: data.BRAINSTORE_PORT
+          value: "4000"
+      - equal:
+          path: data.BRAINSTORE_CACHE_DIR
+          value: "/mnt/tmp/brainstore"
+
+  - it: should use correct namespace from helper when createNamespace is false
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      global.namespace: "custom-ns"
+      global.createNamespace: false
+    release:
+      namespace: "release-namespace"
+    asserts:
+      - equal:
+          path: metadata.namespace
+          value: release-namespace
+
+  - it: should configure verbose mode
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      brainstore.writer.verbose: true
+    release:
+      namespace: "braintrust"
+    asserts:
+      - equal:
+          path: data.BRAINSTORE_VERBOSE
+          value: "1"
+
+  - it: should configure AWS URIs when cloud is aws
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/aws-values.yaml
+    release:
+      namespace: "braintrust"
+    asserts:
+      - equal:
+          path: data.BRAINSTORE_INDEX_URI
+          value: "s3://test-brainstore-bucket/brainstore/index"
+      - equal:
+          path: data.BRAINSTORE_REALTIME_WAL_URI
+          value: "s3://test-brainstore-bucket/brainstore/wal"
+
+  - it: should configure Azure URIs when cloud is azure
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/azure-values.yaml
+    release:
+      namespace: "braintrust"
+    asserts:
+      - equal:
+          path: data.AZURE_STORAGE_ACCOUNT_NAME
+          value: "teststorageaccount"
+      - equal:
+          path: data.BRAINSTORE_INDEX_URI
+          value: "az://brainstore/brainstore/index"
+      - equal:
+          path: data.BRAINSTORE_REALTIME_WAL_URI
+          value: "az://brainstore/brainstore/wal"
+
+  - it: should configure Google Cloud URIs when cloud is google
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/google-values.yaml
+    release:
+      namespace: "braintrust"
+    asserts:
+      - equal:
+          path: data.BRAINSTORE_INDEX_URI
+          value: "gs://test-brainstore-bucket/brainstore/index"
+      - equal:
+          path: data.BRAINSTORE_REALTIME_WAL_URI
+          value: "gs://test-brainstore-bucket/brainstore/wal"
+
+  - it: should include locks URI when locksBackend is objectStorage for AWS
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/aws-values.yaml
+    set:
+      brainstore.locksBackend: "objectStorage"
+    release:
+      namespace: "braintrust"
+    asserts:
+      - equal:
+          path: data.BRAINSTORE_LOCKS_URI
+          value: "s3://test-brainstore-bucket/brainstore/locks"
+
+  - it: should include locks URI when locksBackend is objectStorage for Azure
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/azure-values.yaml
+    set:
+      brainstore.locksBackend: "objectStorage"
+    release:
+      namespace: "braintrust"
+    asserts:
+      - equal:
+          path: data.BRAINSTORE_LOCKS_URI
+          value: "az://brainstore/brainstore/locks"
+
+  - it: should include locks URI when locksBackend is objectStorage for Google
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/google-values.yaml
+    set:
+      brainstore.locksBackend: "objectStorage"
+    release:
+      namespace: "braintrust"
+    asserts:
+      - equal:
+          path: data.BRAINSTORE_LOCKS_URI
+          value: "gs://test-brainstore-bucket/brainstore/locks"
+
+  - it: should not include locks URI when locksBackend is redis
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/aws-values.yaml
+    set:
+      brainstore.locksBackend: "redis"
+    release:
+      namespace: "braintrust"
+    asserts:
+      - isNull:
+          path: data.BRAINSTORE_LOCKS_URI
+
+  - it: should include control plane telemetry
+    values:
+      - __fixtures__/base-values.yaml
+    release:
+      namespace: "braintrust"
+    asserts:
+      - equal:
+          path: data.BRAINSTORE_CONTROL_PLANE_TELEMETRY
+          value: "status,metrics"
+
+  - it: should merge global and writer labels
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      brainstore.writer.labels.component: "brainstore-writer"
+      global.labels.environment: "production"
+    release:
+      namespace: "braintrust"
+    asserts:
+      - equal:
+          path: metadata.labels.environment
+          value: production
+      - equal:
+          path: metadata.labels.component
+          value: brainstore-writer
+
+  - it: should include configmap annotations when provided
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      brainstore.writer.annotations.configmap:
+        custom-annotation: "value"
+    release:
+      namespace: "braintrust"
+    asserts:
+      - equal:
+          path: metadata.annotations["custom-annotation"]
+          value: value

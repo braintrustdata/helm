@@ -1,0 +1,9 @@
+# Patterns to ignore when building packages.
+.git
+.github
+.gitignore
+README.md
+LICENSE
+docs/
+*.md
+!braintrust/README.md

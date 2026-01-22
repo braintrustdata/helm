@@ -1,0 +1,75 @@
+name: Test Helm Chart
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  unittest:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: 'latest'
+
+      - name: Install helm-unittest
+        run: |
+          helm plugin install https://github.com/quintush/helm-unittest --verify=false
+
+      - name: Run unit tests
+        run: |
+          helm unittest braintrust
+
+  lint-test:
+    name: Lint and Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: 'latest'
+
+      - name: Lint chart
+        run: helm lint braintrust --strict
+
+  test-values:
+    name: Test with Values Files
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: 'latest'
+
+      - name: Test chart rendering with Azure values
+        run: |
+          helm template test-release braintrust --values braintrust/ci/values-azure.yaml > /dev/null
+          echo "✅ Chart rendered successfully with braintrust/ci/values-azure.yaml"
+
+      - name: Test chart rendering with Google values
+        run: |
+          helm template test-release braintrust --values braintrust/ci/values-google.yaml > /dev/null
+          echo "✅ Chart rendered successfully with braintrust/ci/values-google.yaml"
+
+      - name: Test chart rendering with AWS values
+        run: |
+          helm template test-release braintrust --values braintrust/ci/values-aws.yaml > /dev/null
+          echo "✅ Chart rendered successfully with braintrust/ci/values-aws.yaml"
+
+      - name: Test chart rendering with Minimal values
+        run: |
+          helm template test-release braintrust --values braintrust/ci/values-minimal.yaml > /dev/null
+          echo "✅ Chart rendered successfully with braintrust/ci/values-minimal.yaml"

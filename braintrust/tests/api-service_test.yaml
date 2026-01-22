@@ -1,0 +1,119 @@
+suite: test API service template
+templates:
+  - api-service.yaml
+tests:
+  - it: should render API service with default values
+    values:
+      - __fixtures__/base-values.yaml
+    release:
+      namespace: "braintrust"
+    asserts:
+      - isKind:
+          of: Service
+      - equal:
+          path: metadata.name
+          value: braintrust-api
+      - equal:
+          path: spec.type
+          value: ClusterIP
+      - equal:
+          path: spec.selector.app
+          value: braintrust-api
+
+  - it: should use custom service name when provided
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      api.service.name: "custom-api-service"
+    release:
+      namespace: "braintrust"
+    asserts:
+      - equal:
+          path: metadata.name
+          value: custom-api-service
+
+  - it: should configure port correctly
+    values:
+      - __fixtures__/base-values.yaml
+    release:
+      namespace: "braintrust"
+    asserts:
+      - equal:
+          path: spec.ports[0].name
+          value: http
+      - equal:
+          path: spec.ports[0].port
+          value: 8000
+      - equal:
+          path: spec.ports[0].targetPort
+          value: 8000
+      - equal:
+          path: spec.ports[0].protocol
+          value: TCP
+
+  - it: should use correct namespace from helper when createNamespace is false
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      global.namespace: "custom-ns"
+      global.createNamespace: false
+    release:
+      namespace: "release-namespace"
+    asserts:
+      - equal:
+          path: metadata.namespace
+          value: release-namespace
+
+  - it: should use global namespace when createNamespace is true
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      global.namespace: "custom-ns"
+      global.createNamespace: true
+    release:
+      namespace: "release-namespace"
+    asserts:
+      - equal:
+          path: metadata.namespace
+          value: custom-ns
+
+  - it: should merge global and api labels
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      api.labels.component: "api"
+      global.labels.environment: "production"
+    release:
+      namespace: "braintrust"
+    asserts:
+      - equal:
+          path: metadata.labels.environment
+          value: production
+      - equal:
+          path: metadata.labels.component
+          value: api
+
+  - it: should include service annotations when provided
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      api.annotations.service:
+        custom-annotation: "value"
+    release:
+      namespace: "braintrust"
+    asserts:
+      - equal:
+          path: metadata.annotations["custom-annotation"]
+          value: value
+
+  - it: should support LoadBalancer type
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      api.service.type: "LoadBalancer"
+    release:
+      namespace: "braintrust"
+    asserts:
+      - equal:
+          path: spec.type
+          value: LoadBalancer
