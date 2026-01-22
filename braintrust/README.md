@@ -15,8 +15,8 @@ The `braintrust-secrets` secret must contain the following keys:
 | `BRAINSTORE_LICENSE_KEY` | Brainstore license key | Valid Brainstore license key from the Braintrust Data Plane settings page |
 | `FUNCTION_SECRET_KEY` | Random string for encrypting function secrets | Random string |
 | `AZURE_STORAGE_CONNECTION_STRING` | Azure storage connection string | Valid Azure storage connection string (only required if `cloud` is `azure`) |
-| `GCS_ACCESS_KEY_ID` | Google HMAC Access ID string | Valid S3 API Key Id (only required if `cloud` is `google`) |
-| `GCS_SECRET_ACCESS_KEY` | Google HMAC Secret string | Valid S3 Secret string (only required if `cloud` is `google`) |
+| `GCS_ACCESS_KEY_ID` | Google HMAC Access ID string | Valid S3 API Key Id (only required if `cloud` is `google` and if `enableGcsAuth` is `false`) |
+| `GCS_SECRET_ACCESS_KEY` | Google HMAC Secret string | Valid S3 Secret string (only required if `cloud` is `google` and if `enableGcsAuth` is `false`) |
 
 ## Azure Key Vault Driver Integration
 
@@ -159,3 +159,7 @@ This Helm chart includes comprehensive automated unit tests.
 ## Breaking Changes
 
 With version 2 of this helm, the Brainstore pods are split into Readers and Writers improving performance and the ability to independently scale for more read operations or write operations. For existing customers that have deployed our Helm or via other means on Kubernetes, please update your override values file or deployment to match this change. This will result in no data loss, but will be a brief downtime as the existing Brainstore Pods are removed and new Brainstore Pods for Reading and Writing are launched.
+
+## Example Values Files
+
+Example values files for different cloud providers and configurations are located in the `sample-values/` folder.

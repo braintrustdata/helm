@@ -102,7 +102,7 @@ api:
       memory: "4Gi"
     limits:
       cpu: "4"
-      memory: "8Gi"
+      memory: "6Gi"
   # Allow running user generated code functions (e.g. scorers/tools)
   allowCodeFunctionExecution: true
   # Brainstore backfill configuration. These defaults are fine for most cases.
@@ -202,11 +202,11 @@ brainstore:
       portName: http
     resources:
       requests:
-        cpu: "4"
-        memory: "8Gi"
+        cpu: "16"
+        memory: "32Gi"
       limits:
-        cpu: "8"
-        memory: "16Gi"
+        cpu: "20"
+        memory: "40Gi"
     cacheDir: "/mnt/tmp/brainstore"
     objectStoreCacheMemoryLimit: "1Gi"
     objectStoreCacheFileSize: "50Gi"
@@ -238,11 +238,11 @@ brainstore:
       portName: http
     resources:
       requests:
-        cpu: "8"
-        memory: "16Gi"
+        cpu: "32"
+        memory: "64Gi"
       limits:
-        cpu: "16"
-        memory: "32Gi"
+        cpu: "40"
+        memory: "80Gi"
     cacheDir: "/mnt/tmp/brainstore"
     objectStoreCacheMemoryLimit: "1Gi"
     objectStoreCacheFileSize: "50Gi"
