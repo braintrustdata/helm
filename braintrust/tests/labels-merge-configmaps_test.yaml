@@ -1,0 +1,77 @@
+suite: test label merge isolation for configmaps (deepCopy fix)
+templates:
+  - api-configmap.yaml
+  - brainstore-reader-configmap.yaml
+  - brainstore-writer-configmap.yaml
+tests:
+  # These tests verify the deepCopy fix for configmaps.
+  # Without deepCopy, labels would bleed between components due to merge mutation.
+
+  - it: should give API configmap only global and api-specific labels
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      global.labels.shared: "global-cm"
+      api.labels.api-specific: "api-cm"
+      brainstore.reader.labels.reader-specific: "reader-cm"
+      brainstore.writer.labels.writer-specific: "writer-cm"
+    release:
+      namespace: "braintrust"
+    template: api-configmap.yaml
+    asserts:
+      - equal:
+          path: metadata.labels.shared
+          value: global-cm
+      - equal:
+          path: metadata.labels["api-specific"]
+          value: api-cm
+      - isNull:
+          path: metadata.labels["reader-specific"]
+      - isNull:
+          path: metadata.labels["writer-specific"]
+
+  - it: should give Reader configmap only global and reader-specific labels
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      global.labels.shared: "global-cm"
+      api.labels.api-specific: "api-cm"
+      brainstore.reader.labels.reader-specific: "reader-cm"
+      brainstore.writer.labels.writer-specific: "writer-cm"
+    release:
+      namespace: "braintrust"
+    template: brainstore-reader-configmap.yaml
+    asserts:
+      - equal:
+          path: metadata.labels.shared
+          value: global-cm
+      - equal:
+          path: metadata.labels["reader-specific"]
+          value: reader-cm
+      - isNull:
+          path: metadata.labels["api-specific"]
+      - isNull:
+          path: metadata.labels["writer-specific"]
+
+  - it: should give Writer configmap only global and writer-specific labels
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      global.labels.shared: "global-cm"
+      api.labels.api-specific: "api-cm"
+      brainstore.reader.labels.reader-specific: "reader-cm"
+      brainstore.writer.labels.writer-specific: "writer-cm"
+    release:
+      namespace: "braintrust"
+    template: brainstore-writer-configmap.yaml
+    asserts:
+      - equal:
+          path: metadata.labels.shared
+          value: global-cm
+      - equal:
+          path: metadata.labels["writer-specific"]
+          value: writer-cm
+      - isNull:
+          path: metadata.labels["api-specific"]
+      - isNull:
+          path: metadata.labels["reader-specific"]
