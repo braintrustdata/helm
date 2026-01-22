@@ -70,7 +70,8 @@ objectStorage:
 
 api:
   name: "braintrust-api"
-  labels: {}
+  labels:
+    pod: {}
   annotations:
     configmap: {}
     deployment: {}
@@ -188,7 +189,8 @@ brainstore:
   # Brainstore Reader configuration
   reader:
     name: "brainstore-reader"
-    labels: {}
+    labels:
+      pod: {}
     annotations:
       configmap: {}
       deployment: {}
@@ -224,7 +226,8 @@ brainstore:
   # Brainstore Writer configuration
   writer:
     name: "brainstore-writer"
-    labels: {}
+    labels:
+      pod: {}
     annotations:
       configmap: {}
       deployment: {}

@@ -34,6 +34,9 @@ spec:
         {{- with (merge .Values.global.labels .Values.api.labels) }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
+        {{- with .Values.api.labels.pod }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
       annotations:
         {{- if and (eq .Values.cloud "google") .Values.api.enableGcsAuth }}
         iam.gke.io/gcp-service-account: {{ required "api.serviceAccount.googleServiceAccount is required when api.enableGcsAuth is true" .Values.api.serviceAccount.googleServiceAccount }}

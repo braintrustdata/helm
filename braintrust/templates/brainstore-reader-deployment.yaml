@@ -34,6 +34,9 @@ spec:
         {{- with (merge .Values.global.labels .Values.brainstore.reader.labels) }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
+        {{- with .Values.brainstore.reader.labels.pod }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
       annotations:
         {{- if eq .Values.cloud "google" }}
         iam.gke.io/gcp-service-account: {{ required "brainstore.serviceAccount.googleServiceAccount is required when cloud is google" .Values.brainstore.serviceAccount.googleServiceAccount }}
