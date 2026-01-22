@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   name: {{ .Values.brainstore.reader.name }}
   namespace: {{ include "braintrust.namespace" . }}
-  {{- with (merge .Values.global.labels .Values.brainstore.reader.labels) }}
+  {{- with (merge (deepCopy .Values.global.labels) .Values.brainstore.reader.labels) }}
   labels:
     {{- toYaml . | nindent 4 }}
   {{- end }}
@@ -31,7 +31,7 @@ spec:
         {{- if eq .Values.cloud "google" }}
         gke-workload-identity/use: "true"
         {{- end }}
-        {{- with (merge .Values.global.labels .Values.brainstore.reader.labels) }}
+        {{- with (merge (deepCopy .Values.global.labels) .Values.brainstore.reader.labels) }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
       annotations:
