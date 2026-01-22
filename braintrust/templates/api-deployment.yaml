@@ -31,7 +31,7 @@ spec:
         {{- if and (eq .Values.cloud "google") .Values.api.enableGcsAuth }}
         gke-workload-identity/use: "true"
         {{- end }}
-        {{- with (merge (deepCopy .Values.global.labels) .Values.api.labels) }}
+        {{- with (merge (deepCopy .Values.global.labels) .Values.api.labels .Values.api.podLabels) }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
       annotations:
