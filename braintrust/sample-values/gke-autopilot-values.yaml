@@ -54,7 +54,6 @@ brainstore:
   serviceAccount:
     name: "brainstore"
     googleServiceAccount: "<your Braintrust Brainstore Google service account>"
-  image:
   # Uncomment the following section to use usee a different image or tag from the version in the Helm release
   #image:
     #repository: public.ecr.aws/braintrust/brainstore
