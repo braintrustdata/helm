@@ -4,7 +4,7 @@ kind: ConfigMap
 metadata:
   name: {{ .Values.api.name }}
   namespace: {{ include "braintrust.namespace" . }}
-  {{- with (merge (deepCopy .Values.global.labels) .Values.api.labels) }}
+  {{- with (merge (deepCopy .Values.api.labels) .Values.global.labels) }}
   labels:
     {{- toYaml . | nindent 4 }}
   {{- end }}

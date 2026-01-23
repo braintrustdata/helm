@@ -3,7 +3,7 @@ kind: Service
 metadata:
   name: {{ .Values.brainstore.writer.service.name | default .Values.brainstore.writer.name }}
   namespace: {{ include "braintrust.namespace" . }}
-  {{- with (merge (deepCopy .Values.global.labels) .Values.brainstore.writer.labels) }}
+  {{- with (merge (deepCopy .Values.brainstore.writer.labels) .Values.global.labels) }}
   labels:
     {{- toYaml . | nindent 4 }}
   {{- end }}
