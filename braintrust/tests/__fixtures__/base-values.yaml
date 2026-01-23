@@ -37,7 +37,7 @@ api:
       memory: "4Gi"
     limits:
       cpu: "4"
-      memory: "8Gi"
+      memory: "6Gi"
   allowCodeFunctionExecution: true
   backfillDisableHistorical: false
   backfillDisableNonhistorical: false
