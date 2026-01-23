@@ -162,4 +162,4 @@ With version 2 of this helm, the Brainstore pods are split into Readers and Writ
 
 ## Example Values Files
 
-Example values files for different cloud providers and configurations are located in the `sample-values/` folder.
+Example values files for different cloud providers and configurations are located in the `examples/` folder.
