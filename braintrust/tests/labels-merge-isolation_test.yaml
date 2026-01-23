@@ -206,11 +206,11 @@ tests:
           value: platform
 
   # Note: Helm's merge function gives precedence to the destination (first argument).
-  # With `merge (deepCopy .Values.global.labels) .Values.component.labels`,
-  # global labels take precedence over component labels when keys conflict.
-  # Component labels are only added if the key doesn't exist in global labels.
+  # With `merge (deepCopy .Values.component.labels) .Values.global.labels`,
+  # component labels take precedence over global labels when keys conflict.
+  # Global labels are only added if the key doesn't exist in component labels.
 
-  - it: should give global labels precedence over API labels when keys conflict
+  - it: should give component labels precedence over global labels when keys conflict (API)
     values:
       - __fixtures__/base-values.yaml
     set:
@@ -221,16 +221,16 @@ tests:
       namespace: "braintrust"
     template: api-deployment.yaml
     asserts:
-      # Global label takes precedence for conflicting key
+      # Component label takes precedence for conflicting key
       - equal:
           path: metadata.labels.tier
-          value: global-tier
+          value: api-tier
       # Non-conflicting component label is still added
       - equal:
           path: metadata.labels["api-only"]
           value: api-value
 
-  - it: should give global labels precedence over Reader labels when keys conflict
+  - it: should give component labels precedence over global labels when keys conflict (Reader)
     values:
       - __fixtures__/base-values.yaml
     set:
@@ -241,16 +241,16 @@ tests:
       namespace: "braintrust"
     template: brainstore-reader-deployment.yaml
     asserts:
-      # Global label takes precedence for conflicting key
+      # Component label takes precedence for conflicting key
       - equal:
           path: metadata.labels.tier
-          value: global-tier
+          value: reader-tier
       # Non-conflicting component label is still added
       - equal:
           path: metadata.labels["reader-only"]
           value: reader-value
 
-  - it: should give global labels precedence over Writer labels when keys conflict
+  - it: should give component labels precedence over global labels when keys conflict (Writer)
     values:
       - __fixtures__/base-values.yaml
     set:
@@ -261,10 +261,10 @@ tests:
       namespace: "braintrust"
     template: brainstore-writer-deployment.yaml
     asserts:
-      # Global label takes precedence for conflicting key
+      # Component label takes precedence for conflicting key
       - equal:
           path: metadata.labels.tier
-          value: global-tier
+          value: writer-tier
       # Non-conflicting component label is still added
       - equal:
           path: metadata.labels["writer-only"]

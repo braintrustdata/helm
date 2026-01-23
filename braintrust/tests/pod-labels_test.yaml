@@ -1,0 +1,272 @@
+suite: test podLabels feature
+templates:
+  - api-deployment.yaml
+  - brainstore-reader-deployment.yaml
+  - brainstore-writer-deployment.yaml
+tests:
+  # Test that podLabels are applied only to pod template labels, not deployment metadata labels
+  - it: should apply api.podLabels only to pod template labels, not deployment metadata
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      api.podLabels.pod-only-label: "pod-value"
+      api.labels.component: "api"
+    release:
+      namespace: "braintrust"
+    template: api-deployment.yaml
+    asserts:
+      # podLabels should appear in pod template metadata
+      - equal:
+          path: spec.template.metadata.labels["pod-only-label"]
+          value: pod-value
+      # podLabels should NOT appear in deployment metadata
+      - isNull:
+          path: metadata.labels["pod-only-label"]
+      # Regular labels should appear in both
+      - equal:
+          path: metadata.labels.component
+          value: api
+      - equal:
+          path: spec.template.metadata.labels.component
+          value: api
+
+  - it: should apply brainstore.reader.podLabels only to pod template labels, not deployment metadata
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      brainstore.reader.podLabels.pod-only-label: "reader-pod-value"
+      brainstore.reader.labels.component: "reader"
+    release:
+      namespace: "braintrust"
+    template: brainstore-reader-deployment.yaml
+    asserts:
+      # podLabels should appear in pod template metadata
+      - equal:
+          path: spec.template.metadata.labels["pod-only-label"]
+          value: reader-pod-value
+      # podLabels should NOT appear in deployment metadata
+      - isNull:
+          path: metadata.labels["pod-only-label"]
+      # Regular labels should appear in both
+      - equal:
+          path: metadata.labels.component
+          value: reader
+      - equal:
+          path: spec.template.metadata.labels.component
+          value: reader
+
+  - it: should apply brainstore.writer.podLabels only to pod template labels, not deployment metadata
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      brainstore.writer.podLabels.pod-only-label: "writer-pod-value"
+      brainstore.writer.labels.component: "writer"
+    release:
+      namespace: "braintrust"
+    template: brainstore-writer-deployment.yaml
+    asserts:
+      # podLabels should appear in pod template metadata
+      - equal:
+          path: spec.template.metadata.labels["pod-only-label"]
+          value: writer-pod-value
+      # podLabels should NOT appear in deployment metadata
+      - isNull:
+          path: metadata.labels["pod-only-label"]
+      # Regular labels should appear in both
+      - equal:
+          path: metadata.labels.component
+          value: writer
+      - equal:
+          path: spec.template.metadata.labels.component
+          value: writer
+
+  # Test that podLabels are isolated between components
+  - it: should isolate podLabels between api, reader, and writer deployments
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      api.podLabels.api-pod-specific: "api-pod"
+      brainstore.reader.podLabels.reader-pod-specific: "reader-pod"
+      brainstore.writer.podLabels.writer-pod-specific: "writer-pod"
+    release:
+      namespace: "braintrust"
+    template: api-deployment.yaml
+    asserts:
+      # API should have its own podLabel
+      - equal:
+          path: spec.template.metadata.labels["api-pod-specific"]
+          value: api-pod
+      # API should NOT have reader or writer podLabels
+      - isNull:
+          path: spec.template.metadata.labels["reader-pod-specific"]
+      - isNull:
+          path: spec.template.metadata.labels["writer-pod-specific"]
+
+  - it: should isolate reader podLabels from api and writer
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      api.podLabels.api-pod-specific: "api-pod"
+      brainstore.reader.podLabels.reader-pod-specific: "reader-pod"
+      brainstore.writer.podLabels.writer-pod-specific: "writer-pod"
+    release:
+      namespace: "braintrust"
+    template: brainstore-reader-deployment.yaml
+    asserts:
+      # Reader should have its own podLabel
+      - equal:
+          path: spec.template.metadata.labels["reader-pod-specific"]
+          value: reader-pod
+      # Reader should NOT have api or writer podLabels
+      - isNull:
+          path: spec.template.metadata.labels["api-pod-specific"]
+      - isNull:
+          path: spec.template.metadata.labels["writer-pod-specific"]
+
+  - it: should isolate writer podLabels from api and reader
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      api.podLabels.api-pod-specific: "api-pod"
+      brainstore.reader.podLabels.reader-pod-specific: "reader-pod"
+      brainstore.writer.podLabels.writer-pod-specific: "writer-pod"
+    release:
+      namespace: "braintrust"
+    template: brainstore-writer-deployment.yaml
+    asserts:
+      # Writer should have its own podLabel
+      - equal:
+          path: spec.template.metadata.labels["writer-pod-specific"]
+          value: writer-pod
+      # Writer should NOT have api or reader podLabels
+      - isNull:
+          path: spec.template.metadata.labels["api-pod-specific"]
+      - isNull:
+          path: spec.template.metadata.labels["reader-pod-specific"]
+
+  # Test merge behavior: global labels, component labels, and podLabels all combined
+  - it: should merge global labels, api labels, and api podLabels in pod template
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      global.labels.environment: "production"
+      api.labels.component: "api"
+      api.podLabels.pod-role: "server"
+    release:
+      namespace: "braintrust"
+    template: api-deployment.yaml
+    asserts:
+      # All three should be present in pod template labels
+      - equal:
+          path: spec.template.metadata.labels.environment
+          value: production
+      - equal:
+          path: spec.template.metadata.labels.component
+          value: api
+      - equal:
+          path: spec.template.metadata.labels["pod-role"]
+          value: server
+      # Only global and component labels in deployment metadata
+      - equal:
+          path: metadata.labels.environment
+          value: production
+      - equal:
+          path: metadata.labels.component
+          value: api
+      - isNull:
+          path: metadata.labels["pod-role"]
+
+  - it: should merge global labels, reader labels, and reader podLabels in pod template
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      global.labels.environment: "staging"
+      brainstore.reader.labels.component: "reader"
+      brainstore.reader.podLabels.pod-role: "cache"
+    release:
+      namespace: "braintrust"
+    template: brainstore-reader-deployment.yaml
+    asserts:
+      # All three should be present in pod template labels
+      - equal:
+          path: spec.template.metadata.labels.environment
+          value: staging
+      - equal:
+          path: spec.template.metadata.labels.component
+          value: reader
+      - equal:
+          path: spec.template.metadata.labels["pod-role"]
+          value: cache
+      # Only global and component labels in deployment metadata
+      - equal:
+          path: metadata.labels.environment
+          value: staging
+      - equal:
+          path: metadata.labels.component
+          value: reader
+      - isNull:
+          path: metadata.labels["pod-role"]
+
+  - it: should merge global labels, writer labels, and writer podLabels in pod template
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      global.labels.environment: "development"
+      brainstore.writer.labels.component: "writer"
+      brainstore.writer.podLabels.pod-role: "persistence"
+    release:
+      namespace: "braintrust"
+    template: brainstore-writer-deployment.yaml
+    asserts:
+      # All three should be present in pod template labels
+      - equal:
+          path: spec.template.metadata.labels.environment
+          value: development
+      - equal:
+          path: spec.template.metadata.labels.component
+          value: writer
+      - equal:
+          path: spec.template.metadata.labels["pod-role"]
+          value: persistence
+      # Only global and component labels in deployment metadata
+      - equal:
+          path: metadata.labels.environment
+          value: development
+      - equal:
+          path: metadata.labels.component
+          value: writer
+      - isNull:
+          path: metadata.labels["pod-role"]
+
+  # Note: Helm's merge function gives precedence to the destination (first argument).
+  # With `merge (deepCopy .Values.api.podLabels) .Values.api.labels .Values.global.labels`,
+  # podLabels take precedence, then component labels, then global labels (last has lowest priority).
+  - it: should give podLabels precedence over global labels when keys conflict
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      global.labels.tier: "global-tier"
+      api.podLabels.tier: "pod-tier"
+    release:
+      namespace: "braintrust"
+    template: api-deployment.yaml
+    asserts:
+      # Pod label takes precedence in pod template
+      - equal:
+          path: spec.template.metadata.labels.tier
+          value: pod-tier
+
+  - it: should give podLabels precedence over component labels when keys conflict
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      api.labels.tier: "component-tier"
+      api.podLabels.tier: "pod-tier"
+    release:
+      namespace: "braintrust"
+    template: api-deployment.yaml
+    asserts:
+      # Pod label takes precedence in pod template
+      - equal:
+          path: spec.template.metadata.labels.tier
+          value: pod-tier
