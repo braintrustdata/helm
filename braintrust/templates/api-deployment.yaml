@@ -43,6 +43,10 @@ spec:
         {{- end }}
     spec:
       serviceAccountName: {{ .Values.api.serviceAccount.name }}
+      {{- with .Values.api.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       {{- with .Values.api.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
@@ -59,6 +63,10 @@ spec:
         - name: api
           image: "{{ .Values.api.image.repository }}:{{ .Values.api.image.tag }}"
           imagePullPolicy: {{ .Values.api.image.pullPolicy }}
+          {{- with .Values.api.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           ports:
             - containerPort: {{ .Values.api.service.port }}
           resources:
@@ -121,19 +129,46 @@ spec:
             {{- if .Values.api.extraEnvVars }}
             {{- toYaml .Values.api.extraEnvVars | nindent 12 }}
             {{- end }}
-          {{- if and (eq .Values.cloud "azure") .Values.azure.enableAzureKeyVaultDriver }}
+            {{- if .Values.realtime.enabled }}
+            - name: REALTIME_URL
+              value: "http://{{ .Values.realtime.service.name | default .Values.realtime.name }}:{{ .Values.realtime.service.port }}"
+            {{- end }}
+            {{- if .Values.customTLSCABundle }}
+            - name: NODE_EXTRA_CA_CERTS
+              value: "/etc/braintrust/tls/ca-bundle.pem"
+            {{- end }}
+          {{- if or (and (eq .Values.cloud "azure") .Values.azure.enableAzureKeyVaultDriver) .Values.customTLSCABundle }}
           volumeMounts:
+            {{- if and (eq .Values.cloud "azure") .Values.azure.enableAzureKeyVaultDriver }}
             - name: secrets-store-inline
               mountPath: "/mnt/secrets-store"
               readOnly: true
+            {{- end }}
+            {{- if .Values.customTLSCABundle }}
+            - name: tls-ca
+              mountPath: "/etc/braintrust/tls"
+              readOnly: true
+            {{- end }}
           {{- end }}
-      {{- if and (eq .Values.cloud "azure") .Values.azure.enableAzureKeyVaultDriver }}
+      {{- if or (and (eq .Values.cloud "azure") .Values.azure.enableAzureKeyVaultDriver) .Values.customTLSCABundle }}
       volumes:
+        {{- if .Values.customTLSCABundle }}
+        - name: tls-ca
+          projected:
+            sources:
+              - secret:
+                  name: "braintrust-secrets"
+                  items:
+                    - key: "CA_PEM"
+                      path: "ca-bundle.pem"
+        {{- end }}
+        {{- if and (eq .Values.cloud "azure") .Values.azure.enableAzureKeyVaultDriver }}
         - name: secrets-store-inline
           csi:
             driver: secrets-store.csi.k8s.io
             readOnly: true
             volumeAttributes:
               secretProviderClass: {{ .Values.azure.keyVaultName }}
+        {{- end }}
       {{- end }}
 

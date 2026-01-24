@@ -23,6 +23,13 @@ global:
 # Cloud provider configuration
 cloud: ""  # "google" or "azure" or "aws"
 
+# Custom TLS CA Bundle configuration
+# When enabled, appends custom CA certificates to the system trust store for secure connections
+# This is useful for private CAs, self-signed certificates, or custom certificate chains
+# The custom CA bundle is added in addition to the default system CA certificates
+# Requires CA_PEM secret to be set (see README for details)
+customTLSCABundle: false
+
 # Optional: Google Cloud specific configuration
 google:
   # GKE mode: "autopilot" or "standard"
@@ -104,6 +111,16 @@ api:
     limits:
       cpu: "4"
       memory: "8Gi"
+  # Optional: Pod-level security context
+  # podSecurityContext:
+  #   runAsUser: 1000
+  #   runAsGroup: 1000
+  #   fsGroup: 1000
+  # Optional: Container-level security context
+  # securityContext:
+  #   capabilities:
+  #     drop:
+  #       - ALL
   # Allow running user generated code functions (e.g. scorers/tools)
   allowCodeFunctionExecution: true
   # Brainstore backfill configuration. These defaults are fine for most cases.
@@ -209,6 +226,16 @@ brainstore:
       limits:
         cpu: "8"
         memory: "16Gi"
+    # Optional: Pod-level security context
+    # podSecurityContext:
+    #   runAsUser: 1000
+    #   runAsGroup: 1000
+    #   fsGroup: 1000
+    # Optional: Container-level security context
+    # securityContext:
+    #   capabilities:
+    #     drop:
+    #       - ALL
     cacheDir: "/mnt/tmp/brainstore"
     objectStoreCacheMemoryLimit: "1Gi"
     objectStoreCacheFileSize: "50Gi"
@@ -246,6 +273,16 @@ brainstore:
       limits:
         cpu: "16"
         memory: "32Gi"
+    # Optional: Pod-level security context
+    # podSecurityContext:
+    #   runAsUser: 1000
+    #   runAsGroup: 1000
+    #   fsGroup: 1000
+    # Optional: Container-level security context
+    # securityContext:
+    #   capabilities:
+    #     drop:
+    #       - ALL
     cacheDir: "/mnt/tmp/brainstore"
     objectStoreCacheMemoryLimit: "1Gi"
     objectStoreCacheFileSize: "50Gi"
@@ -265,6 +302,53 @@ brainstore:
     nodeSelector: {}
     tolerations: []
     affinity: {}
+
+# Realtime configuration (disabled by default)
+realtime:
+  # Set to true to enable the realtime service
+  enabled: false
+  name: "braintrust-realtime"
+  labels: {}
+  annotations:
+    deployment: {}
+    service: {}
+    pod: {}
+  replicas: 1
+  image:
+    repository: public.ecr.aws/braintrust/standalone-realtime
+    tag: v1.1.23
+    pullPolicy: IfNotPresent
+  service:
+    # Optional name for service object. If not specified (empty), the realtime.name
+    # is used.
+    name: ""
+    type: ClusterIP
+    port: 8788
+    portName: http
+  resources:
+    requests:
+      cpu: "2"
+      memory: "4Gi"
+    limits:
+      cpu: "4"
+      memory: "8Gi"
+  # Optional: Pod-level security context
+  # podSecurityContext:
+  #   runAsUser: 1000
+  #   runAsGroup: 1000
+  #   fsGroup: 1000
+  # Optional: Container-level security context
+  # securityContext:
+  #   capabilities:
+  #     drop:
+  #       - ALL
+  extraEnvVars: []
+    # Example:
+    # - name: MY_ENV_VAR
+    #   value: "my-value"
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
 
 azureKeyVaultDriver:
   # Map your Key Vault secret names to the required Kubernetes secret keys
@@ -288,3 +372,7 @@ azureKeyVaultDriver:
     - keyVaultSecretName: "azure-storage-connection-string"
       keyVaultSecretType: "secret"
       kubernetesSecretKey: "AZURE_STORAGE_CONNECTION_STRING"
+    # Optional: Only needed if customTLSCABundle is enabled
+    # - keyVaultSecretName: "ca-pem"
+    #   keyVaultSecretType: "secret"
+    #   kubernetesSecretKey: "CA_PEM"
