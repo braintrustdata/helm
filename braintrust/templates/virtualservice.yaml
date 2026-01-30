@@ -1,0 +1,28 @@
+{{- if .Values.virtualService.enabled }}
+apiVersion: networking.istio.io/v1
+kind: VirtualService
+metadata:
+  name: {{ .Values.virtualService.name | default (printf "%s-vs" .Values.api.name) }}
+  namespace: {{ include "braintrust.namespace" . }}
+  {{- with (merge .Values.global.labels .Values.virtualService.labels) }}
+  labels:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with .Values.virtualService.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- with .Values.virtualService.gateways }}
+  gateways:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with .Values.virtualService.hosts }}
+  hosts:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  http:
+    {{- range .Values.virtualService.http }}
+    - {{- toYaml . | nindent 6 }}
+    {{- end }}
+{{- end }}

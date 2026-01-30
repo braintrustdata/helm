@@ -288,3 +288,29 @@ azureKeyVaultDriver:
     - keyVaultSecretName: "azure-storage-connection-string"
       keyVaultSecretType: "secret"
       kubernetesSecretKey: "AZURE_STORAGE_CONNECTION_STRING"
+
+# Istio VirtualService configuration (optional)
+# Enable this to create an Istio VirtualService for the API
+virtualService:
+  enabled: false
+  name: ""  # If empty, defaults to "<api.name>-vs"
+  labels: {}
+  annotations: {}
+  # List of gateway names (can include namespace, e.g., "istio-ingress/asm-gateway")
+  gateways:
+    - "istio-gateway"
+  # List of hosts/domains
+  hosts:
+    - "braintrust.example.com"
+  # HTTP routing rules
+  # The destination host will use api.service.name (or api.name if service.name is empty)
+  # The destination port will use api.service.port (default: 8000)
+  http:
+    - match:
+        - uri:
+            prefix: "/"
+      route:
+        - destination:
+            host: "braintrust-api"  # Should match api.service.name or api.name
+            port:
+              number: 8000  # Should match api.service.port
