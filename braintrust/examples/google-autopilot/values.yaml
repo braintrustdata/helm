@@ -1,0 +1,111 @@
+# Sample values for GKE Autopilot deployment
+
+# Global configs
+global:
+  orgName: "<your Braintrust org name>"
+  namespace: "braintrust"
+
+# Cloud provider configuration
+cloud: "google" 
+
+# Google Cloud specific configuration for Autopilot
+google:
+  mode: "autopilot"
+  autopilotMachineFamily: "c4"
+
+objectStorage:
+  google:
+    brainstoreBucket: "<your brainstore bucket name>"
+    apiBucket: "<your api bucket name>"
+
+api:
+  name: "braintrust-api"
+  annotations:
+    service:
+      networking.gke.io/load-balancer-type: "Internal"
+  replicas: 4
+  # Uncomment the following section to use usee a different image or tag from the version in the Helm release
+  #image:
+    #repository: public.ecr.aws/braintrust/standalone-api
+    #tag: "<your image tag>"
+  service:
+    type: LoadBalancer
+    port: 8000
+    portName: http
+  serviceAccount:
+   name: "braintrust-api"
+   googleServiceAccount: "<your Braintrust API Google service account>"
+  # this is for native GCS authentication via workload identity (defaults to false for S3-compatible access) Requires v1.1.31 or later of the dataplane to be set to true.
+  enableGcsAuth: false
+  resources:
+    requests:
+      cpu: "4"
+      memory: "4Gi"
+    limits:
+      cpu: "4"
+      memory: "8Gi"
+  extraEnvVars:
+    # For S3-compatible GCS Storage, set the AWS_REGION environment variable to the region of your GCS bucket
+    - name: AWS_REGION
+      value: "us-central1"
+
+# Brainstore configuration (split into reader and writer)
+brainstore:
+  serviceAccount:
+    name: "brainstore"
+    googleServiceAccount: "<your Braintrust Brainstore Google service account>"
+  # Uncomment the following section to use a different image or tag from the version in the Helm release
+  #image:
+    #repository: public.ecr.aws/braintrust/brainstore
+    #tag: "<your image tag>"
+  # New deployments should use objectStorage as the locks backend. Existing deployments should remain on redis at this time. 
+  locksBackend: "objectStorage"
+
+  # Brainstore Reader configuration
+  reader:
+    name: "brainstore-reader"
+    replicas: 2
+    service:
+      name: ""
+      type: ClusterIP
+      port: 4000
+      portName: http
+    resources:
+      requests:
+        cpu: "16"
+        memory: "32Gi"
+      limits:
+        cpu: "20"
+        memory: "40Gi"
+    cacheDir: "/mnt/tmp/brainstore"
+    objectStoreCacheMemoryLimit: "1Gi"
+    objectStoreCacheFileSize: "100Gi"
+    verbose: true
+    volume:
+      size: "200Gi"
+    extraEnvVars:
+    
+  # Brainstore Writer configuration
+  writer:
+    name: "brainstore-writer"
+    replicas: 1
+    service:
+      name: ""
+      type: ClusterIP
+      port: 4000
+      portName: http
+    resources:
+      requests:
+        cpu: "32"
+        memory: "64Gi"
+      limits:
+        cpu: "40"
+        memory: "80Gi"
+    cacheDir: "/mnt/tmp/brainstore"
+    objectStoreCacheMemoryLimit: "1Gi"
+    objectStoreCacheFileSize: "100Gi"
+    verbose: true
+    volume:
+      size: "200Gi"  
+    extraEnvVars:
+     
