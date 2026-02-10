@@ -142,6 +142,8 @@ spec:
           volumeMounts:
             - name: cache-volume
               mountPath: {{ .Values.brainstore.writer.cacheDir }}
+            - name: tmp-volume
+              mountPath: /tmp
             {{- if and (eq .Values.cloud "azure") .Values.azure.enableAzureKeyVaultDriver }}
             - name: secrets-store-inline
               mountPath: "/mnt/secrets-store"
@@ -165,8 +167,14 @@ spec:
                   requests:
                     storage: {{ required "brainstore.writer.volume.size must be set" .Values.brainstore.writer.volume.size | quote }}
           {{- else }}
-          emptyDir: {}
+          emptyDir:
+            {{- if .Values.brainstore.writer.volume.sizeLimit }}
+            sizeLimit: {{ .Values.brainstore.writer.volume.sizeLimit | quote }}
+            {{- end }}
           {{- end }}
+        - name: tmp-volume
+          emptyDir:
+            sizeLimit: "1Gi"
         {{- if and (eq .Values.cloud "azure") .Values.azure.enableAzureKeyVaultDriver }}
         - name: secrets-store-inline
           csi:

@@ -115,11 +115,17 @@ api:
   #   runAsUser: 1000
   #   runAsGroup: 1000
   #   fsGroup: 1000
-  # Optional: Container-level security context
-  # securityContext:
-  #   capabilities:
-  #     drop:
-  #       - ALL
+  # Container-level security context (enabled for CEL policy compliance)
+  securityContext:
+    readOnlyRootFilesystem: true
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+        - ALL
+  # Temporary directory configuration (needed when readOnlyRootFilesystem is true)
+  tmpVolume:
+    enabled: true
+    sizeLimit: "1Gi"
   # Allow running user generated code functions (e.g. scorers/tools)
   allowCodeFunctionExecution: true
   # Brainstore backfill configuration. These defaults are fine for most cases.
@@ -229,11 +235,13 @@ brainstore:
     #   runAsUser: 1000
     #   runAsGroup: 1000
     #   fsGroup: 1000
-    # Optional: Container-level security context
-    # securityContext:
-    #   capabilities:
-    #     drop:
-    #       - ALL
+    # Container-level security context (enabled for CEL policy compliance)
+    securityContext:
+      readOnlyRootFilesystem: true
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop:
+          - ALL
     cacheDir: "/mnt/tmp/brainstore"
     objectStoreCacheMemoryLimit: "1Gi"
     objectStoreCacheFileSize: "50Gi"
@@ -243,6 +251,8 @@ brainstore:
     volume:
       # Storage size for ephemeral storage requests (used with GKE Autopilot local SSDs)
       size: ""
+      # EmptyDir sizeLimit (separate from ephemeral-storage requests, required for CEL policy compliance)
+      sizeLimit: "50Gi"
     extraEnvVars: []
     nodeSelector: {}
     tolerations: []
@@ -275,11 +285,13 @@ brainstore:
     #   runAsUser: 1000
     #   runAsGroup: 1000
     #   fsGroup: 1000
-    # Optional: Container-level security context
-    # securityContext:
-    #   capabilities:
-    #     drop:
-    #       - ALL
+    # Container-level security context (enabled for CEL policy compliance)
+    securityContext:
+      readOnlyRootFilesystem: true
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop:
+          - ALL
     cacheDir: "/mnt/tmp/brainstore"
     objectStoreCacheMemoryLimit: "1Gi"
     objectStoreCacheFileSize: "50Gi"
@@ -290,6 +302,8 @@ brainstore:
       # Storage size for ephemeral storage requests
       # Used with GKE Autopilot local SSDs and Azure Container Storage CSI
       size: ""
+      # EmptyDir sizeLimit (separate from ephemeral-storage requests, required for CEL policy compliance)
+      sizeLimit: "50Gi"
     extraEnvVars: []
     # Example:
     # - name: MY_ENV_VAR

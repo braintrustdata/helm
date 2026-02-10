@@ -137,8 +137,12 @@ spec:
             - name: NODE_EXTRA_CA_CERTS
               value: "/etc/braintrust/tls/ca-bundle.pem"
             {{- end }}
-          {{- if or (and (eq .Values.cloud "azure") .Values.azure.enableAzureKeyVaultDriver) .Values.customTLSCABundle }}
+          {{- if or .Values.api.tmpVolume.enabled (and (eq .Values.cloud "azure") .Values.azure.enableAzureKeyVaultDriver) .Values.customTLSCABundle }}
           volumeMounts:
+            {{- if .Values.api.tmpVolume.enabled }}
+            - name: tmp-volume
+              mountPath: /tmp
+            {{- end }}
             {{- if and (eq .Values.cloud "azure") .Values.azure.enableAzureKeyVaultDriver }}
             - name: secrets-store-inline
               mountPath: "/mnt/secrets-store"
@@ -150,8 +154,15 @@ spec:
               readOnly: true
             {{- end }}
           {{- end }}
-      {{- if or (and (eq .Values.cloud "azure") .Values.azure.enableAzureKeyVaultDriver) .Values.customTLSCABundle }}
+      {{- if or .Values.api.tmpVolume.enabled (and (eq .Values.cloud "azure") .Values.azure.enableAzureKeyVaultDriver) .Values.customTLSCABundle }}
       volumes:
+        {{- if .Values.api.tmpVolume.enabled }}
+        - name: tmp-volume
+          emptyDir:
+            {{- if .Values.api.tmpVolume.sizeLimit }}
+            sizeLimit: {{ .Values.api.tmpVolume.sizeLimit | quote }}
+            {{- end }}
+        {{- end }}
         {{- if .Values.customTLSCABundle }}
         - name: tls-ca
           projected:
