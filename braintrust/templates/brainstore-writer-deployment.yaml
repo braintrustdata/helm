@@ -107,6 +107,13 @@ spec:
                 secretKeyRef:
                   name: braintrust-secrets
                   key: REDIS_URL
+            - name: BRAINSTORE_XACT_MANAGER_URI
+              valueFrom:
+                secretKeyRef:
+                  name: braintrust-secrets
+                  key: REDIS_URL
+            - name: BRAINSTORE_AI_PROXY_URL
+              value: "http://{{ .Values.api.service.name | default .Values.api.name }}:{{ .Values.api.service.port }}"
             {{- if eq .Values.brainstore.locksBackend "redis" }}
             - name: BRAINSTORE_LOCKS_URI
               valueFrom:

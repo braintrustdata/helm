@@ -85,6 +85,11 @@ spec:
                 secretKeyRef:
                   name: braintrust-secrets
                   key: REDIS_URL
+            - name: REDIS_EPHEMERAL_WAL_URL
+              valueFrom:
+                secretKeyRef:
+                  name: braintrust-secrets
+                  key: REDIS_URL
             - name: FUNCTION_SECRET_KEY
               valueFrom:
                 secretKeyRef:
