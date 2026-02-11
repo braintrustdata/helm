@@ -170,6 +170,8 @@ spec:
           emptyDir:
             {{- if .Values.brainstore.writer.volume.sizeLimit }}
             sizeLimit: {{ .Values.brainstore.writer.volume.sizeLimit | quote }}
+            {{- else }}
+            {}
             {{- end }}
           {{- end }}
         - name: tmp-volume

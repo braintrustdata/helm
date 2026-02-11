@@ -161,6 +161,8 @@ spec:
           emptyDir:
             {{- if .Values.api.tmpVolume.sizeLimit }}
             sizeLimit: {{ .Values.api.tmpVolume.sizeLimit | quote }}
+            {{- else }}
+            {}
             {{- end }}
         {{- end }}
         {{- if .Values.customTLSCABundle }}
