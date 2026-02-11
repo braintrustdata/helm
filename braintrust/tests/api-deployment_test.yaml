@@ -239,3 +239,18 @@ tests:
           path: spec.template.spec.containers[0].livenessProbe
       - isNull:
           path: spec.template.spec.containers[0].readinessProbe
+
+  - it: should include REDIS_EPHEMERAL_WAL_URL environment variable
+    values:
+      - __fixtures__/base-values.yaml
+    release:
+      namespace: "braintrust"
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: REDIS_EPHEMERAL_WAL_URL
+            valueFrom:
+              secretKeyRef:
+                name: braintrust-secrets
+                key: REDIS_URL

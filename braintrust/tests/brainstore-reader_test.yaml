@@ -203,3 +203,30 @@ tests:
           path: spec.template.spec.containers[0].livenessProbe
       - isNull:
           path: spec.template.spec.containers[0].readinessProbe
+
+  - it: should include BRAINSTORE_XACT_MANAGER_URI environment variable
+    values:
+      - __fixtures__/base-values.yaml
+    release:
+      namespace: "braintrust"
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: BRAINSTORE_XACT_MANAGER_URI
+            valueFrom:
+              secretKeyRef:
+                name: braintrust-secrets
+                key: REDIS_URL
+
+  - it: should include BRAINSTORE_AI_PROXY_URL environment variable
+    values:
+      - __fixtures__/base-values.yaml
+    release:
+      namespace: "braintrust"
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: BRAINSTORE_AI_PROXY_URL
+            value: "http://braintrust-api:8000"
