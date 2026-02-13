@@ -78,7 +78,7 @@ api:
     service: {}
     pod: {}
     serviceaccount: {}
-  replicas: 2
+  replicas: 4
   image:
     repository: public.ecr.aws/braintrust/standalone-api
     tag: v1.1.31
@@ -204,11 +204,11 @@ brainstore:
       portName: http
     resources:
       requests:
-        cpu: "4"
-        memory: "8Gi"
+        cpu: "16"
+        memory: "32Gi"
       limits:
-        cpu: "8"
-        memory: "16Gi"
+        cpu: "20"
+        memory: "40Gi"
     cacheDir: "/mnt/tmp/brainstore"
     objectStoreCacheMemoryLimit: "1Gi"
     objectStoreCacheFileSize: "50Gi"
@@ -241,11 +241,11 @@ brainstore:
       portName: http
     resources:
       requests:
-        cpu: "8"
-        memory: "16Gi"
+        cpu: "32"
+        memory: "64Gi"
       limits:
-        cpu: "16"
-        memory: "32Gi"
+        cpu: "40"
+        memory: "80Gi"
     cacheDir: "/mnt/tmp/brainstore"
     objectStoreCacheMemoryLimit: "1Gi"
     objectStoreCacheFileSize: "50Gi"
