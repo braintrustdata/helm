@@ -24,7 +24,7 @@ api:
     service:
       networking.gke.io/load-balancer-type: "Internal"
   replicas: 4
-  # Uncomment the following section to use usee a different image or tag from the version in the Helm release
+  # Uncomment the following section to use a different image or tag from the version in the Helm release
   #image:
     #repository: public.ecr.aws/braintrust/standalone-api
     #tag: "<your image tag>"
