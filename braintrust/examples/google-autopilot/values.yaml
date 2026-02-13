@@ -75,11 +75,11 @@ brainstore:
         cpu: "16"
         memory: "32Gi"
       limits:
-        cpu: "20"
-        memory: "40Gi"
+        cpu: "16"
+        memory: "32Gi"
     cacheDir: "/mnt/tmp/brainstore"
     objectStoreCacheMemoryLimit: "1Gi"
-    objectStoreCacheFileSize: "100Gi"
+    objectStoreCacheFileSize: "1000Gi"
     verbose: true
     volume:
       size: "200Gi"
@@ -99,11 +99,11 @@ brainstore:
         cpu: "32"
         memory: "64Gi"
       limits:
-        cpu: "40"
-        memory: "80Gi"
+        cpu: "32"
+        memory: "64Gi"
     cacheDir: "/mnt/tmp/brainstore"
     objectStoreCacheMemoryLimit: "1Gi"
-    objectStoreCacheFileSize: "100Gi"
+    objectStoreCacheFileSize: "1000Gi"
     verbose: true
     volume:
       size: "200Gi"  

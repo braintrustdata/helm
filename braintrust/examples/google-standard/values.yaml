@@ -84,8 +84,8 @@ brainstore:
         cpu: "16"
         memory: "32Gi"
       limits:
-        cpu: "20"
-        memory: "40Gi"
+        cpu: "16"
+        memory: "32Gi"
     affinity:     # Prevent readers and writers from sharing nodes
          podAntiAffinity:
            requiredDuringSchedulingIgnoredDuringExecution:
@@ -99,7 +99,7 @@ brainstore:
                topologyKey: kubernetes.io/hostname
     cacheDir: "/mnt/tmp/brainstore"
     objectStoreCacheMemoryLimit: "1Gi"
-    objectStoreCacheFileSize: "100Gi"
+    objectStoreCacheFileSize: "1000Gi"
     verbose: true
     volume:
       size: "200Gi"
@@ -121,8 +121,8 @@ brainstore:
         cpu: "32"
         memory: "64Gi"
       limits:
-        cpu: "40"
-        memory: "80Gi"
+        cpu: "32"
+        memory: "64Gi"
     affinity:     # Prevent readers and writers from sharing nodes
       podAntiAffinity:
         requiredDuringSchedulingIgnoredDuringExecution:
@@ -136,7 +136,7 @@ brainstore:
             topologyKey: kubernetes.io/hostname    
     cacheDir: "/mnt/tmp/brainstore"
     objectStoreCacheMemoryLimit: "1Gi"
-    objectStoreCacheFileSize: "100Gi"
+    objectStoreCacheFileSize: "1000Gi"
     verbose: true
     volume:
       size: "200Gi"  
