@@ -158,7 +158,19 @@ This Helm chart includes comprehensive automated unit tests.
 
 ## Breaking Changes
 
+### Version 2
+
 With version 2 of this helm, the Brainstore pods are split into Readers and Writers improving performance and the ability to independently scale for more read operations or write operations. For existing customers that have deployed our Helm or via other means on Kubernetes, please update your override values file or deployment to match this change. This will result in no data loss, but will be a brief downtime as the existing Brainstore Pods are removed and new Brainstore Pods for Reading and Writing are launched.
+
+### Version 3
+
+Breaking change only for Azure customers which introduced the Azure Container Storage CSI driver.
+
+### Version 4
+
+This version of the Helm is in preparation of 2.0.0 of the Braintrust Self hosted Data Plane. Starting with 1.1.32 Brainstore will now need to reach out to the API, where before Brainstore didn't talk to the API. In Helm this is being done over the internal Kubernetes endpoint. If you have additional security restrictions or are limiting traffic between services, this will need to be allowed before upgrading to 2.0.0 of the data plane.
+
+We are also increasing the default sizing of our deployments, please ensure you have the node pool capacity for these increased defaults.
 
 ## Example Values Files
 

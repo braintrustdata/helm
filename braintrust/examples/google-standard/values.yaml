@@ -1,4 +1,10 @@
-# Sample values for GKE Autopilot deployment
+# Sample values for GKE Standard deployment
+#
+# GKE Standard requires manual node pool configuration:
+# - Create a dedicated node pool with local NVMe SSDs for Brainstore workloads
+# - Recommended machine types: c4-standard-32 or higher with local SSDs
+# - Configure local SSDs: Use 4x375GB local SSDs (1500GB total) or more
+# - Total local SSD capacity should exceed the volume.size configured below
 
 # Global configs
 global:
@@ -8,10 +14,9 @@ global:
 # Cloud provider configuration
 cloud: "google" 
 
-# Google Cloud specific configuration for Autopilot
+# Google Cloud specific configuration for Standard
 google:
-  mode: "autopilot"
-  autopilotMachineFamily: "c4"
+  mode: "standard"
 
 objectStorage:
   google:
@@ -37,6 +42,8 @@ api:
    googleServiceAccount: "<your Braintrust API Google service account>"
   # this is for native GCS authentication via workload identity (defaults to false for S3-compatible access) Requires v1.1.31 or later of the dataplane to be set to true.
   enableGcsAuth: false
+  nodeSelector:
+    cloud.google.com/gke-nodepool: "api"
   resources:
     requests:
       cpu: "4"
@@ -70,6 +77,8 @@ brainstore:
       type: ClusterIP
       port: 4000
       portName: http
+    nodeSelector:
+         cloud.google.com/gke-nodepool: "brainstore"  # Target your node pool
     resources:
       requests:
         cpu: "16"
@@ -77,6 +86,17 @@ brainstore:
       limits:
         cpu: "16"
         memory: "32Gi"
+    affinity:     # Prevent readers and writers from sharing nodes
+         podAntiAffinity:
+           requiredDuringSchedulingIgnoredDuringExecution:
+             - labelSelector:
+                 matchExpressions:
+                   - key: app
+                     operator: In
+                     values:
+                       - brainstore-reader
+                       - brainstore-writer
+               topologyKey: kubernetes.io/hostname
     cacheDir: "/mnt/tmp/brainstore"
     objectStoreCacheMemoryLimit: "1Gi"
     objectStoreCacheFileSize: "1000Gi"
@@ -94,6 +114,8 @@ brainstore:
       type: ClusterIP
       port: 4000
       portName: http
+    nodeSelector:
+         cloud.google.com/gke-nodepool: "brainstore"
     resources:
       requests:
         cpu: "32"
@@ -101,6 +123,17 @@ brainstore:
       limits:
         cpu: "32"
         memory: "64Gi"
+    affinity:     # Prevent readers and writers from sharing nodes
+      podAntiAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                    - brainstore-reader
+                    - brainstore-writer
+            topologyKey: kubernetes.io/hostname    
     cacheDir: "/mnt/tmp/brainstore"
     objectStoreCacheMemoryLimit: "1Gi"
     objectStoreCacheFileSize: "1000Gi"
