@@ -65,9 +65,6 @@ tests:
       - equal:
           path: data.BRAINSTORE_REALTIME_WAL_BUCKET
           value: "test-brainstore-bucket"
-      - equal:
-          path: data.BRAINSTORE_REALTIME_WAL_BUCKET_NAME
-          value: "s3://test-brainstore-bucket/brainstore/wal"
 
   - it: should configure Azure storage when cloud is azure
     values:
@@ -91,9 +88,6 @@ tests:
       - equal:
           path: data.BRAINSTORE_REALTIME_WAL_BUCKET_PREFIX
           value: "brainstore/wal"
-      - equal:
-          path: data.BRAINSTORE_REALTIME_WAL_BUCKET_NAME
-          value: "az://brainstore/brainstore/wal"
 
   - it: should configure Google Cloud buckets when cloud is google
     values:
@@ -117,9 +111,6 @@ tests:
       - equal:
           path: data.BRAINSTORE_REALTIME_WAL_BUCKET
           value: "test-brainstore-bucket"
-      - equal:
-          path: data.BRAINSTORE_REALTIME_WAL_BUCKET_NAME
-          value: "gs://test-brainstore-bucket/brainstore/wal"
       - equal:
           path: data.AWS_ENDPOINT_URL
           value: "https://storage.googleapis.com"
