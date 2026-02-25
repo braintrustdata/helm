@@ -127,13 +127,23 @@ spec:
               mountPath: "/mnt/secrets-store"
               readOnly: true
           {{- end }}
-      {{- if and (eq .Values.cloud "azure") .Values.azure.enableAzureKeyVaultDriver }}
+      {{- with .Values.api.extraContainers }}
+      {{- toYaml . | nindent 8 }}
+      {{- end }}
       volumes:
+        {{- if or (and (eq .Values.cloud "azure") .Values.azure.enableAzureKeyVaultDriver) .Values.api.extraVolumes }}
+        {{- if and (eq .Values.cloud "azure") .Values.azure.enableAzureKeyVaultDriver }}
         - name: secrets-store-inline
           csi:
             driver: secrets-store.csi.k8s.io
             readOnly: true
             volumeAttributes:
               secretProviderClass: {{ .Values.azure.keyVaultName }}
-      {{- end }}
+        {{- end }}
+        {{- with .Values.api.extraVolumes }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- else }}
+        []
+        {{- end }}
 

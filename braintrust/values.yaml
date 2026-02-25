@@ -143,6 +143,8 @@ api:
   healthServer:
     host: "0.0.0.0"
     port: "8001"
+  extraContainers: []
+  extraVolumes: []
 
 # Brainstore configuration (split into reader and writer)
 brainstore:
@@ -222,6 +224,8 @@ brainstore:
     nodeSelector: {}
     tolerations: []
     affinity: {}
+    extraContainers: []
+    extraVolumes: []
 
   # Brainstore Writer configuration
   writer:
@@ -265,6 +269,8 @@ brainstore:
     nodeSelector: {}
     tolerations: []
     affinity: {}
+    extraContainers: []
+    extraVolumes: []
 
 azureKeyVaultDriver:
   # Map your Key Vault secret names to the required Kubernetes secret keys

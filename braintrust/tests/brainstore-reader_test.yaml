@@ -230,3 +230,50 @@ tests:
           content:
             name: BRAINSTORE_AI_PROXY_URL
             value: "http://braintrust-api:8000"
+
+  - it: should include extraContainers when provided (e.g. OTEL collector sidecar)
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      brainstore.reader.extraContainers:
+        - name: otel-collector
+          image: otel/opentelemetry-collector-contrib:0.100.0
+          args:
+            - --config=/etc/otel/config.yaml
+          volumeMounts:
+            - name: otel-config
+              mountPath: /etc/otel
+              readOnly: true
+    release:
+      namespace: "braintrust"
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[1].name
+          value: otel-collector
+      - equal:
+          path: spec.template.spec.containers[1].image
+          value: otel/opentelemetry-collector-contrib:0.100.0
+      - contains:
+          path: spec.template.spec.containers[1].volumeMounts
+          content:
+            name: otel-config
+            mountPath: /etc/otel
+            readOnly: true
+
+  - it: should include extraVolumes when provided (for sidecar config)
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      brainstore.reader.extraVolumes:
+        - name: otel-config
+          configMap:
+            name: otel-collector-config
+    release:
+      namespace: "braintrust"
+    asserts:
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: otel-config
+            configMap:
+              name: otel-collector-config
