@@ -116,16 +116,16 @@ api:
   #   runAsGroup: 1000
   #   fsGroup: 1000
   # Container-level security context (enabled for CEL policy compliance)
-  securityContext:
-    readOnlyRootFilesystem: true
-    allowPrivilegeEscalation: false
-    capabilities:
-      drop:
-        - ALL
+  # securityContext:
+  #   readOnlyRootFilesystem: true
+  #   allowPrivilegeEscalation: false
+  #   capabilities:
+  #     drop:
+  #       - ALL
   # Temporary directory configuration (needed when readOnlyRootFilesystem is true)
-  tmpVolume:
-    enabled: true
-    sizeLimit: "1Gi"
+  # tmpVolume:
+  #   enabled: true
+  #   sizeLimit: "1Gi"
   # Allow running user generated code functions (e.g. scorers/tools)
   allowCodeFunctionExecution: true
   # Brainstore backfill configuration. These defaults are fine for most cases.
@@ -236,12 +236,12 @@ brainstore:
     #   runAsGroup: 1000
     #   fsGroup: 1000
     # Container-level security context (enabled for CEL policy compliance)
-    securityContext:
-      readOnlyRootFilesystem: true
-      allowPrivilegeEscalation: false
-      capabilities:
-        drop:
-          - ALL
+    # securityContext:
+    #   readOnlyRootFilesystem: true
+    #   allowPrivilegeEscalation: false
+    #   capabilities:
+    #     drop:
+    #       - ALL
     cacheDir: "/mnt/tmp/brainstore"
     objectStoreCacheMemoryLimit: "1Gi"
     objectStoreCacheFileSize: "50Gi"
@@ -286,12 +286,12 @@ brainstore:
     #   runAsGroup: 1000
     #   fsGroup: 1000
     # Container-level security context (enabled for CEL policy compliance)
-    securityContext:
-      readOnlyRootFilesystem: true
-      allowPrivilegeEscalation: false
-      capabilities:
-        drop:
-          - ALL
+    # securityContext:
+    #   readOnlyRootFilesystem: true
+    #   allowPrivilegeEscalation: false
+    #   capabilities:
+    #     drop:
+    #       - ALL
     cacheDir: "/mnt/tmp/brainstore"
     objectStoreCacheMemoryLimit: "1Gi"
     objectStoreCacheFileSize: "50Gi"
