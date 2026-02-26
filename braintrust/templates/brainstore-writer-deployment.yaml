@@ -142,6 +142,9 @@ spec:
               mountPath: "/mnt/secrets-store"
               readOnly: true
             {{- end }}
+      {{- with .Values.brainstore.writer.extraContainers }}
+      {{- toYaml . | nindent 8 }}
+      {{- end }}
       volumes:
         - name: cache-volume
           {{- if and (eq .Values.cloud "azure") .Values.azure.enableAzureContainerStorageDriver }}
@@ -164,4 +167,7 @@ spec:
             readOnly: true
             volumeAttributes:
               secretProviderClass: {{ .Values.azure.keyVaultName }}
+        {{- end }}
+        {{- with .Values.brainstore.writer.extraVolumes }}
+        {{- toYaml . | nindent 8 }}
         {{- end }}
