@@ -84,6 +84,9 @@ brainstore:
     nodeSelector: {}
     tolerations: []
     affinity: {}
+  fastreader:
+    volume:
+      size: "100Gi"
   writer:
     name: "brainstore-writer"
     replicas: 1

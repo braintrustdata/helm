@@ -1,0 +1,173 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.brainstore.fastreader.name }}
+  namespace: {{ include "braintrust.namespace" . }}
+  {{- with (merge (deepCopy .Values.brainstore.fastreader.labels) .Values.global.labels) }}
+  labels:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with .Values.brainstore.fastreader.annotations.deployment }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  replicas: {{ .Values.brainstore.fastreader.replicas }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 100%
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: {{ .Values.brainstore.fastreader.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.brainstore.fastreader.name }}
+        {{- if eq .Values.cloud "azure" }}
+        azure.workload.identity/use: "true"
+        {{- end }}
+        {{- if eq .Values.cloud "google" }}
+        gke-workload-identity/use: "true"
+        {{- end }}
+        {{- with (merge (deepCopy .Values.brainstore.fastreader.podLabels) .Values.brainstore.fastreader.labels .Values.global.labels) }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      annotations:
+        {{- if eq .Values.cloud "google" }}
+        iam.gke.io/gcp-service-account: {{ required "brainstore.serviceAccount.googleServiceAccount is required when cloud is google" .Values.brainstore.serviceAccount.googleServiceAccount }}
+        {{- end }}
+        {{- with .Values.brainstore.fastreader.annotations.pod }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      serviceAccountName: {{ .Values.brainstore.serviceAccount.name }}
+      {{- if or .Values.brainstore.fastreader.nodeSelector (and (eq .Values.cloud "google") (eq .Values.google.mode "autopilot")) }}
+      nodeSelector:
+        {{- with .Values.brainstore.fastreader.nodeSelector }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- if and (eq .Values.cloud "google") (eq .Values.google.mode "autopilot") }}
+        cloud.google.com/machine-family: {{ .Values.google.autopilotMachineFamily | default "c4" }}
+        cloud.google.com/gke-ephemeral-storage-local-ssd: "true"
+        cloud.google.com/compute-class: "Performance"
+        {{- end }}
+      {{- end }}
+      {{- with .Values.brainstore.fastreader.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.brainstore.fastreader.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: brainstore-fastreader
+          image: "{{ .Values.brainstore.image.repository }}:{{ .Values.brainstore.image.tag }}"
+          imagePullPolicy: {{ .Values.brainstore.image.pullPolicy }}
+          command: ["brainstore"]
+          args: ["web"]
+          ports:
+            - containerPort: {{ .Values.brainstore.fastreader.service.port }}
+          resources:
+            requests:
+              cpu: {{ .Values.brainstore.fastreader.resources.requests.cpu | quote }}
+              memory: {{ .Values.brainstore.fastreader.resources.requests.memory | quote }}
+              {{- if and (eq .Values.cloud "google") (eq .Values.google.mode "autopilot") .Values.brainstore.fastreader.volume.size }}
+              ephemeral-storage: {{ .Values.brainstore.fastreader.volume.size | quote }}
+              {{- end }}
+            limits:
+              cpu: {{ .Values.brainstore.fastreader.resources.limits.cpu | quote }}
+              memory: {{ .Values.brainstore.fastreader.resources.limits.memory | quote }}
+          {{- with .Values.brainstore.livenessProbe }}
+          livenessProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.brainstore.readinessProbe }}
+          readinessProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          envFrom:
+            - configMapRef:
+                name: {{ .Values.brainstore.fastreader.name }}
+          env:
+            - name: BRAINSTORE_METADATA_URI
+              valueFrom:
+                secretKeyRef:
+                  name: braintrust-secrets
+                  key: PG_URL
+            - name: BRAINSTORE_WAL_URI
+              valueFrom:
+                secretKeyRef:
+                  name: braintrust-secrets
+                  key: PG_URL
+            - name: BRAINSTORE_REDIS_URI
+              valueFrom:
+                secretKeyRef:
+                  name: braintrust-secrets
+                  key: REDIS_URL
+            - name: BRAINSTORE_XACT_MANAGER_URI
+              valueFrom:
+                secretKeyRef:
+                  name: braintrust-secrets
+                  key: REDIS_URL
+            - name: BRAINSTORE_AI_PROXY_URL
+              value: "http://{{ .Values.api.service.name | default .Values.api.name }}:{{ .Values.api.service.port }}"
+            {{- if eq .Values.brainstore.locksBackend "redis" }}
+            - name: BRAINSTORE_LOCKS_URI
+              valueFrom:
+                secretKeyRef:
+                  name: braintrust-secrets
+                  key: REDIS_URL
+            {{- end }}
+            - name: BRAINSTORE_LICENSE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: braintrust-secrets
+                  key: BRAINSTORE_LICENSE_KEY
+            - name: FUNCTION_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: braintrust-secrets
+                  key: FUNCTION_SECRET_KEY
+            {{- if .Values.brainstore.fastreader.extraEnvVars }}
+            {{- toYaml .Values.brainstore.fastreader.extraEnvVars | nindent 12 }}
+            {{- end }}
+          volumeMounts:
+            - name: cache-volume
+              mountPath: {{ .Values.brainstore.fastreader.cacheDir }}
+            {{- if and (eq .Values.cloud "azure") .Values.azure.enableAzureKeyVaultDriver }}
+            - name: secrets-store-inline
+              mountPath: "/mnt/secrets-store"
+              readOnly: true
+            {{- end }}
+      {{- with .Values.brainstore.fastreader.extraContainers }}
+      {{- toYaml . | nindent 8 }}
+      {{- end }}
+      volumes:
+        - name: cache-volume
+          {{- if and (eq .Values.cloud "azure") .Values.azure.enableAzureContainerStorageDriver }}
+          ephemeral:
+            volumeClaimTemplate:
+              spec:
+                volumeMode: Filesystem
+                accessModes: ["ReadWriteOnce"]
+                storageClassName: local
+                resources:
+                  requests:
+                    storage: {{ required "brainstore.fastreader.volume.size must be set" .Values.brainstore.fastreader.volume.size | quote }}
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+        {{- if and (eq .Values.cloud "azure") .Values.azure.enableAzureKeyVaultDriver }}
+        - name: secrets-store-inline
+          csi:
+            driver: secrets-store.csi.k8s.io
+            readOnly: true
+            volumeAttributes:
+              secretProviderClass: {{ .Values.azure.keyVaultName }}
+        {{- end }}
+        {{- with .Values.brainstore.fastreader.extraVolumes }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
