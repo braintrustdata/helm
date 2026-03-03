@@ -6,7 +6,7 @@ global:
   namespace: "braintrust"
 
 # Cloud provider configuration
-cloud: "google" 
+cloud: "google"
 
 # Google Cloud specific configuration for Autopilot
 google:
@@ -58,7 +58,7 @@ brainstore:
   #image:
     #repository: public.ecr.aws/braintrust/brainstore
     #tag: "<your image tag>"
-  # New deployments should use objectStorage as the locks backend. Existing deployments should remain on redis at this time. 
+  # New deployments should use objectStorage as the locks backend. Existing deployments should remain on redis at this time.
   locksBackend: "objectStorage"
 
   # Brainstore Reader configuration
@@ -79,10 +79,10 @@ brainstore:
         memory: "32Gi"
     cacheDir: "/mnt/tmp/brainstore"
     objectStoreCacheMemoryLimit: "1Gi"
-    objectStoreCacheFileSize: "1000Gi"
+    objectStoreCacheFileSize: "900Gi"
     verbose: true
     volume:
-      size: "200Gi"
+      size: "1000Gi"
     extraEnvVars:
 
   # Brainstore Fast Reader configuration
@@ -103,10 +103,10 @@ brainstore:
         memory: "32Gi"
     cacheDir: "/mnt/tmp/brainstore"
     objectStoreCacheMemoryLimit: "1Gi"
-    objectStoreCacheFileSize: "1000Gi"
+    objectStoreCacheFileSize: "900Gi"
     verbose: true
     volume:
-      size: "200Gi"
+      size: "1000Gi"
     extraEnvVars:
 
   # Brainstore Writer configuration
@@ -127,9 +127,8 @@ brainstore:
         memory: "64Gi"
     cacheDir: "/mnt/tmp/brainstore"
     objectStoreCacheMemoryLimit: "1Gi"
-    objectStoreCacheFileSize: "1000Gi"
+    objectStoreCacheFileSize: "900Gi"
     verbose: true
     volume:
-      size: "200Gi"  
+      size: "1000Gi"
     extraEnvVars:
-     
