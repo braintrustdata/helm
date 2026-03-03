@@ -1,0 +1,43 @@
+suite: test Brainstore Fast Reader deployment template
+templates:
+  - brainstore-fastreader-deployment.yaml
+tests:
+  - it: should render Brainstore Fast Reader deployment with default values
+    values:
+      - __fixtures__/base-values.yaml
+    release:
+      namespace: "braintrust"
+    asserts:
+      - isKind:
+          of: Deployment
+      - equal:
+          path: metadata.name
+          value: brainstore-fastreader
+      - equal:
+          path: spec.replicas
+          value: 1
+      - equal:
+          path: spec.template.spec.containers[0].name
+          value: brainstore-fastreader
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: test/brainstore:v1.0.0
+      - equal:
+          path: spec.template.spec.containers[0].envFrom[0].configMapRef.name
+          value: brainstore-fastreader
+
+  - it: should include extraEnvVars when provided
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      brainstore.fastreader.extraEnvVars:
+        - name: CUSTOM_VAR
+          value: "custom-value"
+    release:
+      namespace: "braintrust"
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: CUSTOM_VAR
+            value: "custom-value"

@@ -1,0 +1,30 @@
+suite: test Brainstore Fast Reader service template
+templates:
+  - brainstore-fastreader-service.yaml
+tests:
+  - it: should render Brainstore Fast Reader service with default values
+    values:
+      - __fixtures__/base-values.yaml
+    release:
+      namespace: "braintrust"
+    asserts:
+      - isKind:
+          of: Service
+      - equal:
+          path: metadata.name
+          value: brainstore-fastreader
+      - equal:
+          path: spec.selector.app
+          value: brainstore-fastreader
+
+  - it: should use custom service name when provided
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      brainstore.fastreader.service.name: "custom-fastreader-service"
+    release:
+      namespace: "braintrust"
+    asserts:
+      - equal:
+          path: metadata.name
+          value: custom-fastreader-service

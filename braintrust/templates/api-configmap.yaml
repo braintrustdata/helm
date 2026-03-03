@@ -42,6 +42,8 @@ data:
   BRAINSTORE_ENABLED: "true"
   BRAINSTORE_DEFAULT: "force"
   BRAINSTORE_URL: "http://{{ .Values.brainstore.reader.service.name | default .Values.brainstore.reader.name }}.{{ .Values.global.namespace }}:{{ .Values.brainstore.reader.service.port }}"
+  BRAINSTORE_FAST_READER_URL: "http://{{ .Values.brainstore.fastreader.service.name | default .Values.brainstore.fastreader.name }}.{{ .Values.global.namespace }}:{{ .Values.brainstore.fastreader.service.port }}"
+  BRAINSTORE_FAST_READER_QUERY_SOURCES: {{ include "braintrust.fastReaderQuerySourcesCsv" . | quote }}
   BRAINSTORE_WRITER_URL: "http://{{ .Values.brainstore.writer.service.name | default .Values.brainstore.writer.name }}.{{ .Values.global.namespace }}:{{ .Values.brainstore.writer.service.port }}"
   BRAINSTORE_BACKFILL_DISABLE_HISTORICAL: {{ .Values.api.backfillDisableHistorical | quote }}
   BRAINSTORE_BACKFILL_DISABLE_NONHISTORICAL: {{ .Values.api.backfillDisableNonhistorical | quote }}
