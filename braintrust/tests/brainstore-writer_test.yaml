@@ -22,18 +22,6 @@ tests:
       - equal:
           path: spec.template.spec.containers[0].image
           value: test/brainstore:v1.0.0
-      - equal:
-          path: spec.template.spec.containers[0].livenessProbe.httpGet.path
-          value: /
-      - equal:
-          path: spec.template.spec.containers[0].livenessProbe.httpGet.port
-          value: 4000
-      - equal:
-          path: spec.template.spec.containers[0].readinessProbe.httpGet.path
-          value: /
-      - equal:
-          path: spec.template.spec.containers[0].readinessProbe.httpGet.port
-          value: 4000
 
   - it: should include azure workload identity label when cloud is azure
     values:

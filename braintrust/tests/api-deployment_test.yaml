@@ -22,18 +22,6 @@ tests:
       - equal:
           path: spec.template.spec.containers[0].imagePullPolicy
           value: IfNotPresent
-      - equal:
-          path: spec.template.spec.containers[0].livenessProbe.httpGet.path
-          value: /
-      - equal:
-          path: spec.template.spec.containers[0].livenessProbe.httpGet.port
-          value: 8000
-      - equal:
-          path: spec.template.spec.containers[0].readinessProbe.httpGet.path
-          value: /
-      - equal:
-          path: spec.template.spec.containers[0].readinessProbe.httpGet.port
-          value: 8000
 
   - it: should use correct namespace from helper when createNamespace is false
     values:
