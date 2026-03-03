@@ -132,11 +132,11 @@ api:
     successThreshold: 1
   readinessProbe:
     httpGet:
-      path: /status
-      port: 8001
-    initialDelaySeconds: 10
-    periodSeconds: 5
-    timeoutSeconds: 3
+      path: /
+      port: 8000
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    timeoutSeconds: 5
     failureThreshold: 3
     successThreshold: 1
   # Health server configuration
@@ -180,11 +180,11 @@ brainstore:
     successThreshold: 1
   readinessProbe:
     httpGet:
-      path: /status
+      path: /
       port: 4000
-    initialDelaySeconds: 30
-    periodSeconds: 5
-    timeoutSeconds: 3
+    initialDelaySeconds: 60
+    periodSeconds: 10
+    timeoutSeconds: 5
     failureThreshold: 3
     successThreshold: 1
 
