@@ -23,13 +23,6 @@ global:
 # Cloud provider configuration
 cloud: ""  # "google" or "azure" or "aws"
 
-# Custom TLS CA Bundle configuration
-# When enabled, appends custom CA certificates to the system trust store for secure connections
-# This is useful for private CAs, self-signed certificates, or custom certificate chains
-# The custom CA bundle is added in addition to the default system CA certificates
-# Requires CA_PEM secret to be set (see README for details)
-customTLSCABundle: false
-
 # Optional: Google Cloud specific configuration
 google:
   # GKE mode: "autopilot" or "standard"
@@ -387,7 +380,4 @@ azureKeyVaultDriver:
     - keyVaultSecretName: "azure-storage-connection-string"
       keyVaultSecretType: "secret"
       kubernetesSecretKey: "AZURE_STORAGE_CONNECTION_STRING"
-    # Optional: Only needed if customTLSCABundle is enabled
-    # - keyVaultSecretName: "ca-pem"
-    #   keyVaultSecretType: "secret"
-    #   kubernetesSecretKey: "CA_PEM"
+
