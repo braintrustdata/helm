@@ -251,8 +251,10 @@ brainstore:
     volume:
       # Storage size for ephemeral storage requests (used with GKE Autopilot local SSDs)
       size: ""
-      # EmptyDir sizeLimit (separate from ephemeral-storage requests, required for CEL policy compliance)
-      sizeLimit: "50Gi"
+      # EmptyDir sizeLimit (separate from ephemeral-storage requests)
+      # Uncomment when using CEL policies that require explicit emptyDir size limits
+      # Recommended: Match or exceed objectStoreCacheFileSize value
+      # sizeLimit: "50Gi"
     extraEnvVars: []
     nodeSelector: {}
     tolerations: []
@@ -302,8 +304,10 @@ brainstore:
       # Storage size for ephemeral storage requests
       # Used with GKE Autopilot local SSDs and Azure Container Storage CSI
       size: ""
-      # EmptyDir sizeLimit (separate from ephemeral-storage requests, required for CEL policy compliance)
-      sizeLimit: "50Gi"
+      # EmptyDir sizeLimit (separate from ephemeral-storage requests)
+      # Uncomment when using CEL policies that require explicit emptyDir size limits
+      # Recommended: Match or exceed objectStoreCacheFileSize value
+      # sizeLimit: "50Gi"
     extraEnvVars: []
     # Example:
     # - name: MY_ENV_VAR
