@@ -142,8 +142,6 @@ spec:
           volumeMounts:
             - name: cache-volume
               mountPath: {{ .Values.brainstore.reader.cacheDir }}
-            - name: tmp-volume
-              mountPath: /tmp
             {{- if and (eq .Values.cloud "azure") .Values.azure.enableAzureKeyVaultDriver }}
             - name: secrets-store-inline
               mountPath: "/mnt/secrets-store"
@@ -174,9 +172,6 @@ spec:
             {}
             {{- end }}
           {{- end }}
-        - name: tmp-volume
-          emptyDir:
-            sizeLimit: "1Gi"
         {{- if and (eq .Values.cloud "azure") .Values.azure.enableAzureKeyVaultDriver }}
         - name: secrets-store-inline
           csi:
