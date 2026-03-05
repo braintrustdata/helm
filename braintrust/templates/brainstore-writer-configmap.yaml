@@ -30,18 +30,24 @@ data:
   {{- if eq .Values.brainstore.locksBackend "objectStorage" }}
   BRAINSTORE_LOCKS_URI: "az://{{ .Values.objectStorage.azure.brainstoreContainer }}/brainstore/locks"
   {{- end }}
-  {{- else if eq .Values.cloud "aws" }}
+  BRAINSTORE_RESPONSE_CACHE_URI: "az://{{ .Values.objectStorage.azure.responseContainer }}"
+  BRAINSTORE_CODE_BUNDLE_URI: "az://{{ .Values.objectStorage.azure.codeBundleContainer }}"
+   {{- else if eq .Values.cloud "aws" }}
   BRAINSTORE_INDEX_URI: "s3://{{ .Values.objectStorage.aws.brainstoreBucket }}/brainstore/index"
   BRAINSTORE_REALTIME_WAL_URI: "s3://{{ .Values.objectStorage.aws.brainstoreBucket }}/brainstore/wal"
   {{- if eq .Values.brainstore.locksBackend "objectStorage" }}
   BRAINSTORE_LOCKS_URI: "s3://{{ .Values.objectStorage.aws.brainstoreBucket }}/brainstore/locks"
   {{- end }}
+  BRAINSTORE_RESPONSE_CACHE_URI: "s3://{{ .Values.objectStorage.aws.responseBucket }}"
+  BRAINSTORE_CODE_BUNDLE_URI: "s3://{{ .Values.objectStorage.aws.codeBundleBucket }}"
   {{- else if eq .Values.cloud "google" }}
   BRAINSTORE_INDEX_URI: "gs://{{ .Values.objectStorage.google.brainstoreBucket }}/brainstore/index"
   BRAINSTORE_REALTIME_WAL_URI: "gs://{{ .Values.objectStorage.google.brainstoreBucket }}/brainstore/wal"
   {{- if eq .Values.brainstore.locksBackend "objectStorage" }}
   BRAINSTORE_LOCKS_URI: "gs://{{ .Values.objectStorage.google.brainstoreBucket }}/brainstore/locks"
   {{- end }}
+  BRAINSTORE_RESPONSE_CACHE_URI: "gs://{{ .Values.objectStorage.google.apiBucket }}/response"
+  BRAINSTORE_CODE_BUNDLE_URI: "gs://{{ .Values.objectStorage.google.apiBucket }}/code-bundle"
   {{- end }}
   BRAINSTORE_CONTROL_PLANE_TELEMETRY: {{ .Values.global.controlPlaneTelemetry | quote }}
   NO_COLOR: "1"
