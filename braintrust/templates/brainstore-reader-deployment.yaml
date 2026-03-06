@@ -135,21 +135,12 @@ spec:
             {{- if .Values.brainstore.reader.extraEnvVars }}
             {{- toYaml .Values.brainstore.reader.extraEnvVars | nindent 12 }}
             {{- end }}
-            {{- if .Values.customTLSCABundle }}
-            - name: SSL_CERT_FILE
-              value: "/etc/braintrust/tls/ca-bundle.pem"
-            {{- end }}
           volumeMounts:
             - name: cache-volume
               mountPath: {{ .Values.brainstore.reader.cacheDir }}
             {{- if and (eq .Values.cloud "azure") .Values.azure.enableAzureKeyVaultDriver }}
             - name: secrets-store-inline
               mountPath: "/mnt/secrets-store"
-              readOnly: true
-            {{- end }}
-            {{- if .Values.customTLSCABundle }}
-            - name: tls-ca
-              mountPath: "/etc/braintrust/tls"
               readOnly: true
             {{- end }}
       volumes:
@@ -165,7 +156,12 @@ spec:
                   requests:
                     storage: {{ required "brainstore.reader.volume.size must be set" .Values.brainstore.reader.volume.size | quote }}
           {{- else }}
-          emptyDir: {}
+          emptyDir:
+            {{- if .Values.brainstore.reader.volume.sizeLimit }}
+            sizeLimit: {{ .Values.brainstore.reader.volume.sizeLimit | quote }}
+            {{- else }}
+            {}
+            {{- end }}
           {{- end }}
         {{- if and (eq .Values.cloud "azure") .Values.azure.enableAzureKeyVaultDriver }}
         - name: secrets-store-inline
@@ -174,14 +170,4 @@ spec:
             readOnly: true
             volumeAttributes:
               secretProviderClass: {{ .Values.azure.keyVaultName }}
-        {{- end }}
-        {{- if .Values.customTLSCABundle }}
-        - name: tls-ca
-          projected:
-            sources:
-              - secret:
-                  name: "braintrust-secrets"
-                  items:
-                    - key: "CA_PEM"
-                      path: "ca-bundle.pem"
         {{- end }}

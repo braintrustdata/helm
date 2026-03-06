@@ -23,13 +23,6 @@ global:
 # Cloud provider configuration
 cloud: ""  # "google" or "azure" or "aws"
 
-# Custom TLS CA Bundle configuration
-# When enabled, appends custom CA certificates to the system trust store for secure connections
-# This is useful for private CAs, self-signed certificates, or custom certificate chains
-# The custom CA bundle is added in addition to the default system CA certificates
-# Requires CA_PEM secret to be set (see README for details)
-customTLSCABundle: false
-
 # Optional: Google Cloud specific configuration
 google:
   # GKE mode: "autopilot" or "standard"
@@ -115,11 +108,17 @@ api:
   #   runAsUser: 1000
   #   runAsGroup: 1000
   #   fsGroup: 1000
-  # Optional: Container-level security context
+  # Container-level security context (enabled for CEL policy compliance)
   # securityContext:
+  #   readOnlyRootFilesystem: true
+  #   allowPrivilegeEscalation: false
   #   capabilities:
   #     drop:
   #       - ALL
+  # Temporary directory configuration (needed when readOnlyRootFilesystem is true)
+  # tmpVolume:
+  #   enabled: true
+  #   sizeLimit: "1Gi"
   # Allow running user generated code functions (e.g. scorers/tools)
   allowCodeFunctionExecution: true
   # Brainstore backfill configuration. These defaults are fine for most cases.
@@ -229,8 +228,10 @@ brainstore:
     #   runAsUser: 1000
     #   runAsGroup: 1000
     #   fsGroup: 1000
-    # Optional: Container-level security context
+    # Container-level security context (enabled for CEL policy compliance)
     # securityContext:
+    #   readOnlyRootFilesystem: true
+    #   allowPrivilegeEscalation: false
     #   capabilities:
     #     drop:
     #       - ALL
@@ -243,6 +244,10 @@ brainstore:
     volume:
       # Storage size for ephemeral storage requests (used with GKE Autopilot local SSDs)
       size: ""
+      # EmptyDir sizeLimit (separate from ephemeral-storage requests)
+      # Uncomment when using CEL policies that require explicit emptyDir size limits
+      # Recommended: Match or exceed objectStoreCacheFileSize value
+      # sizeLimit: "50Gi"
     extraEnvVars: []
     nodeSelector: {}
     tolerations: []
@@ -275,8 +280,10 @@ brainstore:
     #   runAsUser: 1000
     #   runAsGroup: 1000
     #   fsGroup: 1000
-    # Optional: Container-level security context
+    # Container-level security context (enabled for CEL policy compliance)
     # securityContext:
+    #   readOnlyRootFilesystem: true
+    #   allowPrivilegeEscalation: false
     #   capabilities:
     #     drop:
     #       - ALL
@@ -290,6 +297,10 @@ brainstore:
       # Storage size for ephemeral storage requests
       # Used with GKE Autopilot local SSDs and Azure Container Storage CSI
       size: ""
+      # EmptyDir sizeLimit (separate from ephemeral-storage requests)
+      # Uncomment when using CEL policies that require explicit emptyDir size limits
+      # Recommended: Match or exceed objectStoreCacheFileSize value
+      # sizeLimit: "50Gi"
     extraEnvVars: []
     # Example:
     # - name: MY_ENV_VAR
@@ -369,7 +380,4 @@ azureKeyVaultDriver:
     - keyVaultSecretName: "azure-storage-connection-string"
       keyVaultSecretType: "secret"
       kubernetesSecretKey: "AZURE_STORAGE_CONNECTION_STRING"
-    # Optional: Only needed if customTLSCABundle is enabled
-    # - keyVaultSecretName: "ca-pem"
-    #   keyVaultSecretType: "secret"
-    #   kubernetesSecretKey: "CA_PEM"
+

@@ -1,0 +1,138 @@
+# Example values for GKE Autopilot with CEL policy compliance
+# Based on the standard google-autopilot example, with CEL-required settings enabled:
+#   - readOnlyRootFilesystem, allowPrivilegeEscalation: false, capabilities drop ALL
+#   - Explicit emptyDir sizeLimit on all cache volumes
+#   - tmpVolume for API (required when readOnlyRootFilesystem is true)
+
+global:
+  orgName: "<your Braintrust org name>"
+  namespace: "braintrust"
+
+cloud: "google"
+
+google:
+  mode: "autopilot"
+  autopilotMachineFamily: "c4"
+
+objectStorage:
+  google:
+    brainstoreBucket: "<your brainstore bucket name>"
+    apiBucket: "<your api bucket name>"
+
+api:
+  name: "braintrust-api"
+  annotations:
+    service:
+      networking.gke.io/load-balancer-type: "Internal"
+  replicas: 4
+  service:
+    type: LoadBalancer
+    port: 8000
+    portName: http
+  serviceAccount:
+    name: "braintrust-api"
+    googleServiceAccount: "<your Braintrust API Google service account>"
+    enableGcsAuth: false
+  resources:
+    requests:
+      cpu: "4"
+      memory: "4Gi"
+    limits:
+      cpu: "4"
+      memory: "8Gi"
+
+  # CEL policy compliance
+  securityContext:
+    readOnlyRootFilesystem: true
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+        - ALL
+
+  # Required when readOnlyRootFilesystem is true — mounts a writable emptyDir at /tmp
+  tmpVolume:
+    enabled: true
+    sizeLimit: "1Gi"
+
+  extraEnvVars:
+    # For S3-compatible GCS storage, set AWS_REGION to the region of your GCS bucket
+    - name: AWS_REGION
+      value: "us-central1"
+
+brainstore:
+  serviceAccount:
+    name: "brainstore"
+    googleServiceAccount: "<your Braintrust Brainstore Google service account>"
+  # New deployments should use objectStorage. Existing deployments should remain on redis.
+  locksBackend: "objectStorage"
+
+  reader:
+    name: "brainstore-reader"
+    replicas: 2
+    service:
+      name: ""
+      type: ClusterIP
+      port: 4000
+      portName: http
+    resources:
+      requests:
+        cpu: "16"
+        memory: "32Gi"
+      limits:
+        cpu: "16"
+        memory: "32Gi"
+    cacheDir: "/mnt/tmp/brainstore"
+    objectStoreCacheMemoryLimit: "1Gi"
+    objectStoreCacheFileSize: "900Gi"
+    verbose: true
+
+    # CEL policy compliance
+    securityContext:
+      readOnlyRootFilesystem: true
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop:
+          - ALL
+
+    volume:
+      # Requests a local SSD from GKE Autopilot via ephemeral-storage resource request
+      size: "1000Gi"
+      # CEL policy compliance: explicit sizeLimit on the emptyDir cache volume.
+      # Should match or exceed objectStoreCacheFileSize.
+      sizeLimit: "900Gi"
+
+    extraEnvVars:
+
+  writer:
+    name: "brainstore-writer"
+    replicas: 1
+    service:
+      name: ""
+      type: ClusterIP
+      port: 4000
+      portName: http
+    resources:
+      requests:
+        cpu: "32"
+        memory: "64Gi"
+      limits:
+        cpu: "32"
+        memory: "64Gi"
+    cacheDir: "/mnt/tmp/brainstore"
+    objectStoreCacheMemoryLimit: "1Gi"
+    objectStoreCacheFileSize: "900Gi"
+    verbose: true
+
+    # CEL policy compliance
+    securityContext:
+      readOnlyRootFilesystem: true
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop:
+          - ALL
+
+    volume:
+      size: "1000Gi"
+      sizeLimit: "900Gi"
+
+    extraEnvVars:
