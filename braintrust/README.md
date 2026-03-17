@@ -172,6 +172,13 @@ This version of the Helm is in preparation of 2.0.0 of the Braintrust Self hoste
 
 We are also increasing the default sizing of our deployments, please ensure you have the node pool capacity for these increased defaults.
 
+### Version 5
+
+This release adds new Brainstore Fast Readers and enables them by default. Fast readers are isolated Brainstore nodes that handle common and known safe queries that power the Braintrust UI. This effectively isolates resource intensive adhoc queries into the standard Brainstore readers nodes which helps to keep the UI responsive.
+You may have to adjust your helm values.yaml overrides if you have adjusted any defaults for standard Brainstore reader nodes. We recommend keeping your fast readers sized the same as your existing readers and starting with only two nodes.
+
+Also if you have custom readiness checks, please unset these customizations and use our new default readiness checks. There is a bug in the dataplane where the endpoint we were using for readiness checks, would never recover if it failed.
+
 ## Example Values Files
 
 Example values files for different cloud providers and configurations are located in the `examples/` folder.
