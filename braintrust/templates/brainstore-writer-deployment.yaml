@@ -71,15 +71,11 @@ spec:
           ports:
             - containerPort: {{ .Values.brainstore.writer.service.port }}
           resources:
-            requests:
-              cpu: {{ .Values.brainstore.writer.resources.requests.cpu | quote }}
-              memory: {{ .Values.brainstore.writer.resources.requests.memory | quote }}
-              {{- if and (eq .Values.cloud "google") (eq .Values.google.mode "autopilot") .Values.brainstore.writer.volume.size }}
-              ephemeral-storage: {{ .Values.brainstore.writer.volume.size | quote }}
-              {{- end }}
-            limits:
-              cpu: {{ .Values.brainstore.writer.resources.limits.cpu | quote }}
-              memory: {{ .Values.brainstore.writer.resources.limits.memory | quote }}
+            {{- $resources := .Values.brainstore.writer.resources }}
+            {{- if and (eq .Values.cloud "google") (eq .Values.google.mode "autopilot") .Values.brainstore.writer.volume.size }}
+            {{- $resources = merge (dict "requests" (merge $resources.requests (dict "ephemeral-storage" .Values.brainstore.writer.volume.size))) $resources }}
+            {{- end }}
+            {{- toYaml $resources | nindent 12 }}
           {{- with .Values.brainstore.livenessProbe }}
           livenessProbe:
             {{- toYaml . | nindent 12 }}
