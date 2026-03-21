@@ -2,6 +2,52 @@
 
 This document outlines breaking changes and required configuration updates for major releases.
 
+## v6.0.0 - No-PG Brainstore Objects
+
+This release introduces the ability to store Brainstore objects (such as project logs) directly in Brainstore, bypassing PostgreSQL entirely. This is an **opt-in** feature — upgrading to v6 makes no behavioral change unless you explicitly set `skipPgForBrainstoreObjects`.
+
+> **⚠️ WARNING: This is a one-way operation.** Once an object type has been migrated off PostgreSQL, it cannot be un-migrated without downtime. Do not enable this unless you are ready to commit.
+
+### Requirements to migrate
+
+Before enabling no-pg mode, you must:
+
+1. **Upgrade your data plane to version 1.1.32 or higher.**
+
+2. **Verify all Brainstore configuration checks pass** on your organization's Data Plane settings page:
+
+   ![Brainstore prerequisites](images/no-pg-prereqs.png)
+
+   The following checks are expected to be incomplete at this stage and can be ignored:
+   - `Brainstore direct writes` — this will pass once the migration below is complete
+   - `Response cache URI` and `Code Bundle URI` — these are part of a separate Topics configuration
+
+### Enabling no-pg mode
+
+Set the `skipPgForBrainstoreObjects` value in your `values.yaml`:
+
+```yaml
+# Skip PostgreSQL for all object types (recommended for new deployments)
+skipPgForBrainstoreObjects: "all"
+
+# OR: skip for specific objects only
+skipPgForBrainstoreObjects: "include:project_logs:5ad850f0-3a1a-4980-b889-d21d4116b5d7,project_logs:45b3aed2-3dde-4f0d-a22c-9af69ee8508e"
+
+# OR: skip for all objects except specific ones
+skipPgForBrainstoreObjects: "exclude:project_logs:5ad850f0-3a1a-4980-b889-d21d4116b5d7"
+```
+
+When set, the following environment variables are automatically configured:
+
+- **API**: `BRAINSTORE_WAL_USE_EFFICIENT_FORMAT=true`, `SKIP_PG_FOR_BRAINSTORE_OBJECTS=<value>`
+- **Brainstore** (reader, writer, fastreader): `BRAINSTORE_ASYNC_SCORING_OBJECTS=<value>`, `BRAINSTORE_LOG_AUTOMATIONS_OBJECTS=<value>`
+
+### No rollback
+
+Unlike previous major version upgrades, there is **no rollback path** for this change. Once objects are migrated off PostgreSQL, reverting requires downtime and manual intervention. Reach out to the Braintrust team on Slack before enabling this if you have concerns.
+
+---
+
 ## v2.0.0 - Brainstore Reader/Writer Split
 
 This release introduces a significant architectural change that splits the Brainstore service into separate reader and writer services for improved scalability and performance.
