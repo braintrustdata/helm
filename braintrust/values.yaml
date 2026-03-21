@@ -73,9 +73,7 @@ scheduledRestart:
   enabled: true
   targets:
     api: true
-    brainstoreReader: true
-    brainstoreWriter: true
-  schedule: "0 * * * *"
+  schedule: "0 0 * * *"
   image:
     repository: "chainguard/kubectl"
     tag: "latest"

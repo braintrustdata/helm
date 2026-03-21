@@ -51,8 +51,7 @@ roleRef:
   kind: Role
   name: {{ $saName }}
 {{- end }}
-{{- $hasTargets := or .Values.scheduledRestart.targets.api (or .Values.scheduledRestart.targets.brainstoreReader .Values.scheduledRestart.targets.brainstoreWriter) }}
-{{- if $hasTargets }}
+{{- if .Values.scheduledRestart.targets.api }}
 ---
 apiVersion: batch/v1
 kind: CronJob
@@ -97,15 +96,7 @@ spec:
               args:
                 - rollout
                 - restart
-                {{- if .Values.scheduledRestart.targets.api }}
                 - deployment/{{ .Values.api.name }}
-                {{- end }}
-                {{- if .Values.scheduledRestart.targets.brainstoreReader }}
-                - deployment/{{ .Values.brainstore.reader.name }}
-                {{- end }}
-                {{- if .Values.scheduledRestart.targets.brainstoreWriter }}
-                - deployment/{{ .Values.brainstore.writer.name }}
-                {{- end }}
                 - --namespace
                 - {{ $namespace | quote }}
               {{- with .Values.scheduledRestart.resources }}
