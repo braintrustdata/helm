@@ -182,3 +182,59 @@ tests:
       - equal:
           path: metadata.annotations["custom-annotation"]
           value: value
+
+  - it: should not include no-pg vars when skipPgForBrainstoreObjects is not set
+    values:
+      - __fixtures__/base-values.yaml
+    release:
+      namespace: "braintrust"
+    asserts:
+      - isNull:
+          path: data.BRAINSTORE_ASYNC_SCORING_OBJECTS
+      - isNull:
+          path: data.BRAINSTORE_LOG_AUTOMATIONS_OBJECTS
+
+  - it: should include no-pg vars when skipPgForBrainstoreObjects is "all"
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      skipPgForBrainstoreObjects: "all"
+    release:
+      namespace: "braintrust"
+    asserts:
+      - equal:
+          path: data.BRAINSTORE_ASYNC_SCORING_OBJECTS
+          value: "all"
+      - equal:
+          path: data.BRAINSTORE_LOG_AUTOMATIONS_OBJECTS
+          value: "all"
+
+  - it: should pass through include-style skipPgForBrainstoreObjects value
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      skipPgForBrainstoreObjects: "include:project_logs:abc123"
+    release:
+      namespace: "braintrust"
+    asserts:
+      - equal:
+          path: data.BRAINSTORE_ASYNC_SCORING_OBJECTS
+          value: "include:project_logs:abc123"
+      - equal:
+          path: data.BRAINSTORE_LOG_AUTOMATIONS_OBJECTS
+          value: "include:project_logs:abc123"
+
+  - it: should pass through exclude-style skipPgForBrainstoreObjects value
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      skipPgForBrainstoreObjects: "exclude:project_logs:abc123"
+    release:
+      namespace: "braintrust"
+    asserts:
+      - equal:
+          path: data.BRAINSTORE_ASYNC_SCORING_OBJECTS
+          value: "exclude:project_logs:abc123"
+      - equal:
+          path: data.BRAINSTORE_LOG_AUTOMATIONS_OBJECTS
+          value: "exclude:project_logs:abc123"

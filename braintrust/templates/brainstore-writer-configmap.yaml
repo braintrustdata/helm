@@ -45,3 +45,7 @@ data:
   {{- end }}
   BRAINSTORE_CONTROL_PLANE_TELEMETRY: {{ .Values.global.controlPlaneTelemetry | quote }}
   NO_COLOR: "1"
+  {{- if .Values.skipPgForBrainstoreObjects }}
+  BRAINSTORE_ASYNC_SCORING_OBJECTS: {{ .Values.skipPgForBrainstoreObjects | quote }}
+  BRAINSTORE_LOG_AUTOMATIONS_OBJECTS: {{ .Values.skipPgForBrainstoreObjects | quote }}
+  {{- end }}
