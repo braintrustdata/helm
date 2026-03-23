@@ -114,6 +114,32 @@ tests:
       - equal:
           path: data.AWS_ENDPOINT_URL
           value: "https://storage.googleapis.com"
+      - equal:
+          path: data.AWS_REQUEST_CHECKSUM_CALCULATION
+          value: "WHEN_REQUIRED"
+      - equal:
+          path: data.AWS_RESPONSE_CHECKSUM_VALIDATION
+          value: "WHEN_REQUIRED"
+
+  - it: should not set checksum vars when enableGcsAuth is true
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/google-values.yaml
+    set:
+      api.enableGcsAuth: true
+      api.serviceAccount.googleServiceAccount: "test@project.iam.gserviceaccount.com"
+    release:
+      namespace: "braintrust"
+    asserts:
+      - equal:
+          path: data.ENABLE_GCS_AUTH
+          value: "true"
+      - isNull:
+          path: data.AWS_ENDPOINT_URL
+      - isNull:
+          path: data.AWS_REQUEST_CHECKSUM_CALCULATION
+      - isNull:
+          path: data.AWS_RESPONSE_CHECKSUM_VALIDATION
 
   - it: should configure brainstore URLs correctly
     values:

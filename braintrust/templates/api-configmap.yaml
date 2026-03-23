@@ -35,6 +35,8 @@ data:
   ENABLE_GCS_AUTH: "true"
   {{- else }}
   AWS_ENDPOINT_URL: "https://storage.googleapis.com"
+  AWS_REQUEST_CHECKSUM_CALCULATION: "WHEN_REQUIRED"
+  AWS_RESPONSE_CHECKSUM_VALIDATION: "WHEN_REQUIRED"
   {{- end }}
   {{- end }}
 
