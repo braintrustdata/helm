@@ -94,6 +94,11 @@ brainstore:
         drop:
           - ALL
 
+    # Required when readOnlyRootFilesystem is true — mounts a writable emptyDir at /tmp
+    tmpVolume:
+      enabled: true
+      sizeLimit: "1Gi"
+
     volume:
       # Requests a local SSD from GKE Autopilot via ephemeral-storage resource request
       size: "1000Gi"
@@ -130,6 +135,11 @@ brainstore:
       capabilities:
         drop:
           - ALL
+
+    # Required when readOnlyRootFilesystem is true — mounts a writable emptyDir at /tmp
+    tmpVolume:
+      enabled: true
+      sizeLimit: "1Gi"
 
     volume:
       size: "1000Gi"
