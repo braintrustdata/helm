@@ -116,9 +116,9 @@ api:
   #     drop:
   #       - ALL
   # Temporary directory configuration (needed when readOnlyRootFilesystem is true)
-  # tmpVolume:
-  #   enabled: true
-  #   sizeLimit: "1Gi"
+  tmpVolume:
+    enabled: false
+    # sizeLimit: "1Gi"
   # Allow running user generated code functions (e.g. scorers/tools)
   allowCodeFunctionExecution: true
   # Brainstore backfill configuration. These defaults are fine for most cases.
@@ -235,6 +235,10 @@ brainstore:
     #   capabilities:
     #     drop:
     #       - ALL
+    # Temporary directory configuration (needed when readOnlyRootFilesystem is true)
+    tmpVolume:
+      enabled: false
+      # sizeLimit: "1Gi"
     cacheDir: "/mnt/tmp/brainstore"
     objectStoreCacheMemoryLimit: "1Gi"
     objectStoreCacheFileSize: "50Gi"
@@ -287,6 +291,10 @@ brainstore:
     #   capabilities:
     #     drop:
     #       - ALL
+    # Temporary directory configuration (needed when readOnlyRootFilesystem is true)
+    tmpVolume:
+      enabled: false
+      # sizeLimit: "1Gi"
     cacheDir: "/mnt/tmp/brainstore"
     objectStoreCacheMemoryLimit: "1Gi"
     objectStoreCacheFileSize: "50Gi"
