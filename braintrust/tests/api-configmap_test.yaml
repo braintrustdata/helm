@@ -239,5 +239,8 @@ tests:
       namespace: "braintrust"
     asserts:
       - equal:
+          path: data.BRAINSTORE_WAL_USE_EFFICIENT_FORMAT
+          value: "true"
+      - equal:
           path: data.SKIP_PG_FOR_BRAINSTORE_OBJECTS
           value: "exclude:project_logs:abc123"
