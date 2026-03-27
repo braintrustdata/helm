@@ -19,6 +19,7 @@ Before enabling no-pg mode, you must:
    ![Brainstore prerequisites](images/no-pg-prereqs.png)
 
    The following checks are expected to be incomplete at this stage and can be ignored:
+   - `Efficient WAL Format` - this will be be configured once the migration below is complete
    - `Brainstore direct writes` — this will pass once the migration below is complete
    - `Response cache URI` and `Code Bundle URI` — these are part of a separate Topics configuration
 
@@ -37,10 +38,16 @@ skipPgForBrainstoreObjects: "include:project_logs:5ad850f0-3a1a-4980-b889-d21d41
 skipPgForBrainstoreObjects: "exclude:project_logs:5ad850f0-3a1a-4980-b889-d21d4116b5d7"
 ```
 
+Using a limited filter can be done for testing, however this must be configured to `all` before further upgrades can be done.
+
 When set, the following environment variables are automatically configured:
 
 - **API**: `BRAINSTORE_WAL_USE_EFFICIENT_FORMAT=true`, `SKIP_PG_FOR_BRAINSTORE_OBJECTS=<value>`
 - **Brainstore** (reader, writer, fastreader): `BRAINSTORE_ASYNC_SCORING_OBJECTS=<value>`, `BRAINSTORE_LOG_AUTOMATIONS_OBJECTS=<value>`
+
+   ![Brainstore post upgrade](images/no-pg-post-upgrade.png)
+
+   The `BRAINSTORE_WAL_USE_EFFICIENT_FORMAT` will be configured, however in 1.1.32 it's status can't be fully checked.
 
 ### No rollback
 
