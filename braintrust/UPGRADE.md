@@ -4,7 +4,7 @@ This document outlines breaking changes and required configuration updates for m
 
 ## v6.0.0 - No-PG Brainstore Objects
 
-This release introduces the ability to store Brainstore objects (such as project logs) directly in Brainstore, bypassing PostgreSQL entirely. This is an **opt-in** feature — upgrading to v6 makes no behavioral change unless you explicitly set `skipPgForBrainstoreObjects`.
+This release introduces the ability to store Brainstore objects (such as project logs) directly in Brainstore, bypassing PostgreSQL entirely. This is an **opt-in** feature — upgrading to v6 makes no behavioral change unless you explicitly set `skipPgForBrainstoreObjects`. This solves a longstanding bottleneck — the rate and volume of data ingestion is no longer limited by Postgres, and this means faster, more reliable data ingestion at higher scale. This is required to be enabled before upgrading to Dataplane 2.x.x.
 
 > **⚠️ WARNING: This is a one-way operation.** Once an object type has been migrated off PostgreSQL, it cannot be un-migrated without downtime. Do not enable this unless you are ready to commit.
 
@@ -28,7 +28,7 @@ Before enabling no-pg mode, you must:
 Set the `skipPgForBrainstoreObjects` value in your `values.yaml`:
 
 ```yaml
-# Skip PostgreSQL for all object types (recommended for new deployments)
+# Skip PostgreSQL for all object types
 skipPgForBrainstoreObjects: "all"
 
 # OR: skip for specific objects only

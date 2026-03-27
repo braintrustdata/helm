@@ -181,7 +181,7 @@ Also if you have custom readiness checks, please unset these customizations and 
 
 ### Version 6
 
-This version introduces opt-in no-PG mode, allowing Brainstore to store objects directly without PostgreSQL. The new `skipPgForBrainstoreObjects` value defaults to `""` (disabled), so upgrading to v6 makes no behavioral change unless you explicitly set it.
+This version introduces opt-in no-PG mode, allowing Brainstore to store objects directly without PostgreSQL. The new `skipPgForBrainstoreObjects` value defaults to `""` (disabled), so upgrading to v6 makes no behavioral change unless you explicitly set it. This solves a longstanding bottleneck — the rate and volume of data ingestion is no longer limited by Postgres, and this means faster, more reliable data ingestion at higher scale. This is required to be enabled before upgrading to Dataplane 2.x.x.
 
 > **⚠️ WARNING: This is a one-way operation.** Once an object type has been migrated off PostgreSQL, it cannot be un-migrated without downtime.
 
