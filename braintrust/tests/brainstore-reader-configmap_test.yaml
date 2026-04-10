@@ -61,6 +61,12 @@ tests:
       - equal:
           path: data.BRAINSTORE_REALTIME_WAL_URI
           value: "s3://test-brainstore-bucket/brainstore/wal"
+      - equal:
+          path: data.BRAINSTORE_RESPONSE_CACHE_URI
+          value: "s3://test-response-bucket"
+      - equal:
+          path: data.BRAINSTORE_CODE_BUNDLE_URI
+          value: "s3://test-code-bundle-bucket"
 
   - it: should configure Azure URIs when cloud is azure
     values:
@@ -78,6 +84,12 @@ tests:
       - equal:
           path: data.BRAINSTORE_REALTIME_WAL_URI
           value: "az://brainstore/brainstore/wal"
+      - equal:
+          path: data.BRAINSTORE_RESPONSE_CACHE_URI
+          value: "az://responses"
+      - equal:
+          path: data.BRAINSTORE_CODE_BUNDLE_URI
+          value: "az://code-bundles"
 
   - it: should configure Google Cloud URIs when cloud is google
     values:
@@ -92,6 +104,12 @@ tests:
       - equal:
           path: data.BRAINSTORE_REALTIME_WAL_URI
           value: "gs://test-brainstore-bucket/brainstore/wal"
+      - equal:
+          path: data.BRAINSTORE_RESPONSE_CACHE_URI
+          value: "gs://test-api-bucket/response"
+      - equal:
+          path: data.BRAINSTORE_CODE_BUNDLE_URI
+          value: "gs://test-api-bucket/code-bundle"
 
   - it: should include locks URI when locksBackend is objectStorage for AWS
     values:

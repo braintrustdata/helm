@@ -189,18 +189,37 @@ tests:
           path: data.BRAINSTORE_BACKFILL_DISABLE_NONHISTORICAL
           value: "true"
 
-  - it: should not include no-pg vars when skipPgForBrainstoreObjects is not set
+  - it: should not include WAL or no-pg vars when neither is set
     values:
       - __fixtures__/base-values.yaml
     release:
       namespace: "braintrust"
     asserts:
       - isNull:
+          path: data.BRAINSTORE_WAL_FOOTER_VERSION
+      - isNull:
           path: data.BRAINSTORE_WAL_USE_EFFICIENT_FORMAT
       - isNull:
           path: data.SKIP_PG_FOR_BRAINSTORE_OBJECTS
 
-  - it: should include no-pg vars when skipPgForBrainstoreObjects is "all"
+  - it: should set WAL_FOOTER_VERSION and WAL_USE_EFFICIENT_FORMAT when only brainstoreWalFooterVersion is set
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      brainstoreWalFooterVersion: "v1"
+    release:
+      namespace: "braintrust"
+    asserts:
+      - equal:
+          path: data.BRAINSTORE_WAL_FOOTER_VERSION
+          value: "v1"
+      - equal:
+          path: data.BRAINSTORE_WAL_USE_EFFICIENT_FORMAT
+          value: "true"
+      - isNull:
+          path: data.SKIP_PG_FOR_BRAINSTORE_OBJECTS
+
+  - it: should set SKIP_PG and WAL_USE_EFFICIENT_FORMAT when only skipPgForBrainstoreObjects is set
     values:
       - __fixtures__/base-values.yaml
     set:
@@ -209,11 +228,32 @@ tests:
       namespace: "braintrust"
     asserts:
       - equal:
+          path: data.SKIP_PG_FOR_BRAINSTORE_OBJECTS
+          value: "all"
+      - equal:
           path: data.BRAINSTORE_WAL_USE_EFFICIENT_FORMAT
           value: "true"
+      - isNull:
+          path: data.BRAINSTORE_WAL_FOOTER_VERSION
+
+  - it: should set all three vars when both brainstoreWalFooterVersion and skipPgForBrainstoreObjects are set
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      brainstoreWalFooterVersion: "v3"
+      skipPgForBrainstoreObjects: "all"
+    release:
+      namespace: "braintrust"
+    asserts:
+      - equal:
+          path: data.BRAINSTORE_WAL_FOOTER_VERSION
+          value: "v3"
       - equal:
           path: data.SKIP_PG_FOR_BRAINSTORE_OBJECTS
           value: "all"
+      - equal:
+          path: data.BRAINSTORE_WAL_USE_EFFICIENT_FORMAT
+          value: "true"
 
   - it: should pass through include-style skipPgForBrainstoreObjects value
     values:
