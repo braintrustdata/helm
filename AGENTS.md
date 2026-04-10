@@ -68,7 +68,7 @@ These constraints exist because of real incidents and confirmed engineering guid
 
 ### Upgrade Sequencing
 
-- **Never set `skipPgForBrainstoreObjects` on Data Plane versions before 2.0.** A known bug on 1.1.32 was hit by a customer (Ramp) and fixed in the 2.0 images. The correct sequence is: 1.1.32 -> WAL v1 -> 2.0 + WAL v3 -> no-PG.
+- **Never set `skipPgForBrainstoreObjects` on Data Plane versions before 2.0.** A known bug on 1.1.32 was hit by a customer and fixed in the 2.0 images. The correct sequence is: 1.1.32 -> WAL v1 -> 2.0 + WAL v3 -> no-PG.
 - **Never set `brainstoreWalFooterVersion` in the same deploy as an image version bump.** Old Brainstore nodes still rolling out cannot read the new WAL format. Exception: bumping v1 to v3 can be done in the same deploy as the 2.0 image upgrade because all 2.0 nodes understand v3.
 - **`skipPgForBrainstoreObjects` is a one-way operation.** Once enabled for an object type, it cannot be rolled back without downtime. Do not default this to any non-empty value.
 
