@@ -31,7 +31,7 @@ data:
   BRAINSTORE_LOCKS_URI: "az://{{ .Values.objectStorage.azure.brainstoreContainer }}/brainstore/locks"
   {{- end }}
   {{- if .Values.objectStorage.azure.responseContainer }}
-  BRAINSTORE_RESPONSE_CACHE_URI: "az://{{ .Values.objectStorage.azure.responseContainer }}"
+  BRAINSTORE_RESPONSE_CACHE_URI: "az://{{ .Values.objectStorage.azure.responseContainer }}/brainstore-cache"
   {{- end }}
   {{- if .Values.objectStorage.azure.codeBundleContainer }}
   BRAINSTORE_CODE_BUNDLE_URI: "az://{{ .Values.objectStorage.azure.codeBundleContainer }}"
@@ -43,7 +43,7 @@ data:
   BRAINSTORE_LOCKS_URI: "s3://{{ .Values.objectStorage.aws.brainstoreBucket }}/brainstore/locks"
   {{- end }}
   {{- if .Values.objectStorage.aws.responseBucket }}
-  BRAINSTORE_RESPONSE_CACHE_URI: "s3://{{ .Values.objectStorage.aws.responseBucket }}"
+  BRAINSTORE_RESPONSE_CACHE_URI: "s3://{{ .Values.objectStorage.aws.responseBucket }}/brainstore-cache"
   {{- end }}
   {{- if .Values.objectStorage.aws.codeBundleBucket }}
   BRAINSTORE_CODE_BUNDLE_URI: "s3://{{ .Values.objectStorage.aws.codeBundleBucket }}"

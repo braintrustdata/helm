@@ -63,7 +63,7 @@ tests:
           value: "s3://test-brainstore-bucket/brainstore/wal"
       - equal:
           path: data.BRAINSTORE_RESPONSE_CACHE_URI
-          value: "s3://test-response-bucket"
+          value: "s3://test-response-bucket/brainstore-cache"
       - equal:
           path: data.BRAINSTORE_CODE_BUNDLE_URI
           value: "s3://test-code-bundle-bucket"
@@ -86,7 +86,7 @@ tests:
           value: "az://brainstore/brainstore/wal"
       - equal:
           path: data.BRAINSTORE_RESPONSE_CACHE_URI
-          value: "az://responses"
+          value: "az://responses/brainstore-cache"
       - equal:
           path: data.BRAINSTORE_CODE_BUNDLE_URI
           value: "az://code-bundles"
