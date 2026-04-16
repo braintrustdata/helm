@@ -1,8 +1,10 @@
 suite: test API deployment template
 templates:
   - api-deployment.yaml
+  - api-configmap.yaml
 tests:
   - it: should render API deployment with default values
+    template: api-deployment.yaml
     values:
       - __fixtures__/base-values.yaml
     release:
@@ -24,6 +26,7 @@ tests:
           value: IfNotPresent
 
   - it: should use correct namespace from helper when createNamespace is false
+    template: api-deployment.yaml
     values:
       - __fixtures__/base-values.yaml
     set:
@@ -37,6 +40,7 @@ tests:
           value: release-namespace
 
   - it: should use global namespace when createNamespace is true
+    template: api-deployment.yaml
     values:
       - __fixtures__/base-values.yaml
     set:
@@ -50,6 +54,7 @@ tests:
           value: custom-ns
 
   - it: should include azure workload identity label when cloud is azure
+    template: api-deployment.yaml
     values:
       - __fixtures__/base-values.yaml
       - __fixtures__/azure-values.yaml
@@ -61,6 +66,7 @@ tests:
           value: "true"
 
   - it: should include Azure storage connection string env var when cloud is azure
+    template: api-deployment.yaml
     values:
       - __fixtures__/base-values.yaml
       - __fixtures__/azure-values.yaml
@@ -77,6 +83,7 @@ tests:
                 key: AZURE_STORAGE_CONNECTION_STRING
 
   - it: should include GCS env vars when cloud is google
+    template: api-deployment.yaml
     values:
       - __fixtures__/base-values.yaml
       - __fixtures__/google-values.yaml
@@ -101,6 +108,7 @@ tests:
                 key: GCS_SECRET_ACCESS_KEY
 
   - it: should include Azure Key Vault volume when enabled
+    template: api-deployment.yaml
     values:
       - __fixtures__/base-values.yaml
       - __fixtures__/azure-values.yaml
@@ -124,6 +132,7 @@ tests:
                 secretProviderClass: test-keyvault
 
   - it: should not include Azure Key Vault volume when disabled
+    template: api-deployment.yaml
     values:
       - __fixtures__/base-values.yaml
       - __fixtures__/azure-values.yaml
@@ -137,6 +146,7 @@ tests:
           value: []
 
   - it: should include extraEnvVars when provided
+    template: api-deployment.yaml
     values:
       - __fixtures__/base-values.yaml
     set:
@@ -160,6 +170,7 @@ tests:
             value: "another-value"
 
   - it: should merge global and api labels
+    template: api-deployment.yaml
     values:
       - __fixtures__/base-values.yaml
     set:
@@ -176,6 +187,7 @@ tests:
           value: api
 
   - it: should include livenessProbe when configured
+    template: api-deployment.yaml
     values:
       - __fixtures__/base-values.yaml
     set:
@@ -202,6 +214,7 @@ tests:
           value: 10
 
   - it: should include readinessProbe when configured
+    template: api-deployment.yaml
     values:
       - __fixtures__/base-values.yaml
     set:
@@ -228,6 +241,7 @@ tests:
           value: 5
 
   - it: should not include probes when explicitly disabled
+    template: api-deployment.yaml
     values:
       - __fixtures__/base-values.yaml
     set:
@@ -242,6 +256,7 @@ tests:
           path: spec.template.spec.containers[0].readinessProbe
 
   - it: should include extraContainers when provided (e.g. OTEL collector sidecar)
+    template: api-deployment.yaml
     values:
       - __fixtures__/base-values.yaml
     set:
@@ -271,6 +286,7 @@ tests:
             readOnly: true
 
   - it: should include extraVolumes when provided (for sidecar config)
+    template: api-deployment.yaml
     values:
       - __fixtures__/base-values.yaml
     set:

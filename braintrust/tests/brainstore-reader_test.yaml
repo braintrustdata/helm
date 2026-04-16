@@ -1,8 +1,10 @@
 suite: test Brainstore Reader deployment template
 templates:
   - brainstore-reader-deployment.yaml
+  - brainstore-reader-configmap.yaml
 tests:
   - it: should render Brainstore Reader deployment with default values
+    template: brainstore-reader-deployment.yaml
     values:
       - __fixtures__/base-values.yaml
     release:
@@ -24,6 +26,7 @@ tests:
           value: test/brainstore:v1.0.0
 
   - it: should include azure workload identity label when cloud is azure
+    template: brainstore-reader-deployment.yaml
     values:
       - __fixtures__/base-values.yaml
       - __fixtures__/azure-values.yaml
@@ -35,6 +38,7 @@ tests:
           value: "true"
 
   - it: should include gke workload identity label when cloud is google
+    template: brainstore-reader-deployment.yaml
     values:
       - __fixtures__/base-values.yaml
       - __fixtures__/google-values.yaml
@@ -49,6 +53,7 @@ tests:
           value: test@project.iam.gserviceaccount.com
 
   - it: should use Azure Container Storage volume when enabled
+    template: brainstore-reader-deployment.yaml
     values:
       - __fixtures__/base-values.yaml
       - __fixtures__/azure-values.yaml
@@ -65,6 +70,7 @@ tests:
           value: "100Gi"
 
   - it: should use emptyDir volume when Azure Container Storage is disabled
+    template: brainstore-reader-deployment.yaml
     values:
       - __fixtures__/base-values.yaml
       - __fixtures__/google-values.yaml
@@ -75,6 +81,7 @@ tests:
           path: spec.template.spec.volumes[0].emptyDir
 
   - it: should include Azure Key Vault volume mount when enabled
+    template: brainstore-reader-deployment.yaml
     values:
       - __fixtures__/base-values.yaml
       - __fixtures__/azure-values.yaml
@@ -89,6 +96,7 @@ tests:
             readOnly: true
 
   - it: should include nodeSelector for GKE Autopilot when enabled
+    template: brainstore-reader-deployment.yaml
     values:
       - __fixtures__/base-values.yaml
       - __fixtures__/google-values.yaml
@@ -106,6 +114,7 @@ tests:
           value: "Performance"
 
   - it: should include BRAINSTORE_LOCKS_URI when locksBackend is redis
+    template: brainstore-reader-deployment.yaml
     values:
       - __fixtures__/base-values.yaml
     set:
@@ -123,6 +132,7 @@ tests:
                 key: REDIS_URL
 
   - it: should include extraEnvVars when provided
+    template: brainstore-reader-deployment.yaml
     values:
       - __fixtures__/base-values.yaml
     set:
@@ -139,6 +149,7 @@ tests:
             value: "custom-value"
 
   - it: should include livenessProbe when configured
+    template: brainstore-reader-deployment.yaml
     values:
       - __fixtures__/base-values.yaml
     set:
@@ -165,6 +176,7 @@ tests:
           value: 10
 
   - it: should include readinessProbe when configured
+    template: brainstore-reader-deployment.yaml
     values:
       - __fixtures__/base-values.yaml
     set:
@@ -191,6 +203,7 @@ tests:
           value: 5
 
   - it: should not include probes when explicitly disabled
+    template: brainstore-reader-deployment.yaml
     values:
       - __fixtures__/base-values.yaml
     set:
@@ -205,6 +218,7 @@ tests:
           path: spec.template.spec.containers[0].readinessProbe
 
   - it: should include BRAINSTORE_XACT_MANAGER_URI environment variable
+    template: brainstore-reader-deployment.yaml
     values:
       - __fixtures__/base-values.yaml
     release:
@@ -220,6 +234,7 @@ tests:
                 key: REDIS_URL
 
   - it: should include BRAINSTORE_AI_PROXY_URL environment variable
+    template: brainstore-reader-deployment.yaml
     values:
       - __fixtures__/base-values.yaml
     release:
@@ -232,6 +247,7 @@ tests:
             value: "http://braintrust-api:8000"
 
   - it: should include extraContainers when provided (e.g. OTEL collector sidecar)
+    template: brainstore-reader-deployment.yaml
     values:
       - __fixtures__/base-values.yaml
     set:
@@ -261,6 +277,7 @@ tests:
             readOnly: true
 
   - it: should include extraVolumes when provided (for sidecar config)
+    template: brainstore-reader-deployment.yaml
     values:
       - __fixtures__/base-values.yaml
     set:
