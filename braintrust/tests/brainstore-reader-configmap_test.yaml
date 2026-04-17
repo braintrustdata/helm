@@ -106,10 +106,10 @@ tests:
           value: "gs://test-brainstore-bucket/brainstore/wal"
       - equal:
           path: data.BRAINSTORE_RESPONSE_CACHE_URI
-          value: "gs://test-api-bucket/response"
+          value: "gs://test-api-bucket/brainstore-cache"
       - equal:
           path: data.BRAINSTORE_CODE_BUNDLE_URI
-          value: "gs://test-api-bucket/code-bundle"
+          value: "gs://test-api-bucket"
 
   - it: should include locks URI when locksBackend is objectStorage for AWS
     values:

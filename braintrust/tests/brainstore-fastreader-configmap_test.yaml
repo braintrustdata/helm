@@ -70,10 +70,10 @@ tests:
     asserts:
       - equal:
           path: data.BRAINSTORE_RESPONSE_CACHE_URI
-          value: "gs://test-api-bucket/response"
+          value: "gs://test-api-bucket/brainstore-cache"
       - equal:
           path: data.BRAINSTORE_CODE_BUNDLE_URI
-          value: "gs://test-api-bucket/code-bundle"
+          value: "gs://test-api-bucket"
 
   - it: should not include no-pg vars when skipPgForBrainstoreObjects is not set
     values:

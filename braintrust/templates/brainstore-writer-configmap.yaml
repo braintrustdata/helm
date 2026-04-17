@@ -55,8 +55,8 @@ data:
   BRAINSTORE_LOCKS_URI: "gs://{{ .Values.objectStorage.google.brainstoreBucket }}/brainstore/locks"
   {{- end }}
   {{- if .Values.objectStorage.google.apiBucket }}
-  BRAINSTORE_RESPONSE_CACHE_URI: "gs://{{ .Values.objectStorage.google.apiBucket }}/response"
-  BRAINSTORE_CODE_BUNDLE_URI: "gs://{{ .Values.objectStorage.google.apiBucket }}/code-bundle"
+  BRAINSTORE_RESPONSE_CACHE_URI: "gs://{{ .Values.objectStorage.google.apiBucket }}/brainstore-cache"
+  BRAINSTORE_CODE_BUNDLE_URI: "gs://{{ .Values.objectStorage.google.apiBucket }}"
   {{- end }}
   {{- end }}
   BRAINSTORE_CONTROL_PLANE_TELEMETRY: {{ .Values.global.controlPlaneTelemetry | quote }}
