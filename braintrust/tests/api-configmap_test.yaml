@@ -218,6 +218,8 @@ tests:
   - it: should not include WAL or no-pg vars when neither is set
     values:
       - __fixtures__/base-values.yaml
+    set:
+      brainstoreWalFooterVersion: ""
     release:
       namespace: "braintrust"
     asserts:
@@ -249,6 +251,7 @@ tests:
     values:
       - __fixtures__/base-values.yaml
     set:
+      brainstoreWalFooterVersion: ""
       skipPgForBrainstoreObjects: "all"
     release:
       namespace: "braintrust"

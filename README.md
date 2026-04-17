@@ -1,5 +1,9 @@
 # Braintrust Helm Repository
 
+For the latest guidance, always refer to the official Braintrust documentation:
+- [Self-hosting overview](https://www.braintrust.dev/docs/admin/self-hosting)
+- [Data Plane 2.0 upgrade guide](https://www.braintrust.dev/docs/admin/self-hosting/upgrade/v2)
+
 This repository contains the official Helm chart for deploying Braintrust's self-hosted data plane services to Kubernetes.
 
 ## Quick Start
