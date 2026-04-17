@@ -220,6 +220,7 @@ tests:
       - __fixtures__/base-values.yaml
     set:
       brainstoreWalFooterVersion: ""
+      skipPgForBrainstoreObjects: ""
     release:
       namespace: "braintrust"
     asserts:
@@ -235,6 +236,7 @@ tests:
       - __fixtures__/base-values.yaml
     set:
       brainstoreWalFooterVersion: "v1"
+      skipPgForBrainstoreObjects: ""
     release:
       namespace: "braintrust"
     asserts:
