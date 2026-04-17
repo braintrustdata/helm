@@ -1,8 +1,11 @@
 suite: test podLabels feature
 templates:
   - api-deployment.yaml
+  - api-configmap.yaml
   - brainstore-reader-deployment.yaml
+  - brainstore-reader-configmap.yaml
   - brainstore-writer-deployment.yaml
+  - brainstore-writer-configmap.yaml
 tests:
   # Test that podLabels are applied only to pod template labels, not deployment metadata labels
   - it: should apply api.podLabels only to pod template labels, not deployment metadata

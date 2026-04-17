@@ -53,5 +53,14 @@ data:
   BRAINSTORE_INSERT_ROW_REFS: "true"
   # Logs v2 table. Requires pg_partman extension (default enabled in our TF modules)
   INSERT_LOGS2: "true"
-  ALLOW_INVALID_BASE64: {{ .Values.api.allowInvalidBase64 | default "false" | quote }} 
+  ALLOW_INVALID_BASE64: {{ .Values.api.allowInvalidBase64 | default "false" | quote }}
   NODE_MEMORY_PERCENT: {{ .Values.api.nodeMemoryPercent | default "80" | quote }}
+  {{- if .Values.brainstoreWalFooterVersion }}
+  BRAINSTORE_WAL_FOOTER_VERSION: {{ .Values.brainstoreWalFooterVersion | quote }}
+  {{- end }}
+  {{- if .Values.skipPgForBrainstoreObjects }}
+  SKIP_PG_FOR_BRAINSTORE_OBJECTS: {{ .Values.skipPgForBrainstoreObjects | quote }}
+  {{- end }}
+  {{- if or .Values.brainstoreWalFooterVersion .Values.skipPgForBrainstoreObjects }}
+  BRAINSTORE_WAL_USE_EFFICIENT_FORMAT: "true"
+  {{- end }}

@@ -179,6 +179,16 @@ You may have to adjust your helm values.yaml overrides if you have adjusted any 
 
 Also if you have custom readiness checks, please unset these customizations and use our new default readiness checks. There is a bug in the dataplane where the endpoint we were using for readiness checks, would never recover if it failed.
 
+### Version 6
+
+This version introduces opt-in no-PG mode, allowing Brainstore to store objects directly without PostgreSQL. The new `skipPgForBrainstoreObjects` value defaults to `""` (disabled), so upgrading makes no behavioral change unless you explicitly set it. This solves a longstanding bottleneck - the rate and volume of data ingestion is no longer limited by Postgres, and this means faster, more reliable data ingestion at higher scale.
+
+> **WARNING: no-PG must only be enabled after upgrading to Data Plane 2.0 images.** A known bug on 1.1.32 was fixed in the 2.0 images. Do not enable no-PG on 1.1.32.
+
+> **WARNING: This is a one-way operation.** Once an object type has been migrated off PostgreSQL, it cannot be un-migrated without downtime.
+
+This version also adds first-class `brainstoreWalFooterVersion` support and auto-derived `BRAINSTORE_RESPONSE_CACHE_URI` / `BRAINSTORE_CODE_BUNDLE_URI` from existing `objectStorage` config.
+
 ## Example Values Files
 
 Example values files for different cloud providers and configurations are located in the `examples/` folder.

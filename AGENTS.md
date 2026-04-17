@@ -62,6 +62,32 @@ Always use the namespace helper:
 namespace: {{ include "braintrust.namespace" . }}
 ```
 
+## Critical Safety Constraints
+
+These constraints exist because of real incidents and confirmed engineering guidance. Do not "simplify" or "clean up" code that implements them.
+
+### Upgrade Sequencing
+
+- **Never set `skipPgForBrainstoreObjects` on Data Plane versions before 2.0.** A known bug on 1.1.32 was hit by a customer and fixed in the 2.0 images. The correct sequence is: 1.1.32 -> WAL v1 -> 2.0 + WAL v3 -> no-PG.
+- **Never set `brainstoreWalFooterVersion` in the same deploy as an image version bump.** Old Brainstore nodes still rolling out cannot read the new WAL format. Exception: bumping v1 to v3 can be done in the same deploy as the 2.0 image upgrade because all 2.0 nodes understand v3.
+- **`skipPgForBrainstoreObjects` is a one-way operation.** Once enabled for an object type, it cannot be rolled back without downtime. Do not default this to any non-empty value.
+
+### WAL_USE_EFFICIENT_FORMAT Decoupling
+
+`BRAINSTORE_WAL_USE_EFFICIENT_FORMAT` is intentionally derived from EITHER `brainstoreWalFooterVersion` OR `skipPgForBrainstoreObjects` being set. This is not redundant - it enables efficient format as early as possible in the upgrade sequence (when WAL v1 is set) rather than waiting for no-PG. Do not "simplify" this to only check one condition.
+
+### Brainstore ConfigMap Consistency
+
+The three brainstore configmaps (`brainstore-reader-configmap.yaml`, `brainstore-writer-configmap.yaml`, `brainstore-fastreader-configmap.yaml`) must have identical environment variable logic for `BRAINSTORE_RESPONSE_CACHE_URI`, `BRAINSTORE_CODE_BUNDLE_URI`, `BRAINSTORE_ASYNC_SCORING_OBJECTS`, and `BRAINSTORE_LOG_AUTOMATIONS_OBJECTS`. If you modify one, you must update all three.
+
+### Version Numbers
+
+Chart version numbers are semantically meaningful for the upgrade path:
+- Minor versions (e.g., 5.2.0) are additive, non-breaking chart features
+- Major versions (e.g., 6.0.0) carry Data Plane image tag changes that affect runtime behavior
+
+Do not bump `Chart.yaml` version without explicit coordination - version numbers determine customer upgrade sequencing.
+
 ## Review guidelines
 
 When reviewing PRs, verify:

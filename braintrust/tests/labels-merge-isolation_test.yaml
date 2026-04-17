@@ -1,9 +1,13 @@
 suite: test label merge isolation (deepCopy fix)
 templates:
   - api-deployment.yaml
+  - api-configmap.yaml
   - brainstore-reader-deployment.yaml
+  - brainstore-reader-configmap.yaml
   - brainstore-writer-deployment.yaml
+  - brainstore-writer-configmap.yaml
   - brainstore-fastreader-deployment.yaml
+  - brainstore-fastreader-configmap.yaml
 tests:
   # This test verifies that labels are isolated between components.
   # The bug that was fixed: Helm's merge function mutates the leftmost dict,

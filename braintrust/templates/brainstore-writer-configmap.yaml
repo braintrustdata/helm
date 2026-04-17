@@ -30,11 +30,23 @@ data:
   {{- if eq .Values.brainstore.locksBackend "objectStorage" }}
   BRAINSTORE_LOCKS_URI: "az://{{ .Values.objectStorage.azure.brainstoreContainer }}/brainstore/locks"
   {{- end }}
+  {{- if .Values.objectStorage.azure.responseContainer }}
+  BRAINSTORE_RESPONSE_CACHE_URI: "az://{{ .Values.objectStorage.azure.responseContainer }}/brainstore-cache"
+  {{- end }}
+  {{- if .Values.objectStorage.azure.codeBundleContainer }}
+  BRAINSTORE_CODE_BUNDLE_URI: "az://{{ .Values.objectStorage.azure.codeBundleContainer }}"
+  {{- end }}
   {{- else if eq .Values.cloud "aws" }}
   BRAINSTORE_INDEX_URI: "s3://{{ .Values.objectStorage.aws.brainstoreBucket }}/brainstore/index"
   BRAINSTORE_REALTIME_WAL_URI: "s3://{{ .Values.objectStorage.aws.brainstoreBucket }}/brainstore/wal"
   {{- if eq .Values.brainstore.locksBackend "objectStorage" }}
   BRAINSTORE_LOCKS_URI: "s3://{{ .Values.objectStorage.aws.brainstoreBucket }}/brainstore/locks"
+  {{- end }}
+  {{- if .Values.objectStorage.aws.responseBucket }}
+  BRAINSTORE_RESPONSE_CACHE_URI: "s3://{{ .Values.objectStorage.aws.responseBucket }}/brainstore-cache"
+  {{- end }}
+  {{- if .Values.objectStorage.aws.codeBundleBucket }}
+  BRAINSTORE_CODE_BUNDLE_URI: "s3://{{ .Values.objectStorage.aws.codeBundleBucket }}"
   {{- end }}
   {{- else if eq .Values.cloud "google" }}
   BRAINSTORE_INDEX_URI: "gs://{{ .Values.objectStorage.google.brainstoreBucket }}/brainstore/index"
@@ -42,6 +54,14 @@ data:
   {{- if eq .Values.brainstore.locksBackend "objectStorage" }}
   BRAINSTORE_LOCKS_URI: "gs://{{ .Values.objectStorage.google.brainstoreBucket }}/brainstore/locks"
   {{- end }}
+  {{- if .Values.objectStorage.google.apiBucket }}
+  BRAINSTORE_RESPONSE_CACHE_URI: "gs://{{ .Values.objectStorage.google.apiBucket }}/brainstore-cache"
+  BRAINSTORE_CODE_BUNDLE_URI: "gs://{{ .Values.objectStorage.google.apiBucket }}"
+  {{- end }}
   {{- end }}
   BRAINSTORE_CONTROL_PLANE_TELEMETRY: {{ .Values.global.controlPlaneTelemetry | quote }}
   NO_COLOR: "1"
+  {{- if .Values.skipPgForBrainstoreObjects }}
+  BRAINSTORE_ASYNC_SCORING_OBJECTS: {{ .Values.skipPgForBrainstoreObjects | quote }}
+  BRAINSTORE_LOG_AUTOMATIONS_OBJECTS: {{ .Values.skipPgForBrainstoreObjects | quote }}
+  {{- end }}

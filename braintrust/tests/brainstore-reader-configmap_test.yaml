@@ -61,6 +61,12 @@ tests:
       - equal:
           path: data.BRAINSTORE_REALTIME_WAL_URI
           value: "s3://test-brainstore-bucket/brainstore/wal"
+      - equal:
+          path: data.BRAINSTORE_RESPONSE_CACHE_URI
+          value: "s3://test-response-bucket/brainstore-cache"
+      - equal:
+          path: data.BRAINSTORE_CODE_BUNDLE_URI
+          value: "s3://test-code-bundle-bucket"
 
   - it: should configure Azure URIs when cloud is azure
     values:
@@ -78,6 +84,12 @@ tests:
       - equal:
           path: data.BRAINSTORE_REALTIME_WAL_URI
           value: "az://brainstore/brainstore/wal"
+      - equal:
+          path: data.BRAINSTORE_RESPONSE_CACHE_URI
+          value: "az://responses/brainstore-cache"
+      - equal:
+          path: data.BRAINSTORE_CODE_BUNDLE_URI
+          value: "az://code-bundles"
 
   - it: should configure Google Cloud URIs when cloud is google
     values:
@@ -92,6 +104,12 @@ tests:
       - equal:
           path: data.BRAINSTORE_REALTIME_WAL_URI
           value: "gs://test-brainstore-bucket/brainstore/wal"
+      - equal:
+          path: data.BRAINSTORE_RESPONSE_CACHE_URI
+          value: "gs://test-api-bucket/brainstore-cache"
+      - equal:
+          path: data.BRAINSTORE_CODE_BUNDLE_URI
+          value: "gs://test-api-bucket"
 
   - it: should include locks URI when locksBackend is objectStorage for AWS
     values:
@@ -182,3 +200,59 @@ tests:
       - equal:
           path: metadata.annotations["custom-annotation"]
           value: value
+
+  - it: should not include no-pg vars when skipPgForBrainstoreObjects is not set
+    values:
+      - __fixtures__/base-values.yaml
+    release:
+      namespace: "braintrust"
+    asserts:
+      - isNull:
+          path: data.BRAINSTORE_ASYNC_SCORING_OBJECTS
+      - isNull:
+          path: data.BRAINSTORE_LOG_AUTOMATIONS_OBJECTS
+
+  - it: should include no-pg vars when skipPgForBrainstoreObjects is "all"
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      skipPgForBrainstoreObjects: "all"
+    release:
+      namespace: "braintrust"
+    asserts:
+      - equal:
+          path: data.BRAINSTORE_ASYNC_SCORING_OBJECTS
+          value: "all"
+      - equal:
+          path: data.BRAINSTORE_LOG_AUTOMATIONS_OBJECTS
+          value: "all"
+
+  - it: should pass through include-style skipPgForBrainstoreObjects value
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      skipPgForBrainstoreObjects: "include:project_logs:abc123"
+    release:
+      namespace: "braintrust"
+    asserts:
+      - equal:
+          path: data.BRAINSTORE_ASYNC_SCORING_OBJECTS
+          value: "include:project_logs:abc123"
+      - equal:
+          path: data.BRAINSTORE_LOG_AUTOMATIONS_OBJECTS
+          value: "include:project_logs:abc123"
+
+  - it: should pass through exclude-style skipPgForBrainstoreObjects value
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      skipPgForBrainstoreObjects: "exclude:project_logs:abc123"
+    release:
+      namespace: "braintrust"
+    asserts:
+      - equal:
+          path: data.BRAINSTORE_ASYNC_SCORING_OBJECTS
+          value: "exclude:project_logs:abc123"
+      - equal:
+          path: data.BRAINSTORE_LOG_AUTOMATIONS_OBJECTS
+          value: "exclude:project_logs:abc123"

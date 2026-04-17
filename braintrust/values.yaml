@@ -68,6 +68,24 @@ objectStorage:
     # Single API bucket with paths for responses and code bundles
     apiBucket: ""
 
+# No-PG mode: controls which object types bypass PostgreSQL and use Brainstore directly.
+# WARNING: This is a one-way operation. Once migrated off Postgres, objects cannot be
+# un-migrated without downtime.
+# Options:
+#   - "" (default): disabled, PostgreSQL used as normal
+#   - "all": skip PostgreSQL for all object types
+#   - "include:<type>:<uuid>,...": skip for specific objects only
+#     e.g. "include:project_logs:5ad850f0-...,project_logs:45b3aed2-..."
+#   - "exclude:<type>:<uuid>,...": skip for all objects except specific ones
+#     e.g. "exclude:project_logs:5ad850f0-..."
+skipPgForBrainstoreObjects: ""
+
+# WAL footer version controls the format of WAL entries written by Brainstore.
+# This must be enabled in a SEPARATE deploy after all nodes are running the target version.
+# Progression: "" (default) -> "v1" (on 1.1.32) -> "v3" (on 2.0, same deploy as image bump)
+# WARNING: Do not set "v3" until all nodes are running Data Plane 2.0 images.
+brainstoreWalFooterVersion: ""
+
 api:
   name: "braintrust-api"
   labels: {}

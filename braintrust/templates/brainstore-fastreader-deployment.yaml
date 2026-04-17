@@ -35,6 +35,7 @@ spec:
         {{- toYaml . | nindent 8 }}
         {{- end }}
       annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/brainstore-fastreader-configmap.yaml") . | sha256sum }}
         {{- if eq .Values.cloud "google" }}
         iam.gke.io/gcp-service-account: {{ required "brainstore.serviceAccount.googleServiceAccount is required when cloud is google" .Values.brainstore.serviceAccount.googleServiceAccount }}
         {{- end }}

@@ -1,8 +1,10 @@
 suite: test Brainstore Fast Reader deployment template
 templates:
   - brainstore-fastreader-deployment.yaml
+  - brainstore-fastreader-configmap.yaml
 tests:
   - it: should render Brainstore Fast Reader deployment with default values
+    template: brainstore-fastreader-deployment.yaml
     values:
       - __fixtures__/base-values.yaml
     release:
@@ -27,6 +29,7 @@ tests:
           value: brainstore-fastreader
 
   - it: should include extraEnvVars when provided
+    template: brainstore-fastreader-deployment.yaml
     values:
       - __fixtures__/base-values.yaml
     set:
