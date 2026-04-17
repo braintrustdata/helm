@@ -78,6 +78,8 @@ tests:
   - it: should not include no-pg vars when skipPgForBrainstoreObjects is not set
     values:
       - __fixtures__/base-values.yaml
+    set:
+      skipPgForBrainstoreObjects: ""
     release:
       namespace: "braintrust"
     asserts:
