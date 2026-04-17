@@ -40,7 +40,7 @@ api:
   serviceAccount:
    name: "braintrust-api"
    googleServiceAccount: "<your Braintrust API Google service account>"
-  # this is for native GCS authentication via workload identity (defaults to false for S3-compatible access) Requires v1.1.31 or later of the dataplane to be set to true.
+  # Native GCS authentication via Workload Identity. Set to true to use GCS natively instead of S3-compatible access.
   enableGcsAuth: false
   nodeSelector:
     cloud.google.com/gke-nodepool: "api"

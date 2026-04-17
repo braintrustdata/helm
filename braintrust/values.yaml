@@ -81,10 +81,8 @@ objectStorage:
 skipPgForBrainstoreObjects: ""
 
 # WAL footer version controls the format of WAL entries written by Brainstore.
-# This must be enabled in a SEPARATE deploy after all nodes are running the target version.
-# Progression: "" (default) -> "v1" (on 1.1.32) -> "v3" (on 2.0, same deploy as image bump)
-# WARNING: Do not set "v3" until all nodes are running Data Plane 2.0 images.
-brainstoreWalFooterVersion: ""
+# Progression: "" (disabled) -> "v1" (on 1.1.32) -> "v3" (on 2.0)
+brainstoreWalFooterVersion: "v3"
 
 api:
   name: "braintrust-api"
@@ -99,7 +97,7 @@ api:
   replicas: 4
   image:
     repository: public.ecr.aws/braintrust/standalone-api
-    tag: v1.1.32
+    tag: v2.0.0
     pullPolicy: IfNotPresent
   service:
     # Optional name for service object. If not specified (empty), the api.name
@@ -177,7 +175,7 @@ brainstore:
   # Shared image configuration
   image:
     repository: public.ecr.aws/braintrust/brainstore
-    tag: v1.1.32
+    tag: v2.0.0
     pullPolicy: IfNotPresent
   # Locks backend configuration
   # Options: "redis" (default) or "objectStorage"
