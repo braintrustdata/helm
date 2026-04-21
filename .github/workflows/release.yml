@@ -11,6 +11,11 @@ on:
         description: 'Lock onto Braintrust services version (e.g., 1.2.3)'
         required: false
         type: string
+      force_republish:
+        description: 'Re-publish an existing version (skips tag existence check, skips git commits/push)'
+        required: false
+        type: boolean
+        default: false
 
 env:
   CHART_PATH: ./braintrust
@@ -60,28 +65,28 @@ jobs:
         run: |
           INPUT_VERSION="${{ github.event.inputs.version }}"
 
-          # Strip v prefix if present for helm chart version
           if [[ $INPUT_VERSION == v* ]]; then
             VERSION="${INPUT_VERSION#v}"
-            echo "ℹ️  Stripped 'v' prefix from version: $INPUT_VERSION -> $VERSION"
           else
             VERSION="$INPUT_VERSION"
           fi
 
-          # Check if version matches semver pattern (x.y.z with optional pre-release and build metadata)
           if [[ ! $VERSION =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?(\+[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?$ ]]; then
             echo "❌ Error: Version '$INPUT_VERSION' is not a valid semver format"
-            echo "Expected format: x.y.z[-prerelease][+build] (e.g., 1.2.3, v1.2.3, 1.2.3-alpha.1)"
             exit 1
           fi
 
-          if git tag | grep -q "^$VERSION$"; then
-            echo "❌ Error: Version $VERSION already exists"
-            echo "Please use a different version number"
-            exit 1
+          # Only block re-releasing existing versions in normal mode
+          if [[ "${{ github.event.inputs.force_republish }}" != "true" ]]; then
+            if git tag | grep -q "^$VERSION$"; then
+              echo "❌ Error: Version $VERSION already exists"
+              echo "Use force_republish=true to re-publish an existing version"
+              exit 1
+            fi
+          else
+            echo "⚠️  force_republish=true — skipping tag existence check"
           fi
 
-          # Store the cleaned version for later use
           echo "CHART_VERSION=$VERSION" >> $GITHUB_ENV
 
       - name: Validate and fixup services version
@@ -99,33 +104,36 @@ jobs:
 
       - name: Update versions
         run: |
-          git fetch origin main
-          git checkout main
-
-          # Update services versions if provided
-          if [ "$SERVICES_VERSION" != "" ]; then
-            ./lock_versions $SERVICES_VERSION
-            git add .
-            if ! git diff --staged --quiet; then
-              git commit -m "Update Braintrust Services versions to $SERVICES_VERSION"
-            else
-              echo "No changes to commit for services version update"
-            fi
-          fi
-
-          # Update Chart version
-          sed -i "s/^version: .*/version: $CHART_VERSION/" $CHART_PATH/Chart.yaml
-          git add $CHART_PATH/Chart.yaml
-          if ! git diff --staged --quiet; then
-            git commit -m "Update Chart version to $CHART_VERSION"
+          if [[ "${{ github.event.inputs.force_republish }}" == "true" ]]; then
+            echo "⚠️  force_republish=true — skipping version commits, checking out tag directly"
+            git checkout $CHART_VERSION
           else
-            echo "No changes to commit for Chart version update"
-          fi
+            git fetch origin main
+            git checkout main
 
-          git push origin main
+            if [ "$SERVICES_VERSION" != "" ]; then
+              ./lock_versions $SERVICES_VERSION
+              git add .
+              if ! git diff --staged --quiet; then
+                git commit -m "Update Braintrust Services versions to $SERVICES_VERSION"
+              fi
+            fi
+
+            sed -i "s/^version: .*/version: $CHART_VERSION/" $CHART_PATH/Chart.yaml
+            git add $CHART_PATH/Chart.yaml
+            if ! git diff --staged --quiet; then
+              git commit -m "Update Chart version to $CHART_VERSION"
+            fi
+
+            git push origin main
+          fi
 
       - name: Create GitHub Release
         run: |
+          if [[ "${{ github.event.inputs.force_republish }}" == "true" ]]; then
+            # Delete existing release if present, then recreate
+            gh release delete $CHART_VERSION --yes 2>/dev/null || true
+          fi
           gh release create $CHART_VERSION \
             --draft \
             --title "$CHART_VERSION" \
