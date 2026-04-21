@@ -111,7 +111,21 @@ jobs:
       - name: Update versions
         run: |
           if [[ "${{ github.event.inputs.force_republish }}" == "true" ]]; then
-            echo "⚠️  force_republish=true — skipping version commits, checking out tag $CHART_VERSION directly"
+            echo "⚠️  force_republish=true — skipping services version commits"
+            git fetch origin main
+            git checkout main
+
+            # Still need to ensure Chart version is bumped on main
+            sed -i "s/^version: .*/version: $CHART_VERSION/" $CHART_PATH/Chart.yaml
+            git add $CHART_PATH/Chart.yaml
+            if ! git diff --staged --quiet; then
+              git commit -m "Update Chart version to $CHART_VERSION"
+              git push origin main
+            else
+              echo "No changes to commit for Chart version update — main already up to date"
+            fi
+
+            # Check out the tag for packaging
             git checkout $CHART_VERSION
           else
             git fetch origin main
