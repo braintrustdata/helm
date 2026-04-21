@@ -144,20 +144,14 @@ jobs:
         run: |
           if [[ "${{ github.event.inputs.force_republish }}" == "true" ]]; then
             if gh release view $CHART_VERSION &>/dev/null; then
-              echo "ℹ️  Release $CHART_VERSION already exists, will update in later step"
-            else
-              echo "ℹ️  No existing release found, creating draft for $CHART_VERSION"
-              gh release create $CHART_VERSION \
-                --draft \
-                --title "$CHART_VERSION" \
-                --generate-notes
+              echo "⚠️  force_republish=true — deleting existing release $CHART_VERSION to recreate it"
+              gh release delete $CHART_VERSION --yes
             fi
-          else
-            gh release create $CHART_VERSION \
-              --draft \
-              --title "$CHART_VERSION" \
-              --generate-notes
           fi
+          gh release create $CHART_VERSION \
+            --draft \
+            --title "$CHART_VERSION" \
+            --generate-notes
         env:
           GH_TOKEN: ${{ steps.bot-token.outputs.token }}
 
