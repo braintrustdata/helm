@@ -152,6 +152,13 @@ jobs:
             git fetch origin main
             git checkout main
 
+            # Fail fast if release branch already exists — indicates a partial release
+            if git ls-remote --exit-code origin refs/heads/release/$CHART_VERSION &>/dev/null; then
+              echo "❌ Error: release/$CHART_VERSION already exists — this release may be partially complete"
+              echo "Use force_republish=true to redo it from scratch"
+              exit 1
+            fi
+
             # Update services versions if provided
             if [ "$SERVICES_VERSION" != "" ]; then
               ./lock_versions $SERVICES_VERSION
