@@ -116,8 +116,8 @@ jobs:
         run: |
           if [[ "${{ github.event.inputs.force_republish }}" == "true" ]]; then
             # Capture the SHA from the existing (broken) tag before we delete anything
-            RELEASE_SHA=$(git rev-parse $CHART_VERSION)
-            echo "ℹ️  Republishing from existing tag $CHART_VERSION @ $RELEASE_SHA"
+            START_POINT=$(git rev-parse $CHART_VERSION)
+            echo "ℹ️  Republishing from existing tag $CHART_VERSION @ $START_POINT"
 
             # Delete the existing GitHub release if present
             if gh release view $CHART_VERSION &>/dev/null; then
@@ -136,35 +136,13 @@ jobs:
               echo "⚠️  Deleting existing release branch release/$CHART_VERSION"
               git push origin --delete release/$CHART_VERSION
             fi
-
-            # Create fresh release branch from the original tag's commit
-            git checkout -b release/$CHART_VERSION $RELEASE_SHA
-
-            # Re-apply services version lock if provided
-            if [ "$SERVICES_VERSION" != "" ]; then
-              ./lock_versions $SERVICES_VERSION
-              git add .
-              if ! git diff --staged --quiet; then
-                git commit -m "Update Braintrust Services versions to $SERVICES_VERSION"
-              else
-                echo "No changes to commit for services version update"
-              fi
-            fi
-
-            # Re-apply Chart version bump in case it was missing from the broken release
-            sed -i "s/^version: .*/version: $CHART_VERSION/" $CHART_PATH/Chart.yaml
-            git add $CHART_PATH/Chart.yaml
-            if ! git diff --staged --quiet; then
-              git commit -m "Update Chart version to $CHART_VERSION"
-            else
-              echo "ℹ️  Chart.yaml already at version $CHART_VERSION"
-            fi
-
-            git push origin release/$CHART_VERSION
-
           else
+            # Normal flow publishes from main
+            START_POINT=origin/main
+
+            # Refresh origin/main — it's both the branch point (START_POINT)
+            # and the fast-forward target at the end of this step.
             git fetch origin main
-            git checkout main
 
             # Fail fast if release branch already exists — indicates a partial release
             if git ls-remote --exit-code origin refs/heads/release/$CHART_VERSION &>/dev/null; then
@@ -172,32 +150,37 @@ jobs:
               echo "Use force_republish=true to redo it from scratch"
               exit 1
             fi
+          fi
 
-            # Update services versions if provided
-            if [ "$SERVICES_VERSION" != "" ]; then
-              ./lock_versions $SERVICES_VERSION
-              git add .
-              if ! git diff --staged --quiet; then
-                git commit -m "Update Braintrust Services versions to $SERVICES_VERSION"
-              else
-                echo "No changes to commit for services version update"
-              fi
-            fi
+          # Create the release branch from the chosen starting point
+          git checkout -b release/$CHART_VERSION $START_POINT
 
-            # Update Chart version on main
-            sed -i "s/^version: .*/version: $CHART_VERSION/" $CHART_PATH/Chart.yaml
-            git add $CHART_PATH/Chart.yaml
+          # Apply services version lock if provided
+          if [ "$SERVICES_VERSION" != "" ]; then
+            ./lock_versions $SERVICES_VERSION
+            git add .
             if ! git diff --staged --quiet; then
-              git commit -m "Update Chart version to $CHART_VERSION"
+              git commit -m "Update Braintrust Services versions to $SERVICES_VERSION"
             else
-              echo "No changes to commit for Chart version update"
+              echo "No changes to commit for services version update"
             fi
+          fi
 
-            git push origin main
+          # Update Chart version
+          sed -i "s/^version: .*/version: $CHART_VERSION/" $CHART_PATH/Chart.yaml
+          git add $CHART_PATH/Chart.yaml
+          if ! git diff --staged --quiet; then
+            git commit -m "Update Chart version to $CHART_VERSION"
+          else
+            echo "ℹ️  Chart.yaml already at version $CHART_VERSION"
+          fi
 
-            # Create release branch from main's updated HEAD
-            git checkout -b release/$CHART_VERSION
-            git push origin release/$CHART_VERSION
+          git push origin release/$CHART_VERSION
+
+          # In normal mode, fast-forward main to include the version bumps.
+          # (Skipped for force_republish: the release branch diverges from main.)
+          if [[ "${{ github.event.inputs.force_republish }}" != "true" ]]; then
+            git push origin release/$CHART_VERSION:main
           fi
         env:
           GH_TOKEN: ${{ steps.bot-token.outputs.token }}
