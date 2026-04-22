@@ -137,6 +137,17 @@ jobs:
             # Create fresh release branch from the original tag's commit
             git checkout -b release/$CHART_VERSION $RELEASE_SHA
 
+            # Re-apply services version lock if provided
+            if [ "$SERVICES_VERSION" != "" ]; then
+              ./lock_versions $SERVICES_VERSION
+              git add .
+              if ! git diff --staged --quiet; then
+                git commit -m "Update Braintrust Services versions to $SERVICES_VERSION"
+              else
+                echo "No changes to commit for services version update"
+              fi
+            fi
+
             # Re-apply Chart version bump in case it was missing from the broken release
             sed -i "s/^version: .*/version: $CHART_VERSION/" $CHART_PATH/Chart.yaml
             git add $CHART_PATH/Chart.yaml
