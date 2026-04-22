@@ -43,12 +43,16 @@ jobs:
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
           token: ${{ steps.bot-token.outputs.token }}
-          fetch-tags: true
 
       - name: Configure Git
         run: |
           git config --global user.name "Braintrust Bot"
           git config --global user.email "215900051+braintrust-bot[bot]@users.noreply.github.com"
+
+      - name: Fetch tags
+        # actions/checkout's fetch-tags option is flaky with shallow clones;
+        # fetch tags explicitly so the version-existence checks below work.
+        run: git fetch --tags --force origin
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4.3.1
