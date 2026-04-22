@@ -82,13 +82,13 @@ jobs:
           fi
 
           if [[ "${{ github.event.inputs.force_republish }}" != "true" ]]; then
-            if git tag | grep -q "^$VERSION$"; then
+            if [[ -n "$(git tag --list "$VERSION")" ]]; then
               echo "❌ Error: Version $VERSION already exists"
               echo "Please use a different version number"
               exit 1
             fi
           else
-            if ! git tag | grep -q "^$VERSION$"; then
+            if [[ -z "$(git tag --list "$VERSION")" ]]; then
               echo "❌ Error: force_republish=true but tag $VERSION does not exist"
               echo "There is no existing release to republish"
               exit 1
@@ -119,13 +119,16 @@ jobs:
             RELEASE_SHA=$(git rev-parse $CHART_VERSION)
             echo "ℹ️  Republishing from existing tag $CHART_VERSION @ $RELEASE_SHA"
 
-            # Delete the existing GitHub release and tag
+            # Delete the existing GitHub release if present
             if gh release view $CHART_VERSION &>/dev/null; then
-              echo "⚠️  Deleting existing release and tag $CHART_VERSION"
-              gh release delete $CHART_VERSION --yes --cleanup-tag
-            else
-              echo "ℹ️  No existing GitHub release found — deleting tag directly"
-              git push origin :refs/tags/$CHART_VERSION
+              echo "⚠️  Deleting existing release $CHART_VERSION"
+              gh release delete $CHART_VERSION --yes
+            fi
+
+            # Always delete the tag explicitly
+            if git ls-remote --exit-code origin refs/tags/$CHART_VERSION &>/dev/null; then
+              echo "⚠️  Deleting existing tag $CHART_VERSION"
+              git push origin --delete refs/tags/$CHART_VERSION
             fi
 
             # Delete old release branch if it exists
