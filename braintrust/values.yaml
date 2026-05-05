@@ -116,19 +116,6 @@ api:
     limits:
       cpu: "4"
       memory: "8Gi"
-  # Optional: Pod-level security context
-  # podSecurityContext:
-  #   runAsUser: 1000
-  #   runAsGroup: 1000
-  #   fsGroup: 1000
-  # Optional: Container-level security context
-  # securityContext:
-  #   readOnlyRootFilesystem: true
-  #   allowPrivilegeEscalation: false
-  #   capabilities:
-  #     drop:
-  #       - ALL
-  # Optional: Writable /tmp mount for readOnlyRootFilesystem setups
   tmpVolume:
     enabled: false
     sizeLimit: ""
@@ -239,18 +226,6 @@ brainstore:
       limits:
         cpu: "16"
         memory: "32Gi"
-    # Optional: Pod-level security context
-    # podSecurityContext:
-    #   runAsUser: 1000
-    #   runAsGroup: 1000
-    #   fsGroup: 1000
-    # Optional: Container-level security context
-    # securityContext:
-    #   readOnlyRootFilesystem: true
-    #   allowPrivilegeEscalation: false
-    #   capabilities:
-    #     drop:
-    #       - ALL
     cacheDir: "/mnt/tmp/brainstore"
     objectStoreCacheMemoryLimit: "1Gi"
     objectStoreCacheFileSize: "1000Gi"
@@ -292,18 +267,6 @@ brainstore:
       limits:
         cpu: "16"
         memory: "32Gi"
-    # Optional: Pod-level security context
-    # podSecurityContext:
-    #   runAsUser: 1000
-    #   runAsGroup: 1000
-    #   fsGroup: 1000
-    # Optional: Container-level security context
-    # securityContext:
-    #   readOnlyRootFilesystem: true
-    #   allowPrivilegeEscalation: false
-    #   capabilities:
-    #     drop:
-    #       - ALL
     cacheDir: "/mnt/tmp/brainstore"
     objectStoreCacheMemoryLimit: "1Gi"
     objectStoreCacheFileSize: "1000Gi"
@@ -345,18 +308,6 @@ brainstore:
       limits:
         cpu: "32"
         memory: "64Gi"
-    # Optional: Pod-level security context
-    # podSecurityContext:
-    #   runAsUser: 1000
-    #   runAsGroup: 1000
-    #   fsGroup: 1000
-    # Optional: Container-level security context
-    # securityContext:
-    #   readOnlyRootFilesystem: true
-    #   allowPrivilegeEscalation: false
-    #   capabilities:
-    #     drop:
-    #       - ALL
     cacheDir: "/mnt/tmp/brainstore"
     objectStoreCacheMemoryLimit: "1Gi"
     objectStoreCacheFileSize: "1000Gi"
