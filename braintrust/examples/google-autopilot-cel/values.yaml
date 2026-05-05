@@ -17,6 +17,10 @@ objectStorage:
 
 api:
   name: "braintrust-api"
+  # Uncomment the following section to use a different image or tag from the version in the Helm release
+  #image:
+    #repository: public.ecr.aws/braintrust/standalone-api
+    #tag: "<your image tag>"
   annotations:
     service:
       networking.gke.io/load-balancer-type: "Internal"
@@ -53,6 +57,10 @@ brainstore:
   serviceAccount:
     name: "brainstore"
     googleServiceAccount: "<your Braintrust Brainstore Google service account>"
+  # Uncomment the following section to use a different image or tag from the version in the Helm release
+  #image:
+    #repository: public.ecr.aws/braintrust/brainstore
+    #tag: "<your image tag>"
   locksBackend: "objectStorage"
 
   reader:
