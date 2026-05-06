@@ -24,7 +24,7 @@ api:
       service.beta.kubernetes.io/aws-load-balancer-nlb-target-type: "instance"
       service.beta.kubernetes.io/aws-load-balancer-security-groups: "<your pre-created NLB security group ID>"
       service.beta.kubernetes.io/aws-load-balancer-name: "<your pre-created NLB name>"
-  replicas: 1
+  replicas: 4
   service:
     type: LoadBalancer
     port: 8000

@@ -14,7 +14,7 @@ objectStorage:
 
 api:
   name: "braintrust-api"
-  replicas: 1
+  replicas: 4
   # Disable in-pod code execution so user-defined functions run in the quarantine VPC.
   allowCodeFunctionExecution: false
   annotations:
