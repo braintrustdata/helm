@@ -192,3 +192,9 @@ This version also adds first-class `brainstoreWalFooterVersion` support and auto
 ## Example Values Files
 
 Example values files for different cloud providers and configurations are located in the `examples/` folder.
+
+- `examples/aws-eks/values.yaml`: AWS EKS deployment without a quarantine VPC. User-defined functions execute in the API pod. Includes the API service annotations needed for the Terraform-managed CloudFront plus adopted internal NLB path.
+- `examples/aws-eks-quarantine/values.yaml`: AWS EKS deployment with user-defined functions routed into the quarantine VPC. Includes the API service annotations needed for the Terraform-managed CloudFront plus adopted internal NLB path.
+- `examples/google-autopilot/values.yaml`: GKE Autopilot deployment.
+- `examples/google-autopilot-cel/values.yaml`: GKE Autopilot deployment with CEL-friendly security settings.
+- `examples/google-standard/values.yaml`: GKE Standard deployment.
