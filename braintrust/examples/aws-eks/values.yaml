@@ -1,0 +1,90 @@
+# Sample values for AWS EKS deployment without a quarantine VPC
+
+global:
+  orgName: "<your Braintrust org name>"
+  namespace: "braintrust"
+
+cloud: "aws"
+
+objectStorage:
+  aws:
+    brainstoreBucket: "<your brainstore bucket name>"
+    responseBucket: "<your response bucket name>"
+    codeBundleBucket: "<your code bundle bucket name>"
+
+api:
+  name: "braintrust-api"
+  annotations:
+    service:
+      # Internal NLB via the AWS Load Balancer Controller.
+      # If you are using the terraform-aws-braintrust-data-plane EKS CloudFront path,
+      # set these so the controller adopts the pre-created internal NLB.
+      service.beta.kubernetes.io/aws-load-balancer-scheme: "internal"
+      service.beta.kubernetes.io/aws-load-balancer-type: "external"
+      service.beta.kubernetes.io/aws-load-balancer-nlb-target-type: "instance"
+      service.beta.kubernetes.io/aws-load-balancer-security-groups: "<your pre-created NLB security group ID>"
+      service.beta.kubernetes.io/aws-load-balancer-name: "<your pre-created NLB name>"
+  replicas: 1
+  service:
+    type: LoadBalancer
+    port: 8000
+    portName: http
+  serviceAccount:
+    name: "braintrust-api"
+    awsRoleArn: "<your Braintrust API IAM role ARN>"
+  # Keep code execution enabled when not using a quarantine VPC.
+  allowCodeFunctionExecution: true
+  resources:
+    requests:
+      cpu: "4"
+      memory: "16Gi"
+    limits:
+      cpu: "8"
+      memory: "16Gi"
+
+brainstore:
+  serviceAccount:
+    name: "brainstore"
+    awsRoleArn: "<your Brainstore IAM role ARN>"
+  reader:
+    name: "brainstore-reader"
+    replicas: 2
+    service:
+      type: ClusterIP
+      port: 4000
+      portName: http
+    resources:
+      requests:
+        cpu: "16"
+        memory: "32Gi"
+      limits:
+        cpu: "16"
+        memory: "32Gi"
+  fastreader:
+    name: "brainstore-fastreader"
+    replicas: 2
+    service:
+      type: ClusterIP
+      port: 4000
+      portName: http
+    resources:
+      requests:
+        cpu: "16"
+        memory: "32Gi"
+      limits:
+        cpu: "16"
+        memory: "32Gi"
+  writer:
+    name: "brainstore-writer"
+    replicas: 1
+    service:
+      type: ClusterIP
+      port: 4000
+      portName: http
+    resources:
+      requests:
+        cpu: "32"
+        memory: "64Gi"
+      limits:
+        cpu: "32"
+        memory: "64Gi"
