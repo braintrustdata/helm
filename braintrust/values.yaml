@@ -117,7 +117,7 @@ api:
       cpu: "4"
       memory: "8Gi"
   # Allow running user generated code functions (e.g. scorers/tools)
-  allowCodeFunctionExecution: true
+  allowCodeFunctionExecution: false
   # Brainstore backfill configuration. These defaults are fine for most cases.
   backfillDisableHistorical: false
   backfillDisableNonhistorical: false
