@@ -142,6 +142,10 @@ spec:
           volumeMounts:
             - name: cache-volume
               mountPath: {{ .Values.brainstore.writer.cacheDir }}
+            {{- if .Values.brainstore.writer.tmpVolume.enabled }}
+            - name: tmp-volume
+              mountPath: /tmp
+            {{- end }}
             {{- if and (eq .Values.cloud "azure") .Values.azure.enableAzureKeyVaultDriver }}
             - name: secrets-store-inline
               mountPath: "/mnt/secrets-store"
@@ -152,7 +156,11 @@ spec:
       {{- end }}
       volumes:
         - name: cache-volume
-          {{- if and (eq .Values.cloud "azure") .Values.azure.enableAzureContainerStorageDriver }}
+          {{- if .Values.brainstore.storage.hostPath }}
+          hostPath:
+            path: {{ .Values.brainstore.storage.hostPath | quote }}
+            type: DirectoryOrCreate
+          {{- else if and (eq .Values.cloud "azure") .Values.azure.enableAzureContainerStorageDriver }}
           ephemeral:
             volumeClaimTemplate:
               spec:
@@ -170,6 +178,15 @@ spec:
             {}
             {{- end }}
           {{- end }}
+        {{- if .Values.brainstore.writer.tmpVolume.enabled }}
+        - name: tmp-volume
+          emptyDir:
+            {{- if .Values.brainstore.writer.tmpVolume.sizeLimit }}
+            sizeLimit: {{ .Values.brainstore.writer.tmpVolume.sizeLimit | quote }}
+            {{- else }}
+            {}
+            {{- end }}
+        {{- end }}
         {{- if and (eq .Values.cloud "azure") .Values.azure.enableAzureKeyVaultDriver }}
         - name: secrets-store-inline
           csi:

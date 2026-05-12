@@ -91,6 +91,9 @@ brainstore:
     volume:
       size: "1000Gi"
       sizeLimit: "900Gi"
+    tmpVolume:
+      enabled: true
+      sizeLimit: "1Gi"
     extraEnvVars:
 
   fastreader:
@@ -121,6 +124,9 @@ brainstore:
     volume:
       size: "1000Gi"
       sizeLimit: "900Gi"
+    tmpVolume:
+      enabled: true
+      sizeLimit: "1Gi"
     extraEnvVars:
 
   writer:
@@ -151,4 +157,7 @@ brainstore:
     volume:
       size: "1000Gi"
       sizeLimit: "900Gi"
+    tmpVolume:
+      enabled: true
+      sizeLimit: "1Gi"
     extraEnvVars:

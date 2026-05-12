@@ -202,6 +202,11 @@ brainstore:
     timeoutSeconds: 5
     failureThreshold: 3
     successThreshold: 1
+  # Shared cache storage configuration.
+  storage:
+    # Optional host path for node-local storage, for example an NVMe mount on EKS nodes.
+    # When set, Brainstore cache volumes use hostPath instead of emptyDir / ephemeral PVCs.
+    hostPath: ""
 
   # Brainstore Reader configuration
   reader:
@@ -236,6 +241,9 @@ brainstore:
       # Storage size for ephemeral storage requests (used with GKE Autopilot local SSDs)
       size: ""
       # Optional emptyDir size limit for CEL policy compliance
+      sizeLimit: ""
+    tmpVolume:
+      enabled: false
       sizeLimit: ""
     extraEnvVars: []
     nodeSelector: {}
@@ -278,6 +286,9 @@ brainstore:
       size: ""
       # Optional emptyDir size limit for CEL policy compliance
       sizeLimit: ""
+    tmpVolume:
+      enabled: false
+      sizeLimit: ""
     extraEnvVars: []
     nodeSelector: {}
     tolerations: []
@@ -319,6 +330,9 @@ brainstore:
       # Used with GKE Autopilot local SSDs and Azure Container Storage CSI
       size: ""
       # Optional emptyDir size limit for CEL policy compliance
+      sizeLimit: ""
+    tmpVolume:
+      enabled: false
       sizeLimit: ""
     extraEnvVars: []
     # Example:
