@@ -80,11 +80,12 @@ spec:
           ports:
             - containerPort: {{ .Values.brainstore.fastreader.service.port }}
           resources:
-            {{- $resources := .Values.brainstore.fastreader.resources }}
-            {{- if and (eq .Values.cloud "google") (eq .Values.google.mode "autopilot") .Values.brainstore.fastreader.volume.size }}
-            {{- $resources = merge (dict "requests" (merge $resources.requests (dict "ephemeral-storage" .Values.brainstore.fastreader.volume.size))) $resources }}
-            {{- end }}
-            {{- toYaml $resources | nindent 12 }}
+            {{- include "braintrust.brainstoreResources" (dict
+              "root" .
+              "resources" .Values.brainstore.fastreader.resources
+              "volumeSize" .Values.brainstore.fastreader.volume.size
+              "ephemeralStorage" .Values.brainstore.fastreader.ephemeralStorage
+            ) | nindent 12 }}
           {{- with .Values.brainstore.livenessProbe }}
           livenessProbe:
             {{- toYaml . | nindent 12 }}
@@ -156,11 +157,7 @@ spec:
       {{- end }}
       volumes:
         - name: cache-volume
-          {{- if .Values.brainstore.storage.hostPath }}
-          hostPath:
-            path: {{ .Values.brainstore.storage.hostPath | quote }}
-            type: DirectoryOrCreate
-          {{- else if and (eq .Values.cloud "azure") .Values.azure.enableAzureContainerStorageDriver }}
+          {{- if and (eq .Values.cloud "azure") .Values.azure.enableAzureContainerStorageDriver }}
           ephemeral:
             volumeClaimTemplate:
               spec:

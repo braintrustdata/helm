@@ -24,3 +24,34 @@ Static fast reader query sources used by API.
 -}}
 {{- join "," $sources -}}
 {{- end -}}
+
+{{/*
+Render Brainstore container resources with provider-specific ephemeral storage.
+
+Google Autopilot keeps the legacy behavior of defaulting the ephemeral-storage
+request to volume.size when no explicit total request is set. AWS EKS requires
+an explicit total pod-local storage budget that includes cache, optional /tmp,
+and normal writable-layer/log overhead.
+*/}}
+{{- define "braintrust.brainstoreResources" -}}
+{{- $root := .root -}}
+{{- $resources := deepCopy .resources -}}
+{{- $supportsEphemeralStorage := or (eq $root.Values.cloud "aws") (and (eq $root.Values.cloud "google") (eq $root.Values.google.mode "autopilot")) -}}
+{{- $request := "" -}}
+{{- if and .ephemeralStorage .ephemeralStorage.request -}}
+{{- $request = .ephemeralStorage.request -}}
+{{- else if and (eq $root.Values.cloud "google") (eq $root.Values.google.mode "autopilot") .volumeSize -}}
+{{- $request = .volumeSize -}}
+{{- end -}}
+{{- if and $supportsEphemeralStorage $request -}}
+{{- $requests := deepCopy (default (dict) $resources.requests) -}}
+{{- $_ := set $requests "ephemeral-storage" $request -}}
+{{- $_ := set $resources "requests" $requests -}}
+{{- end -}}
+{{- if and $supportsEphemeralStorage .ephemeralStorage .ephemeralStorage.limit -}}
+{{- $limits := deepCopy (default (dict) $resources.limits) -}}
+{{- $_ := set $limits "ephemeral-storage" .ephemeralStorage.limit -}}
+{{- $_ := set $resources "limits" $limits -}}
+{{- end -}}
+{{- toYaml $resources -}}
+{{- end -}}

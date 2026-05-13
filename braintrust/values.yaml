@@ -202,12 +202,6 @@ brainstore:
     timeoutSeconds: 5
     failureThreshold: 3
     successThreshold: 1
-  # Shared cache storage configuration.
-  storage:
-    # Optional host path for node-local storage, for example an NVMe mount on EKS nodes.
-    # When set, Brainstore cache volumes use hostPath instead of emptyDir / ephemeral PVCs.
-    hostPath: ""
-
   # Brainstore Reader configuration
   reader:
     name: "brainstore-reader"
@@ -242,6 +236,13 @@ brainstore:
       size: ""
       # Optional emptyDir size limit for CEL policy compliance
       sizeLimit: ""
+    ephemeralStorage:
+      # Total pod-local storage budget for ephemeral-storage requests.
+      # Size this for cache emptyDir, optional /tmp emptyDir, and writable layer/log overhead.
+      # On GKE Autopilot, volume.size is still used as the fallback request when this is unset.
+      request: ""
+      # Optional total pod-local storage limit.
+      limit: ""
     tmpVolume:
       enabled: false
       sizeLimit: ""
@@ -286,6 +287,13 @@ brainstore:
       size: ""
       # Optional emptyDir size limit for CEL policy compliance
       sizeLimit: ""
+    ephemeralStorage:
+      # Total pod-local storage budget for ephemeral-storage requests.
+      # Size this for cache emptyDir, optional /tmp emptyDir, and writable layer/log overhead.
+      # On GKE Autopilot, volume.size is still used as the fallback request when this is unset.
+      request: ""
+      # Optional total pod-local storage limit.
+      limit: ""
     tmpVolume:
       enabled: false
       sizeLimit: ""
@@ -331,6 +339,13 @@ brainstore:
       size: ""
       # Optional emptyDir size limit for CEL policy compliance
       sizeLimit: ""
+    ephemeralStorage:
+      # Total pod-local storage budget for ephemeral-storage requests.
+      # Size this for cache emptyDir, optional /tmp emptyDir, and writable layer/log overhead.
+      # On GKE Autopilot, volume.size is still used as the fallback request when this is unset.
+      request: ""
+      # Optional total pod-local storage limit.
+      limit: ""
     tmpVolume:
       enabled: false
       sizeLimit: ""

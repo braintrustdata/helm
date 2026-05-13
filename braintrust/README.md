@@ -90,6 +90,17 @@ brainstore:
 
 **Supported machine families:** c4, c4d
 
+If you need the request to cover more than the cache volume alone, set an explicit total pod-local storage budget:
+
+```yaml
+brainstore:
+  reader:
+    volume:
+      size: "900Gi"
+    ephemeralStorage:
+      request: "905Gi"  # cache + /tmp (if enabled) + logs/writable-layer overhead
+```
+
 ### GKE Standard Mode
 
 For Standard mode clusters, create node pools with local SSDs, then deploy:
@@ -146,6 +157,18 @@ For Standard mode clusters, create node pools with local SSDs, then deploy:
 - Pods are scheduled on your pre-configured node pools
 - Local SSDs are automatically available via emptyDir volumes
 - Pod anti-affinity ensures readers and writers don't share nodes (each pod gets dedicated node access)
+
+## AWS EKS Local Storage
+
+On EKS, Brainstore uses Kubernetes-managed `emptyDir` volumes for cache storage. To make scheduling reflect the real local-disk budget, set `brainstore.<role>.ephemeralStorage.request` for each Brainstore role.
+
+Size the request for the pod's full local-storage usage:
+- cache `emptyDir`
+- optional `/tmp` `emptyDir`
+- container logs
+- writable layer overhead
+
+When you enable `tmpVolume`, make sure the `ephemeralStorage.request` still covers that extra space.
 
 ## Testing
 

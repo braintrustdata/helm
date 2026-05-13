@@ -79,6 +79,9 @@ brainstore:
       limits:
         cpu: "16"
         memory: "32Gi"
+    ephemeralStorage:
+      # Total pod-local storage budget for cache, optional /tmp, logs, and writable layers.
+      request: "<your reader total pod-local storage budget>"
   fastreader:
     name: "brainstore-fastreader"
     replicas: 2
@@ -93,6 +96,9 @@ brainstore:
       limits:
         cpu: "16"
         memory: "32Gi"
+    ephemeralStorage:
+      # Total pod-local storage budget for cache, optional /tmp, logs, and writable layers.
+      request: "<your fastreader total pod-local storage budget>"
   writer:
     name: "brainstore-writer"
     replicas: 1
@@ -107,3 +113,6 @@ brainstore:
       limits:
         cpu: "32"
         memory: "64Gi"
+    ephemeralStorage:
+      # Total pod-local storage budget for cache, optional /tmp, logs, and writable layers.
+      request: "<your writer total pod-local storage budget>"

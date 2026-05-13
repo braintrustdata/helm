@@ -31,6 +31,9 @@ brainstore:
       capabilities:
         drop:
           - ALL
+    ephemeralStorage:
+      # Include cache, this /tmp volume, logs, and writable layer overhead.
+      request: "<your reader total pod-local storage budget>"
     tmpVolume:
       enabled: true
       sizeLimit: "1Gi"
@@ -42,6 +45,9 @@ brainstore:
       capabilities:
         drop:
           - ALL
+    ephemeralStorage:
+      # Include cache, this /tmp volume, logs, and writable layer overhead.
+      request: "<your fastreader total pod-local storage budget>"
     tmpVolume:
       enabled: true
       sizeLimit: "1Gi"
@@ -53,6 +59,9 @@ brainstore:
       capabilities:
         drop:
           - ALL
+    ephemeralStorage:
+      # Include cache, this /tmp volume, logs, and writable layer overhead.
+      request: "<your writer total pod-local storage budget>"
     tmpVolume:
       enabled: true
       sizeLimit: "1Gi"
