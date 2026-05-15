@@ -21,6 +21,6 @@ helm upgrade --install \
 
 ## Prerequisites
 
-Before installing the Braintrust Helm chart, ensure you have run the appropriate Braintrust Terraform module for [AWS](https://github.com/braintrustdata/terraform-aws-braintrust-data-plane), [Google](https://github.com/braintrustdata/terraform-google-braintrust-data-plane), or [Azure](https://github.com/braintrustdata/terraform-azure-braintrust-data-plane) to deploy the base infrastructure.
+Before installing the Braintrust Helm chart, ensure you have run the appropriate braintrust terraform module [Google](https://github.com/braintrustdata/terraform-google-braintrust-data-plane) or [Azure](https://github.com/braintrustdata/terraform-azure-braintrust-data-plane) to deploy the base infrastructure.
 
 See the [Braintrust Helm Chart](./braintrust/README.md) for more details.
