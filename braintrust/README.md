@@ -192,3 +192,7 @@ This version also adds first-class `brainstoreWalFooterVersion` support and auto
 ## Example Values Files
 
 Example values files for different cloud providers and configurations are located in the `examples/` folder.
+
+- `examples/aws-eks/values.yaml`: AWS EKS deployment with user-defined functions routed into the quarantine VPC. Uses an internal API `ClusterIP` service so you can pair it with the ingress or service exposure model used by your cluster.
+- `examples/google-autopilot/values.yaml`: GKE Autopilot deployment.
+- `examples/google-standard/values.yaml`: GKE Standard deployment.
