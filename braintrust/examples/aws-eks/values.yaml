@@ -1,4 +1,4 @@
-# Sample values for AWS EKS deployment without a quarantine VPC
+# Sample values for AWS EKS deployment with a quarantine VPC
 
 global:
   orgName: "<your Braintrust org name>"
@@ -14,26 +14,16 @@ objectStorage:
 
 api:
   name: "braintrust-api"
-  annotations:
-    service:
-      # Internal NLB via the AWS Load Balancer Controller.
-      # If you are using the terraform-aws-braintrust-data-plane EKS CloudFront path,
-      # set these so the controller adopts the pre-created internal NLB.
-      service.beta.kubernetes.io/aws-load-balancer-scheme: "internal"
-      service.beta.kubernetes.io/aws-load-balancer-type: "external"
-      service.beta.kubernetes.io/aws-load-balancer-nlb-target-type: "instance"
-      service.beta.kubernetes.io/aws-load-balancer-security-groups: "<your pre-created NLB security group ID>"
-      service.beta.kubernetes.io/aws-load-balancer-name: "<your pre-created NLB name>"
   replicas: 4
+  # Disable in-pod code execution so user-defined functions run in the quarantine VPC.
+  allowCodeFunctionExecution: false
   service:
-    type: LoadBalancer
+    type: ClusterIP
     port: 8000
     portName: http
   serviceAccount:
     name: "braintrust-api"
     awsRoleArn: "<your Braintrust API IAM role ARN>"
-  # Keep code execution enabled when not using a quarantine VPC.
-  allowCodeFunctionExecution: true
   resources:
     requests:
       cpu: "4"
@@ -41,6 +31,25 @@ api:
     limits:
       cpu: "8"
       memory: "16Gi"
+  extraEnvVars:
+    - name: QUARANTINE_INVOKE_ROLE
+      value: "<your quarantine invoke role ARN>"
+    - name: QUARANTINE_FUNCTION_ROLE
+      value: "<your quarantine function role ARN>"
+    - name: QUARANTINE_REGION
+      value: "<your AWS region>"
+    - name: QUARANTINE_PRIVATE_SUBNET_1_ID
+      value: "<your quarantine private subnet 1 ID>"
+    - name: QUARANTINE_PRIVATE_SUBNET_2_ID
+      value: "<your quarantine private subnet 2 ID>"
+    - name: QUARANTINE_PRIVATE_SUBNET_3_ID
+      value: "<your quarantine private subnet 3 ID>"
+    - name: QUARANTINE_PUB_PRIVATE_VPC_DEFAULT_SECURITY_GROUP
+      value: "<your quarantine Lambda security group ID>"
+    - name: QUARANTINE_PUB_PRIVATE_VPC_ID
+      value: "<your quarantine VPC ID>"
+  # nodeSelector:
+  #   topology.kubernetes.io/zone: us-east-1a
 
 brainstore:
   serviceAccount:
