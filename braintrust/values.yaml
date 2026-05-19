@@ -93,7 +93,7 @@ api:
   replicas: 4
   image:
     repository: public.ecr.aws/braintrust/standalone-api
-    tag: v2.0.0
+    tag: v2.1.1
     pullPolicy: IfNotPresent
   service:
     # Optional name for service object. If not specified (empty), the api.name
@@ -120,7 +120,7 @@ api:
     enabled: false
     sizeLimit: ""
   # Allow running user generated code functions (e.g. scorers/tools)
-  allowCodeFunctionExecution: true
+  allowCodeFunctionExecution: false
   # Brainstore backfill configuration. These defaults are fine for most cases.
   backfillDisableHistorical: false
   backfillDisableNonhistorical: false
@@ -174,7 +174,7 @@ brainstore:
   # Shared image configuration
   image:
     repository: public.ecr.aws/braintrust/brainstore
-    tag: v2.0.0
+    tag: v2.1.1
     pullPolicy: IfNotPresent
   # Locks backend configuration
   # Options: "redis" (default) or "objectStorage"
