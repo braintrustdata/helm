@@ -44,3 +44,61 @@ tests:
           content:
             name: CUSTOM_VAR
             value: "custom-value"
+
+  - it: should use explicit ephemeral-storage request for AWS
+    template: brainstore-fastreader-deployment.yaml
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/aws-values.yaml
+    set:
+      brainstore.fastreader.ephemeralStorage.request: "101Gi"
+    release:
+      namespace: "braintrust"
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].resources.requests["ephemeral-storage"]
+          value: "101Gi"
+
+  - it: should not inject ephemeral-storage request for Azure
+    template: brainstore-fastreader-deployment.yaml
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/azure-values.yaml
+    release:
+      namespace: "braintrust"
+    asserts:
+      - isNull:
+          path: spec.template.spec.containers[0].resources.requests["ephemeral-storage"]
+
+  - it: should not inject ephemeral-storage request for GKE Standard
+    template: brainstore-fastreader-deployment.yaml
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/google-values.yaml
+    set:
+      google.mode: "standard"
+      brainstore.fastreader.ephemeralStorage.request: "101Gi"
+    release:
+      namespace: "braintrust"
+    asserts:
+      - isNull:
+          path: spec.template.spec.containers[0].resources.requests["ephemeral-storage"]
+
+  - it: should mount tmp volume only when enabled
+    template: brainstore-fastreader-deployment.yaml
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      brainstore.fastreader.tmpVolume.enabled: true
+      brainstore.fastreader.tmpVolume.sizeLimit: "1Gi"
+    release:
+      namespace: "braintrust"
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: tmp-volume
+            mountPath: /tmp
+      - equal:
+          path: spec.template.spec.volumes[1].emptyDir.sizeLimit
+          value: "1Gi"

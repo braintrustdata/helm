@@ -44,6 +44,10 @@ spec:
         {{- end }}
     spec:
       serviceAccountName: {{ .Values.api.serviceAccount.name }}
+      {{- with .Values.api.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       {{- with .Values.api.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
@@ -60,6 +64,10 @@ spec:
         - name: api
           image: "{{ .Values.api.image.repository }}:{{ .Values.api.image.tag }}"
           imagePullPolicy: {{ .Values.api.image.pullPolicy }}
+          {{- with .Values.api.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           ports:
             - containerPort: {{ .Values.api.service.port }}
           resources:
@@ -122,17 +130,32 @@ spec:
             {{- if .Values.api.extraEnvVars }}
             {{- toYaml .Values.api.extraEnvVars | nindent 12 }}
             {{- end }}
-          {{- if and (eq .Values.cloud "azure") .Values.azure.enableAzureKeyVaultDriver }}
+          {{- if or .Values.api.tmpVolume.enabled (and (eq .Values.cloud "azure") .Values.azure.enableAzureKeyVaultDriver) }}
           volumeMounts:
+            {{- if .Values.api.tmpVolume.enabled }}
+            - name: tmp-volume
+              mountPath: /tmp
+            {{- end }}
+            {{- if and (eq .Values.cloud "azure") .Values.azure.enableAzureKeyVaultDriver }}
             - name: secrets-store-inline
               mountPath: "/mnt/secrets-store"
               readOnly: true
+            {{- end }}
           {{- end }}
       {{- with .Values.api.extraContainers }}
       {{- toYaml . | nindent 8 }}
       {{- end }}
       volumes:
-        {{- if or (and (eq .Values.cloud "azure") .Values.azure.enableAzureKeyVaultDriver) .Values.api.extraVolumes }}
+        {{- if or .Values.api.tmpVolume.enabled (and (eq .Values.cloud "azure") .Values.azure.enableAzureKeyVaultDriver) .Values.api.extraVolumes }}
+        {{- if .Values.api.tmpVolume.enabled }}
+        - name: tmp-volume
+          emptyDir:
+            {{- if .Values.api.tmpVolume.sizeLimit }}
+            sizeLimit: {{ .Values.api.tmpVolume.sizeLimit | quote }}
+            {{- else }}
+            {}
+            {{- end }}
+        {{- end }}
         {{- if and (eq .Values.cloud "azure") .Values.azure.enableAzureKeyVaultDriver }}
         - name: secrets-store-inline
           csi:
@@ -147,4 +170,3 @@ spec:
         {{- else }}
         []
         {{- end }}
-

@@ -80,6 +80,19 @@ tests:
       - isNotNull:
           path: spec.template.spec.volumes[0].emptyDir
 
+  - it: should not inject ephemeral-storage request for Azure
+    template: brainstore-writer-deployment.yaml
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/azure-values.yaml
+    release:
+      namespace: "braintrust"
+    asserts:
+      - isNull:
+          path: spec.template.spec.containers[0].resources.requests["ephemeral-storage"]
+      - isNull:
+          path: spec.template.spec.containers[0].resources.limits["ephemeral-storage"]
+
   - it: should include Azure Key Vault volume mount when enabled
     template: brainstore-writer-deployment.yaml
     values:
@@ -112,6 +125,71 @@ tests:
       - equal:
           path: spec.template.spec.nodeSelector["cloud.google.com/compute-class"]
           value: "Performance"
+
+  - it: should use explicit ephemeral-storage request and limit for AWS
+    template: brainstore-writer-deployment.yaml
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/aws-values.yaml
+    set:
+      brainstore.writer.ephemeralStorage.request: "201Gi"
+      brainstore.writer.ephemeralStorage.limit: "201Gi"
+    release:
+      namespace: "braintrust"
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].resources.requests["ephemeral-storage"]
+          value: "201Gi"
+      - equal:
+          path: spec.template.spec.containers[0].resources.limits["ephemeral-storage"]
+          value: "201Gi"
+
+  - it: should keep GKE Autopilot volume size fallback when no explicit request is set
+    template: brainstore-writer-deployment.yaml
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/google-values.yaml
+    set:
+      brainstore.writer.volume.size: "200Gi"
+    release:
+      namespace: "braintrust"
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].resources.requests["ephemeral-storage"]
+          value: "200Gi"
+
+  - it: should not inject ephemeral-storage request for GKE Standard
+    template: brainstore-writer-deployment.yaml
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/google-values.yaml
+    set:
+      google.mode: "standard"
+      brainstore.writer.ephemeralStorage.request: "201Gi"
+    release:
+      namespace: "braintrust"
+    asserts:
+      - isNull:
+          path: spec.template.spec.containers[0].resources.requests["ephemeral-storage"]
+
+  - it: should mount tmp volume only when enabled
+    template: brainstore-writer-deployment.yaml
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      brainstore.writer.tmpVolume.enabled: true
+      brainstore.writer.tmpVolume.sizeLimit: "1Gi"
+    release:
+      namespace: "braintrust"
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: tmp-volume
+            mountPath: /tmp
+      - equal:
+          path: spec.template.spec.volumes[1].emptyDir.sizeLimit
+          value: "1Gi"
 
   - it: should include BRAINSTORE_LOCKS_URI when locksBackend is redis
     template: brainstore-writer-deployment.yaml

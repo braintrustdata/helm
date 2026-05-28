@@ -44,6 +44,10 @@ spec:
         {{- end }}
     spec:
       serviceAccountName: {{ .Values.brainstore.serviceAccount.name }}
+      {{- with .Values.brainstore.writer.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       {{- if or .Values.brainstore.writer.nodeSelector (and (eq .Values.cloud "google") (eq .Values.google.mode "autopilot")) }}
       nodeSelector:
         {{- with .Values.brainstore.writer.nodeSelector }}
@@ -67,16 +71,21 @@ spec:
         - name: brainstore-writer
           image: "{{ .Values.brainstore.image.repository }}:{{ .Values.brainstore.image.tag }}"
           imagePullPolicy: {{ .Values.brainstore.image.pullPolicy }}
+          {{- with .Values.brainstore.writer.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           command: ["brainstore"]
           args: ["web"]
           ports:
             - containerPort: {{ .Values.brainstore.writer.service.port }}
           resources:
-            {{- $resources := .Values.brainstore.writer.resources }}
-            {{- if and (eq .Values.cloud "google") (eq .Values.google.mode "autopilot") .Values.brainstore.writer.volume.size }}
-            {{- $resources = merge (dict "requests" (merge $resources.requests (dict "ephemeral-storage" .Values.brainstore.writer.volume.size))) $resources }}
-            {{- end }}
-            {{- toYaml $resources | nindent 12 }}
+            {{- include "braintrust.brainstoreResources" (dict
+              "root" .
+              "resources" .Values.brainstore.writer.resources
+              "volumeSize" .Values.brainstore.writer.volume.size
+              "ephemeralStorage" .Values.brainstore.writer.ephemeralStorage
+            ) | nindent 12 }}
           {{- with .Values.brainstore.livenessProbe }}
           livenessProbe:
             {{- toYaml . | nindent 12 }}
@@ -134,6 +143,10 @@ spec:
           volumeMounts:
             - name: cache-volume
               mountPath: {{ .Values.brainstore.writer.cacheDir }}
+            {{- if .Values.brainstore.writer.tmpVolume.enabled }}
+            - name: tmp-volume
+              mountPath: /tmp
+            {{- end }}
             {{- if and (eq .Values.cloud "azure") .Values.azure.enableAzureKeyVaultDriver }}
             - name: secrets-store-inline
               mountPath: "/mnt/secrets-store"
@@ -155,8 +168,22 @@ spec:
                   requests:
                     storage: {{ required "brainstore.writer.volume.size must be set" .Values.brainstore.writer.volume.size | quote }}
           {{- else }}
-          emptyDir: {}
+          emptyDir:
+            {{- if .Values.brainstore.writer.volume.sizeLimit }}
+            sizeLimit: {{ .Values.brainstore.writer.volume.sizeLimit | quote }}
+            {{- else }}
+            {}
+            {{- end }}
           {{- end }}
+        {{- if .Values.brainstore.writer.tmpVolume.enabled }}
+        - name: tmp-volume
+          emptyDir:
+            {{- if .Values.brainstore.writer.tmpVolume.sizeLimit }}
+            sizeLimit: {{ .Values.brainstore.writer.tmpVolume.sizeLimit | quote }}
+            {{- else }}
+            {}
+            {{- end }}
+        {{- end }}
         {{- if and (eq .Values.cloud "azure") .Values.azure.enableAzureKeyVaultDriver }}
         - name: secrets-store-inline
           csi:

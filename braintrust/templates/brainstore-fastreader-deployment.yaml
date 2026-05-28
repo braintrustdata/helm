@@ -44,6 +44,10 @@ spec:
         {{- end }}
     spec:
       serviceAccountName: {{ .Values.brainstore.serviceAccount.name }}
+      {{- with .Values.brainstore.fastreader.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       {{- if or .Values.brainstore.fastreader.nodeSelector (and (eq .Values.cloud "google") (eq .Values.google.mode "autopilot")) }}
       nodeSelector:
         {{- with .Values.brainstore.fastreader.nodeSelector }}
@@ -67,16 +71,21 @@ spec:
         - name: brainstore-fastreader
           image: "{{ .Values.brainstore.image.repository }}:{{ .Values.brainstore.image.tag }}"
           imagePullPolicy: {{ .Values.brainstore.image.pullPolicy }}
+          {{- with .Values.brainstore.fastreader.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           command: ["brainstore"]
           args: ["web"]
           ports:
             - containerPort: {{ .Values.brainstore.fastreader.service.port }}
           resources:
-            {{- $resources := .Values.brainstore.fastreader.resources }}
-            {{- if and (eq .Values.cloud "google") (eq .Values.google.mode "autopilot") .Values.brainstore.fastreader.volume.size }}
-            {{- $resources = merge (dict "requests" (merge $resources.requests (dict "ephemeral-storage" .Values.brainstore.fastreader.volume.size))) $resources }}
-            {{- end }}
-            {{- toYaml $resources | nindent 12 }}
+            {{- include "braintrust.brainstoreResources" (dict
+              "root" .
+              "resources" .Values.brainstore.fastreader.resources
+              "volumeSize" .Values.brainstore.fastreader.volume.size
+              "ephemeralStorage" .Values.brainstore.fastreader.ephemeralStorage
+            ) | nindent 12 }}
           {{- with .Values.brainstore.livenessProbe }}
           livenessProbe:
             {{- toYaml . | nindent 12 }}
@@ -134,6 +143,10 @@ spec:
           volumeMounts:
             - name: cache-volume
               mountPath: {{ .Values.brainstore.fastreader.cacheDir }}
+            {{- if .Values.brainstore.fastreader.tmpVolume.enabled }}
+            - name: tmp-volume
+              mountPath: /tmp
+            {{- end }}
             {{- if and (eq .Values.cloud "azure") .Values.azure.enableAzureKeyVaultDriver }}
             - name: secrets-store-inline
               mountPath: "/mnt/secrets-store"
@@ -155,8 +168,22 @@ spec:
                   requests:
                     storage: {{ required "brainstore.fastreader.volume.size must be set" .Values.brainstore.fastreader.volume.size | quote }}
           {{- else }}
-          emptyDir: {}
+          emptyDir:
+            {{- if .Values.brainstore.fastreader.volume.sizeLimit }}
+            sizeLimit: {{ .Values.brainstore.fastreader.volume.sizeLimit | quote }}
+            {{- else }}
+            {}
+            {{- end }}
           {{- end }}
+        {{- if .Values.brainstore.fastreader.tmpVolume.enabled }}
+        - name: tmp-volume
+          emptyDir:
+            {{- if .Values.brainstore.fastreader.tmpVolume.sizeLimit }}
+            sizeLimit: {{ .Values.brainstore.fastreader.tmpVolume.sizeLimit | quote }}
+            {{- else }}
+            {}
+            {{- end }}
+        {{- end }}
         {{- if and (eq .Values.cloud "azure") .Values.azure.enableAzureKeyVaultDriver }}
         - name: secrets-store-inline
           csi:

@@ -1,0 +1,163 @@
+# Sample values for GKE Autopilot deployment with CEL policy compliance
+
+global:
+  orgName: "<your Braintrust org name>"
+  namespace: "braintrust"
+
+cloud: "google"
+
+google:
+  mode: "autopilot"
+  autopilotMachineFamily: "c4"
+
+objectStorage:
+  google:
+    brainstoreBucket: "<your brainstore bucket name>"
+    apiBucket: "<your api bucket name>"
+
+api:
+  name: "braintrust-api"
+  # Uncomment the following section to use a different image or tag from the version in the Helm release
+  #image:
+    #repository: public.ecr.aws/braintrust/standalone-api
+    #tag: "<your image tag>"
+  annotations:
+    service:
+      networking.gke.io/load-balancer-type: "Internal"
+  replicas: 4
+  service:
+    type: LoadBalancer
+    port: 8000
+    portName: http
+  serviceAccount:
+    name: "braintrust-api"
+    googleServiceAccount: "<your Braintrust API Google service account>"
+  enableGcsAuth: false
+  resources:
+    requests:
+      cpu: "4"
+      memory: "4Gi"
+    limits:
+      cpu: "4"
+      memory: "8Gi"
+  securityContext:
+    readOnlyRootFilesystem: true
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+        - ALL
+  tmpVolume:
+    enabled: true
+    sizeLimit: "1Gi"
+  extraEnvVars:
+    - name: AWS_REGION
+      value: "us-central1"
+
+brainstore:
+  serviceAccount:
+    name: "brainstore"
+    googleServiceAccount: "<your Braintrust Brainstore Google service account>"
+  # Uncomment the following section to use a different image or tag from the version in the Helm release
+  #image:
+    #repository: public.ecr.aws/braintrust/brainstore
+    #tag: "<your image tag>"
+  locksBackend: "objectStorage"
+
+  reader:
+    name: "brainstore-reader"
+    replicas: 2
+    service:
+      name: ""
+      type: ClusterIP
+      port: 4000
+      portName: http
+    resources:
+      requests:
+        cpu: "16"
+        memory: "32Gi"
+      limits:
+        cpu: "16"
+        memory: "32Gi"
+    cacheDir: "/mnt/tmp/brainstore"
+    objectStoreCacheMemoryLimit: "1Gi"
+    objectStoreCacheFileSize: "900Gi"
+    verbose: true
+    securityContext:
+      readOnlyRootFilesystem: true
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop:
+          - ALL
+    volume:
+      size: "1000Gi"
+      sizeLimit: "900Gi"
+    tmpVolume:
+      enabled: true
+      sizeLimit: "1Gi"
+    extraEnvVars:
+
+  fastreader:
+    name: "brainstore-fastreader"
+    replicas: 2
+    service:
+      name: ""
+      type: ClusterIP
+      port: 4000
+      portName: http
+    resources:
+      requests:
+        cpu: "16"
+        memory: "32Gi"
+      limits:
+        cpu: "16"
+        memory: "32Gi"
+    cacheDir: "/mnt/tmp/brainstore"
+    objectStoreCacheMemoryLimit: "1Gi"
+    objectStoreCacheFileSize: "900Gi"
+    verbose: true
+    securityContext:
+      readOnlyRootFilesystem: true
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop:
+          - ALL
+    volume:
+      size: "1000Gi"
+      sizeLimit: "900Gi"
+    tmpVolume:
+      enabled: true
+      sizeLimit: "1Gi"
+    extraEnvVars:
+
+  writer:
+    name: "brainstore-writer"
+    replicas: 1
+    service:
+      name: ""
+      type: ClusterIP
+      port: 4000
+      portName: http
+    resources:
+      requests:
+        cpu: "32"
+        memory: "64Gi"
+      limits:
+        cpu: "32"
+        memory: "64Gi"
+    cacheDir: "/mnt/tmp/brainstore"
+    objectStoreCacheMemoryLimit: "1Gi"
+    objectStoreCacheFileSize: "900Gi"
+    verbose: true
+    securityContext:
+      readOnlyRootFilesystem: true
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop:
+          - ALL
+    volume:
+      size: "1000Gi"
+      sizeLimit: "900Gi"
+    tmpVolume:
+      enabled: true
+      sizeLimit: "1Gi"
+    extraEnvVars:
