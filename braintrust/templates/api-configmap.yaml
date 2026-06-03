@@ -1,3 +1,9 @@
+{{- $unsafeUrlRequestMode := .Values.api.unsafeUrlRequestMode | default "" | toString | trim -}}
+{{- if not (has $unsafeUrlRequestMode (list "" "off" "warn" "reject")) -}}
+{{- fail "api.unsafeUrlRequestMode must be empty or one of: off, warn, reject." -}}
+{{- end -}}
+{{- $urlSecurityDnsServers := .Values.api.urlSecurityDnsServers | default "" | toString | trim -}}
+{{- $urlSecurityAllowCidrs := .Values.api.urlSecurityAllowCidrs | default "" | toString | trim -}}
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -55,6 +61,15 @@ data:
   INSERT_LOGS2: "true"
   ALLOW_INVALID_BASE64: {{ .Values.api.allowInvalidBase64 | default "false" | quote }}
   NODE_MEMORY_PERCENT: {{ .Values.api.nodeMemoryPercent | default "80" | quote }}
+  {{- with $unsafeUrlRequestMode }}
+  BRAINTRUST_UNSAFE_URL_REQUEST_MODE: {{ . | quote }}
+  {{- end }}
+  {{- with $urlSecurityDnsServers }}
+  BRAINTRUST_URL_SECURITY_DNS_SERVERS: {{ . | quote }}
+  {{- end }}
+  {{- with $urlSecurityAllowCidrs }}
+  BRAINTRUST_URL_SECURITY_ALLOW_CIDRS: {{ . | quote }}
+  {{- end }}
   {{- if .Values.brainstoreWalFooterVersion }}
   BRAINSTORE_WAL_FOOTER_VERSION: {{ .Values.brainstoreWalFooterVersion | quote }}
   {{- end }}

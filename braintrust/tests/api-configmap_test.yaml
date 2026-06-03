@@ -23,6 +23,50 @@ tests:
           path: data.BRAINSTORE_DEFAULT
           value: "force"
 
+  - it: should omit URL security env vars when unset
+    values:
+      - __fixtures__/base-values.yaml
+    release:
+      namespace: "braintrust"
+    asserts:
+      - isNull:
+          path: data.BRAINTRUST_UNSAFE_URL_REQUEST_MODE
+      - isNull:
+          path: data.BRAINTRUST_URL_SECURITY_DNS_SERVERS
+      - isNull:
+          path: data.BRAINTRUST_URL_SECURITY_ALLOW_CIDRS
+
+  - it: should include URL security env vars when configured
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      api.unsafeUrlRequestMode: " reject "
+      api.urlSecurityDnsServers: " 1.1.1.1,8.8.8.8 "
+      api.urlSecurityAllowCidrs: " 10.0.0.0/8,192.168.0.0/16 "
+    release:
+      namespace: "braintrust"
+    asserts:
+      - equal:
+          path: data.BRAINTRUST_UNSAFE_URL_REQUEST_MODE
+          value: "reject"
+      - equal:
+          path: data.BRAINTRUST_URL_SECURITY_DNS_SERVERS
+          value: "1.1.1.1,8.8.8.8"
+      - equal:
+          path: data.BRAINTRUST_URL_SECURITY_ALLOW_CIDRS
+          value: "10.0.0.0/8,192.168.0.0/16"
+
+  - it: should reject invalid URL request mode
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      api.unsafeUrlRequestMode: "block"
+    release:
+      namespace: "braintrust"
+    asserts:
+      - failedTemplate:
+          errorMessage: "api.unsafeUrlRequestMode must be empty or one of: off, warn, reject."
+
   - it: should use correct namespace from helper when createNamespace is false
     values:
       - __fixtures__/base-values.yaml
