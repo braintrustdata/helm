@@ -17,6 +17,9 @@ tests:
           path: data.ORG_NAME
           value: "test-org"
       - equal:
+          path: data.PRIMARY_ORG_NAME
+          value: ""
+      - equal:
           path: data.BRAINSTORE_ENABLED
           value: "true"
       - equal:
@@ -55,6 +58,90 @@ tests:
       - equal:
           path: data.BRAINTRUST_URL_SECURITY_ALLOW_CIDRS
           value: "10.0.0.0/8,192.168.0.0/16"
+
+  - it: should omit allowed org IDs when unset
+    values:
+      - __fixtures__/base-values.yaml
+    release:
+      namespace: "braintrust"
+    asserts:
+      - isNull:
+          path: data.ALLOWED_ORG_IDS
+
+  - it: should omit allowed org IDs when blank
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      global.allowedOrgIds: "   "
+    release:
+      namespace: "braintrust"
+    asserts:
+      - isNull:
+          path: data.ALLOWED_ORG_IDS
+
+  - it: should include allowed org IDs when configured
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      global.allowedOrgIds: " org_123,org_456 "
+    release:
+      namespace: "braintrust"
+    asserts:
+      - equal:
+          path: data.ALLOWED_ORG_IDS
+          value: "org_123,org_456"
+
+  - it: should include primary org name when configured
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      global.primaryOrgName: " primary-org "
+    release:
+      namespace: "braintrust"
+    asserts:
+      - equal:
+          path: data.PRIMARY_ORG_NAME
+          value: "primary-org"
+
+  - it: should allow wildcard org name when primary org name is configured
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      global.orgName: "*"
+      global.primaryOrgName: "primary-org"
+    release:
+      namespace: "braintrust"
+    asserts:
+      - equal:
+          path: data.ORG_NAME
+          value: "*"
+      - equal:
+          path: data.PRIMARY_ORG_NAME
+          value: "primary-org"
+
+  - it: should reject empty org name without primary org name
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      global.orgName: ""
+      global.primaryOrgName: ""
+    release:
+      namespace: "braintrust"
+    asserts:
+      - failedTemplate:
+          errorMessage: "global.primaryOrgName is required when global.orgName is empty or \"*\"; self-hosted service-token management needs a primary organization."
+
+  - it: should reject wildcard org name without primary org name
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      global.orgName: "*"
+      global.primaryOrgName: "   "
+    release:
+      namespace: "braintrust"
+    asserts:
+      - failedTemplate:
+          errorMessage: "global.primaryOrgName is required when global.orgName is empty or \"*\"; self-hosted service-token management needs a primary organization."
 
   - it: should use correct namespace from helper when createNamespace is false
     values:

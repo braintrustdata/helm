@@ -1,3 +1,9 @@
+{{- $orgName := .Values.global.orgName | default "" | toString | trim -}}
+{{- $primaryOrgName := .Values.global.primaryOrgName | default "" | toString | trim -}}
+{{- if and (or (eq $orgName "") (eq $orgName "*")) (eq $primaryOrgName "") -}}
+{{- fail "global.primaryOrgName is required when global.orgName is empty or \"*\"; self-hosted service-token management needs a primary organization." -}}
+{{- end -}}
+{{- $allowedOrgIds := .Values.global.allowedOrgIds | default "" | toString | trim -}}
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -13,7 +19,11 @@ metadata:
     {{- toYaml . | nindent 4 }}
   {{- end }}
 data:
-  ORG_NAME: {{ .Values.global.orgName | quote }}
+  ORG_NAME: {{ $orgName | quote }}
+  PRIMARY_ORG_NAME: {{ $primaryOrgName | quote }}
+  {{- with $allowedOrgIds }}
+  ALLOWED_ORG_IDS: {{ . | quote }}
+  {{- end }}
 
   {{- if eq .Values.cloud "azure" }}
   AZURE_STORAGE_ACCOUNT_NAME: {{ .Values.objectStorage.azure.storageAccountName | quote }}
