@@ -26,6 +26,13 @@ Static fast reader query sources used by API.
 {{- end -}}
 
 {{/*
+Internal cluster URL for the API service.
+*/}}
+{{- define "braintrust.apiInternalUrl" -}}
+http://{{ .Values.api.service.name | default .Values.api.name }}.{{ include "braintrust.namespace" . }}:{{ .Values.api.service.port }}
+{{- end -}}
+
+{{/*
 Render Brainstore container resources with provider-specific ephemeral storage.
 
 Google Autopilot keeps the legacy behavior of defaulting the ephemeral-storage
