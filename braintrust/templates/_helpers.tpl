@@ -33,6 +33,13 @@ http://{{ .Values.api.service.name | default .Values.api.name }}.{{ include "bra
 {{- end -}}
 
 {{/*
+Internal cluster URL for the AI Gateway service.
+*/}}
+{{- define "braintrust.aiGatewayInternalUrl" -}}
+http://{{ .Values.aiGateway.service.name | default .Values.aiGateway.name }}.{{ include "braintrust.namespace" . }}:{{ .Values.aiGateway.service.port }}
+{{- end -}}
+
+{{/*
 Render Brainstore container resources with provider-specific ephemeral storage.
 
 Google Autopilot keeps the legacy behavior of defaulting the ephemeral-storage
