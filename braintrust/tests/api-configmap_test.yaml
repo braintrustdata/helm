@@ -301,6 +301,54 @@ tests:
           path: data.SKIP_PG_FOR_BRAINSTORE_OBJECTS
           value: "include:project_logs:abc123"
 
+  - it: should not include GATEWAY_URL when aiGateway useGateway is false
+    values:
+      - __fixtures__/base-values.yaml
+    release:
+      namespace: "braintrust"
+    asserts:
+      - isNull:
+          path: data.GATEWAY_URL
+
+  - it: should not include GATEWAY_URL when aiGateway is deployed but useGateway is false
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      aiGateway.enabled: true
+      aiGateway.useGateway: false
+    release:
+      namespace: "braintrust"
+    asserts:
+      - isNull:
+          path: data.GATEWAY_URL
+
+  - it: should set GATEWAY_URL when aiGateway useGateway is true
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      aiGateway.enabled: true
+      aiGateway.useGateway: true
+    release:
+      namespace: "braintrust"
+    asserts:
+      - equal:
+          path: data.GATEWAY_URL
+          value: "http://braintrust-ai-gateway.braintrust:8080"
+
+  - it: should use custom aiGateway service name for GATEWAY_URL
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      aiGateway.enabled: true
+      aiGateway.useGateway: true
+      aiGateway.service.name: "custom-ai-gateway"
+    release:
+      namespace: "braintrust"
+    asserts:
+      - equal:
+          path: data.GATEWAY_URL
+          value: "http://custom-ai-gateway.braintrust:8080"
+
   - it: should pass through exclude-style skipPgForBrainstoreObjects value
     values:
       - __fixtures__/base-values.yaml

@@ -1,0 +1,125 @@
+suite: test AI gateway configmap template
+templates:
+  - ai-gateway-configmap.yaml
+tests:
+  - it: should not render when ai-gateway is disabled
+    values:
+      - __fixtures__/base-values.yaml
+    release:
+      namespace: "braintrust"
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should render ai-gateway configmap when enabled
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      aiGateway.enabled: true
+    release:
+      namespace: "braintrust"
+    asserts:
+      - isKind:
+          of: ConfigMap
+      - equal:
+          path: metadata.name
+          value: braintrust-ai-gateway
+      - equal:
+          path: data.GATEWAY_ENV
+          value: "production"
+      - isNull:
+          path: data.GATEWAY_REGION
+      - equal:
+          path: data.BRAINTRUST_APP_URL
+          value: "https://www.braintrust.dev"
+      - equal:
+          path: data.BRAINTRUST_API_URL
+          value: "http://braintrust-api.braintrust:8000"
+      - equal:
+          path: data.GATEWAY_JSON_LOGS
+          value: "true"
+      - equal:
+          path: data.GATEWAY_TELEMETRY
+          value: "status,metrics"
+      - equal:
+          path: data.OTLP_HTTP_ENDPOINT
+          value: "https://www.braintrust.dev/api/pulse/otel"
+
+  - it: should set GATEWAY_REGION when region is provided
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      aiGateway.enabled: true
+      aiGateway.region: "us-east-1"
+    release:
+      namespace: "braintrust"
+    asserts:
+      - equal:
+          path: data.GATEWAY_REGION
+          value: "us-east-1"
+
+  - it: should use global controlPlaneTelemetry for GATEWAY_TELEMETRY
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      aiGateway.enabled: true
+      aiGateway.region: "us-east-1"
+      global.controlPlaneTelemetry: "status,metrics,usage,logs"
+    release:
+      namespace: "braintrust"
+    asserts:
+      - equal:
+          path: data.GATEWAY_TELEMETRY
+          value: "status,metrics,usage,logs"
+
+  - it: should use custom braintrustApiUrl when provided
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      aiGateway.enabled: true
+      aiGateway.region: "us-east-1"
+      aiGateway.braintrustApiUrl: "https://api.example.com"
+    release:
+      namespace: "braintrust"
+    asserts:
+      - equal:
+          path: data.BRAINTRUST_API_URL
+          value: "https://api.example.com"
+
+  - it: should omit OTLP_HTTP_ENDPOINT when control plane telemetry is disabled
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      aiGateway.enabled: true
+      global.controlPlaneTelemetry: ""
+    release:
+      namespace: "braintrust"
+    asserts:
+      - isNull:
+          path: data.OTLP_HTTP_ENDPOINT
+
+  - it: should derive OTLP_HTTP_ENDPOINT from braintrustAppUrl
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      aiGateway.enabled: true
+      aiGateway.braintrustAppUrl: "https://control.example.com"
+    release:
+      namespace: "braintrust"
+    asserts:
+      - equal:
+          path: data.OTLP_HTTP_ENDPOINT
+          value: "https://control.example.com/api/pulse/otel"
+
+  - it: should derive OTLP_HTTP_ENDPOINT from braintrustAppUrl with trailing slash
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      aiGateway.enabled: true
+      aiGateway.braintrustAppUrl: "https://control.example.com/"
+    release:
+      namespace: "braintrust"
+    asserts:
+      - equal:
+          path: data.OTLP_HTTP_ENDPOINT
+          value: "https://control.example.com/api/pulse/otel"

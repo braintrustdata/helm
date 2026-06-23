@@ -1,0 +1,55 @@
+suite: test AI gateway service template
+templates:
+  - ai-gateway-service.yaml
+tests:
+  - it: should not render when ai-gateway is disabled
+    values:
+      - __fixtures__/base-values.yaml
+    release:
+      namespace: "braintrust"
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should render ai-gateway service when enabled
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      aiGateway.enabled: true
+    release:
+      namespace: "braintrust"
+    asserts:
+      - isKind:
+          of: Service
+      - equal:
+          path: metadata.name
+          value: braintrust-ai-gateway
+      - equal:
+          path: spec.ports[0].port
+          value: 8080
+      - equal:
+          path: spec.ports[0].targetPort
+          value: 8080
+      - equal:
+          path: spec.selector.app
+          value: braintrust-ai-gateway
+      - equal:
+          path: spec.type
+          value: ClusterIP
+
+  - it: should merge global and ai-gateway labels
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      aiGateway.enabled: true
+      aiGateway.labels.component: "ai-gateway"
+      global.labels.environment: "production"
+    release:
+      namespace: "braintrust"
+    asserts:
+      - equal:
+          path: metadata.labels.environment
+          value: production
+      - equal:
+          path: metadata.labels.component
+          value: ai-gateway

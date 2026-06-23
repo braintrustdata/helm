@@ -1,0 +1,29 @@
+{{- if .Values.aiGateway.enabled }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.aiGateway.name }}
+  namespace: {{ include "braintrust.namespace" . }}
+  {{- with (merge (deepCopy .Values.aiGateway.labels) .Values.global.labels) }}
+  labels:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with .Values.aiGateway.annotations.configmap }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+data:
+  GATEWAY_ENV: "production"
+  {{- if .Values.aiGateway.region }}
+  GATEWAY_REGION: {{ .Values.aiGateway.region | quote }}
+  {{- end }}
+  BRAINTRUST_APP_URL: {{ .Values.aiGateway.braintrustAppUrl | quote }}
+  BRAINTRUST_API_URL: {{ default (include "braintrust.apiInternalUrl" .) .Values.aiGateway.braintrustApiUrl | quote }}
+  GATEWAY_JSON_LOGS: "true"
+  GATEWAY_TELEMETRY: {{ .Values.global.controlPlaneTelemetry | quote }}
+  {{- if .Values.global.controlPlaneTelemetry }}
+  {{- $appUrl := .Values.aiGateway.braintrustAppUrl | trimSuffix "/" }}
+  OTLP_HTTP_ENDPOINT: {{ printf "%s/api/pulse/otel" $appUrl | quote }}
+  {{- end }}
+{{- end }}
