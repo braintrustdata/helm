@@ -192,8 +192,6 @@ aiGateway:
   braintrustAppUrl: "https://www.braintrust.dev"
   # Defaults to the in-cluster API service URL when empty.
   braintrustApiUrl: ""
-  # Defaults to {braintrustAppUrl}/api/pulse/otel when empty.
-  otlpHttpEndpoint: ""
   resources:
     requests:
       cpu: "2"

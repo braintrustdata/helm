@@ -22,6 +22,8 @@ data:
   BRAINTRUST_API_URL: {{ default (include "braintrust.apiInternalUrl" .) .Values.aiGateway.braintrustApiUrl | quote }}
   GATEWAY_JSON_LOGS: "true"
   GATEWAY_TELEMETRY: {{ .Values.global.controlPlaneTelemetry | quote }}
+  {{- if .Values.global.controlPlaneTelemetry }}
   {{- $appUrl := .Values.aiGateway.braintrustAppUrl | trimSuffix "/" }}
-  OTLP_HTTP_ENDPOINT: {{ default (printf "%s/api/pulse/otel" $appUrl) .Values.aiGateway.otlpHttpEndpoint | quote }}
+  OTLP_HTTP_ENDPOINT: {{ printf "%s/api/pulse/otel" $appUrl | quote }}
+  {{- end }}
 {{- end }}

@@ -86,6 +86,18 @@ tests:
           path: data.BRAINTRUST_API_URL
           value: "https://api.example.com"
 
+  - it: should omit OTLP_HTTP_ENDPOINT when control plane telemetry is disabled
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      aiGateway.enabled: true
+      global.controlPlaneTelemetry: ""
+    release:
+      namespace: "braintrust"
+    asserts:
+      - isNull:
+          path: data.OTLP_HTTP_ENDPOINT
+
   - it: should derive OTLP_HTTP_ENDPOINT from braintrustAppUrl
     values:
       - __fixtures__/base-values.yaml
@@ -111,17 +123,3 @@ tests:
       - equal:
           path: data.OTLP_HTTP_ENDPOINT
           value: "https://control.example.com/api/pulse/otel"
-
-  - it: should use custom otlpHttpEndpoint when provided
-    values:
-      - __fixtures__/base-values.yaml
-    set:
-      aiGateway.enabled: true
-      aiGateway.braintrustAppUrl: "https://control.example.com"
-      aiGateway.otlpHttpEndpoint: "https://otel.example.com/v1"
-    release:
-      namespace: "braintrust"
-    asserts:
-      - equal:
-          path: data.OTLP_HTTP_ENDPOINT
-          value: "https://otel.example.com/v1"
