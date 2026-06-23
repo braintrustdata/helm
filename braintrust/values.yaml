@@ -163,8 +163,11 @@ api:
 
 # AI Gateway configuration (optional)
 # Deploys the Braintrust AI gateway service for LLM proxying and completions caching.
+# Recommended rollout: enabled=true first, wait for gateway pods to be ready, then useGateway=true.
 aiGateway:
   enabled: false
+  # Sets GATEWAY_URL on the API to route requests through the AI Gateway. Requires enabled=true.
+  useGateway: false
   name: "braintrust-ai-gateway"
   labels: {}
   podLabels: {}
