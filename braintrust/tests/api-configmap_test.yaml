@@ -83,13 +83,13 @@ tests:
     values:
       - __fixtures__/base-values.yaml
     set:
-      global.allowedOrgIds: " org_123,org_456 "
+      global.allowedOrgIds: " 00000000-0000-4000-8000-000000000001,00000000-0000-4000-8000-000000000002 "
     release:
       namespace: "braintrust"
     asserts:
       - equal:
           path: data.ALLOWED_ORG_IDS
-          value: "org_123,org_456"
+          value: "00000000-0000-4000-8000-000000000001,00000000-0000-4000-8000-000000000002"
 
   - it: should include primary org name when configured
     values:
