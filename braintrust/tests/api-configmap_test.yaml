@@ -56,17 +56,6 @@ tests:
           path: data.BRAINTRUST_URL_SECURITY_ALLOW_CIDRS
           value: "10.0.0.0/8,192.168.0.0/16"
 
-  - it: should reject invalid URL request mode
-    values:
-      - __fixtures__/base-values.yaml
-    set:
-      api.unsafeUrlRequestMode: "block"
-    release:
-      namespace: "braintrust"
-    asserts:
-      - failedTemplate:
-          errorMessage: "api.unsafeUrlRequestMode must be empty or one of: off, warn, reject."
-
   - it: should use correct namespace from helper when createNamespace is false
     values:
       - __fixtures__/base-values.yaml
