@@ -119,6 +119,25 @@ tests:
           path: data.PRIMARY_ORG_NAME
           value: "primary-org"
 
+  - it: should allow wildcard org name when primary org name is provided via extra env vars
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      global.orgName: "*"
+      global.primaryOrgName: ""
+      api.extraEnvVars:
+        - name: PRIMARY_ORG_NAME
+          value: "primary-org"
+    release:
+      namespace: "braintrust"
+    asserts:
+      - equal:
+          path: data.ORG_NAME
+          value: "*"
+      - equal:
+          path: data.PRIMARY_ORG_NAME
+          value: ""
+
   - it: should reject empty org name without primary org name
     values:
       - __fixtures__/base-values.yaml
@@ -129,7 +148,7 @@ tests:
       namespace: "braintrust"
     asserts:
       - failedTemplate:
-          errorMessage: "global.primaryOrgName is required when global.orgName is empty or \"*\"; self-hosted service-token management needs a primary organization."
+          errorMessage: "global.primaryOrgName or api.extraEnvVars PRIMARY_ORG_NAME is required when global.orgName is empty or \"*\"; self-hosted service-token management needs a primary organization."
 
   - it: should reject wildcard org name without primary org name
     values:
@@ -141,7 +160,7 @@ tests:
       namespace: "braintrust"
     asserts:
       - failedTemplate:
-          errorMessage: "global.primaryOrgName is required when global.orgName is empty or \"*\"; self-hosted service-token management needs a primary organization."
+          errorMessage: "global.primaryOrgName or api.extraEnvVars PRIMARY_ORG_NAME is required when global.orgName is empty or \"*\"; self-hosted service-token management needs a primary organization."
 
   - it: should use correct namespace from helper when createNamespace is false
     values:

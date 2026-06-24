@@ -1,7 +1,13 @@
 {{- $orgName := .Values.global.orgName | default "" | toString | trim -}}
 {{- $primaryOrgName := .Values.global.primaryOrgName | default "" | toString | trim -}}
-{{- if and (or (eq $orgName "") (eq $orgName "*")) (eq $primaryOrgName "") -}}
-{{- fail "global.primaryOrgName is required when global.orgName is empty or \"*\"; self-hosted service-token management needs a primary organization." -}}
+{{- $hasPrimaryOrgNameExtraEnv := false -}}
+{{- range .Values.api.extraEnvVars -}}
+{{- if eq (.name | default "" | toString) "PRIMARY_ORG_NAME" -}}
+{{- $hasPrimaryOrgNameExtraEnv = true -}}
+{{- end -}}
+{{- end -}}
+{{- if and (or (eq $orgName "") (eq $orgName "*")) (eq $primaryOrgName "") (not $hasPrimaryOrgNameExtraEnv) -}}
+{{- fail "global.primaryOrgName or api.extraEnvVars PRIMARY_ORG_NAME is required when global.orgName is empty or \"*\"; self-hosted service-token management needs a primary organization." -}}
 {{- end -}}
 {{- $allowedOrgIds := .Values.global.allowedOrgIds | default "" | toString | trim -}}
 ---

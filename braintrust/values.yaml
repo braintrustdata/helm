@@ -1,8 +1,8 @@
 # Global configs
 global:
   orgName: "<your org name on Braintrust>"
-  # Required when orgName is empty or "*". Used to authorize self-hosted
-  # service-token management.
+  # Required when orgName is empty or "*" unless PRIMARY_ORG_NAME is supplied
+  # via api.extraEnvVars. Used to authorize self-hosted service-token management.
   primaryOrgName: ""
   # Optional comma-separated org ID allowlist. If orgName is a specific name,
   # that org is included in the allowlist.
