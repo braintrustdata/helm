@@ -73,3 +73,6 @@ data:
   {{- if or .Values.brainstoreWalFooterVersion .Values.skipPgForBrainstoreObjects }}
   BRAINSTORE_WAL_USE_EFFICIENT_FORMAT: "true"
   {{- end }}
+  {{- if .Values.aiGateway.useGateway }}
+  GATEWAY_URL: {{ include "braintrust.aiGatewayInternalUrl" . | quote }}
+  {{- end }}

@@ -1,0 +1,117 @@
+suite: test AI gateway deployment template
+templates:
+  - ai-gateway-deployment.yaml
+  - ai-gateway-configmap.yaml
+tests:
+  - it: should not render when ai-gateway is disabled
+    template: ai-gateway-deployment.yaml
+    values:
+      - __fixtures__/base-values.yaml
+    release:
+      namespace: "braintrust"
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should render ai-gateway deployment when enabled
+    template: ai-gateway-deployment.yaml
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      aiGateway.enabled: true
+    release:
+      namespace: "braintrust"
+    asserts:
+      - isKind:
+          of: Deployment
+      - equal:
+          path: metadata.name
+          value: braintrust-ai-gateway
+      - equal:
+          path: spec.replicas
+          value: 2
+      - equal:
+          path: spec.template.spec.containers[0].name
+          value: ai-gateway
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: public.ecr.aws/braintrust/gateway:v2.4.0
+      - equal:
+          path: spec.template.spec.containers[0].ports[0].containerPort
+          value: 8080
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: COMPLETIONS_CACHE_REDIS_URL
+            valueFrom:
+              secretKeyRef:
+                name: braintrust-secrets
+                key: REDIS_URL
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: AUTH_CACHE_REDIS_URL
+            valueFrom:
+              secretKeyRef:
+                name: braintrust-secrets
+                key: REDIS_URL
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: BRAINSTORE_LICENSE_KEY
+            valueFrom:
+              secretKeyRef:
+                name: braintrust-secrets
+                key: BRAINSTORE_LICENSE_KEY
+
+  - it: should include extraEnvVars when provided
+    template: ai-gateway-deployment.yaml
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      aiGateway.enabled: true
+      aiGateway.extraEnvVars:
+        - name: DD_ENV
+          value: "production"
+    release:
+      namespace: "braintrust"
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: DD_ENV
+            value: "production"
+
+  - it: should include extraContainers when provided
+    template: ai-gateway-deployment.yaml
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      aiGateway.enabled: true
+      aiGateway.extraContainers:
+        - name: datadog-agent
+          image: public.ecr.aws/datadog/agent:7
+    release:
+      namespace: "braintrust"
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[1].name
+          value: datadog-agent
+
+  - it: should merge global and ai-gateway labels
+    template: ai-gateway-deployment.yaml
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      aiGateway.enabled: true
+      aiGateway.labels.component: "ai-gateway"
+      global.labels.environment: "production"
+    release:
+      namespace: "braintrust"
+    asserts:
+      - equal:
+          path: metadata.labels.environment
+          value: production
+      - equal:
+          path: metadata.labels.component
+          value: ai-gateway
