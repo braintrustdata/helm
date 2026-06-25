@@ -93,7 +93,7 @@ api:
   replicas: 4
   image:
     repository: public.ecr.aws/braintrust/standalone-api
-    tag: v2.4.0
+    tag: v2.5.0
     pullPolicy: IfNotPresent
   service:
     # Optional name for service object. If not specified (empty), the api.name
@@ -179,7 +179,7 @@ aiGateway:
   replicas: 2
   image:
     repository: public.ecr.aws/braintrust/gateway
-    tag: v2.4.0
+    tag: v2.5.0
     pullPolicy: IfNotPresent
   service:
     # Optional name for service object. If not specified (empty), aiGateway.name is used.
@@ -237,7 +237,7 @@ brainstore:
   # Shared image configuration
   image:
     repository: public.ecr.aws/braintrust/brainstore
-    tag: v2.4.0
+    tag: v2.5.0
     pullPolicy: IfNotPresent
   # Locks backend configuration
   # Options: "redis" (default) or "objectStorage"
