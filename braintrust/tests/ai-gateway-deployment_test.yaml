@@ -19,6 +19,8 @@ tests:
       - __fixtures__/base-values.yaml
     set:
       aiGateway.enabled: true
+      aiGateway.image.repository: test/gateway
+      aiGateway.image.tag: v1.0.0
     release:
       namespace: "braintrust"
     asserts:
@@ -35,7 +37,7 @@ tests:
           value: ai-gateway
       - equal:
           path: spec.template.spec.containers[0].image
-          value: public.ecr.aws/braintrust/gateway:v2.4.0
+          value: test/gateway:v1.0.0
       - equal:
           path: spec.template.spec.containers[0].ports[0].containerPort
           value: 8080
