@@ -41,9 +41,36 @@ tests:
       - equal:
           path: data.GATEWAY_TELEMETRY
           value: "status,metrics"
+      - isNull:
+          path: data.BRAINTRUST_UNSAFE_URL_REQUEST_MODE
+      - isNull:
+          path: data.BRAINTRUST_URL_SECURITY_DNS_SERVERS
+      - isNull:
+          path: data.BRAINTRUST_URL_SECURITY_ALLOW_CIDRS
       - equal:
           path: data.OTLP_HTTP_ENDPOINT
           value: "https://www.braintrust.dev/api/pulse/otel"
+
+  - it: should include URL security env vars when configured
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      aiGateway.enabled: true
+      api.unsafeUrlRequestMode: " proxy "
+      api.urlSecurityDnsServers: " 1.1.1.1,8.8.8.8 "
+      api.urlSecurityAllowCidrs: " 10.0.0.0/8,192.168.0.0/16 "
+    release:
+      namespace: "braintrust"
+    asserts:
+      - equal:
+          path: data.BRAINTRUST_UNSAFE_URL_REQUEST_MODE
+          value: "proxy"
+      - equal:
+          path: data.BRAINTRUST_URL_SECURITY_DNS_SERVERS
+          value: "1.1.1.1,8.8.8.8"
+      - equal:
+          path: data.BRAINTRUST_URL_SECURITY_ALLOW_CIDRS
+          value: "10.0.0.0/8,192.168.0.0/16"
 
   - it: should set GATEWAY_REGION when region is provided
     values:

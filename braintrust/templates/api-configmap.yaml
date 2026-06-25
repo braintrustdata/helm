@@ -1,3 +1,15 @@
+{{- $orgName := .Values.global.orgName | default "" | toString | trim -}}
+{{- $primaryOrgName := .Values.global.primaryOrgName | default "" | toString | trim -}}
+{{- $hasPrimaryOrgNameExtraEnv := false -}}
+{{- range .Values.api.extraEnvVars -}}
+{{- if eq (.name | default "" | toString) "PRIMARY_ORG_NAME" -}}
+{{- $hasPrimaryOrgNameExtraEnv = true -}}
+{{- end -}}
+{{- end -}}
+{{- if and (or (eq $orgName "") (eq $orgName "*")) (eq $primaryOrgName "") (not $hasPrimaryOrgNameExtraEnv) -}}
+{{- fail "global.primaryOrgName or api.extraEnvVars PRIMARY_ORG_NAME is required when global.orgName is empty or \"*\"; self-hosted service-token management needs a primary organization." -}}
+{{- end -}}
+{{- $allowedOrgIds := .Values.global.allowedOrgIds | default "" | toString | trim -}}
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -13,7 +25,11 @@ metadata:
     {{- toYaml . | nindent 4 }}
   {{- end }}
 data:
-  ORG_NAME: {{ .Values.global.orgName | quote }}
+  ORG_NAME: {{ $orgName | quote }}
+  PRIMARY_ORG_NAME: {{ $primaryOrgName | quote }}
+  {{- with $allowedOrgIds }}
+  ALLOWED_ORG_IDS: {{ . | quote }}
+  {{- end }}
 
   {{- if eq .Values.cloud "azure" }}
   AZURE_STORAGE_ACCOUNT_NAME: {{ .Values.objectStorage.azure.storageAccountName | quote }}
@@ -55,6 +71,15 @@ data:
   INSERT_LOGS2: "true"
   ALLOW_INVALID_BASE64: {{ .Values.api.allowInvalidBase64 | default "false" | quote }}
   NODE_MEMORY_PERCENT: {{ .Values.api.nodeMemoryPercent | default "80" | quote }}
+  {{- with (.Values.api.unsafeUrlRequestMode | default "" | toString | trim) }}
+  BRAINTRUST_UNSAFE_URL_REQUEST_MODE: {{ . | quote }}
+  {{- end }}
+  {{- with (.Values.api.urlSecurityDnsServers | default "" | toString | trim) }}
+  BRAINTRUST_URL_SECURITY_DNS_SERVERS: {{ . | quote }}
+  {{- end }}
+  {{- with (.Values.api.urlSecurityAllowCidrs | default "" | toString | trim) }}
+  BRAINTRUST_URL_SECURITY_ALLOW_CIDRS: {{ . | quote }}
+  {{- end }}
   {{- if .Values.brainstoreWalFooterVersion }}
   BRAINSTORE_WAL_FOOTER_VERSION: {{ .Values.brainstoreWalFooterVersion | quote }}
   {{- end }}

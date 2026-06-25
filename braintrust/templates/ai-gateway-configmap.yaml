@@ -22,6 +22,15 @@ data:
   BRAINTRUST_API_URL: {{ default (include "braintrust.apiInternalUrl" .) .Values.aiGateway.braintrustApiUrl | quote }}
   GATEWAY_JSON_LOGS: "true"
   GATEWAY_TELEMETRY: {{ .Values.global.controlPlaneTelemetry | quote }}
+  {{- with (.Values.api.unsafeUrlRequestMode | default "" | toString | trim) }}
+  BRAINTRUST_UNSAFE_URL_REQUEST_MODE: {{ . | quote }}
+  {{- end }}
+  {{- with (.Values.api.urlSecurityDnsServers | default "" | toString | trim) }}
+  BRAINTRUST_URL_SECURITY_DNS_SERVERS: {{ . | quote }}
+  {{- end }}
+  {{- with (.Values.api.urlSecurityAllowCidrs | default "" | toString | trim) }}
+  BRAINTRUST_URL_SECURITY_ALLOW_CIDRS: {{ . | quote }}
+  {{- end }}
   {{- if .Values.global.controlPlaneTelemetry }}
   {{- $appUrl := .Values.aiGateway.braintrustAppUrl | trimSuffix "/" }}
   OTLP_HTTP_ENDPOINT: {{ printf "%s/api/pulse/otel" $appUrl | quote }}
