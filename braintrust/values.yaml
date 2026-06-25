@@ -217,6 +217,9 @@ aiGateway:
     timeoutSeconds: 5
     failureThreshold: 3
     successThreshold: 1
+  # How long to wait while the AI Gateway does graceful shutdown
+  terminationGracePeriodSeconds: 75
+  lifecycle: {}
   extraEnvVars: []
   nodeSelector: {}
   tolerations: []

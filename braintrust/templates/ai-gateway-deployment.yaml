@@ -48,6 +48,7 @@ spec:
       affinity:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      terminationGracePeriodSeconds: {{ .Values.aiGateway.terminationGracePeriodSeconds }}
       containers:
         - name: ai-gateway
           image: "{{ .Values.aiGateway.image.repository }}:{{ .Values.aiGateway.image.tag }}"
@@ -62,6 +63,10 @@ spec:
           {{- end }}
           {{- with .Values.aiGateway.readinessProbe }}
           readinessProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.aiGateway.lifecycle }}
+          lifecycle:
             {{- toYaml . | nindent 12 }}
           {{- end }}
           envFrom:
