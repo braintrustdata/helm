@@ -128,6 +128,14 @@ api:
     sizeLimit: ""
   # Allow running user generated code functions (e.g. scorers/tools)
   allowCodeFunctionExecution: false
+  # Optional custom CA bundle support for user-code runtimes.
+  # References a dedicated secret and mounts only one key via `items`.
+  customCA:
+    enabled: false
+    secretName: "braintrust-runtime-ca"
+    secretKey: "ca-bundle.pem"
+    mountPath: "/etc/braintrust/runtime-ca"
+    filename: "ca-bundle.pem"
   # Brainstore backfill configuration. These defaults are fine for most cases.
   backfillDisableHistorical: false
   backfillDisableNonhistorical: false
