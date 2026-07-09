@@ -20,6 +20,9 @@ tests:
           path: data.PRIMARY_ORG_NAME
           value: ""
       - equal:
+          path: data.BRAINTRUST_LEGACY_IDS
+          value: "true"
+      - equal:
           path: data.BRAINSTORE_ENABLED
           value: "true"
       - equal:
