@@ -27,6 +27,8 @@ metadata:
 data:
   ORG_NAME: {{ $orgName | quote }}
   PRIMARY_ORG_NAME: {{ $primaryOrgName | quote }}
+  # emit v3 spans in py+ts sdks. remove this setting when v4 migration is complete
+  BRAINTRUST_LEGACY_IDS: "true"
   {{- with $allowedOrgIds }}
   ALLOWED_ORG_IDS: {{ . | quote }}
   {{- end }}
