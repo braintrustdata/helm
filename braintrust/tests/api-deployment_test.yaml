@@ -169,6 +169,184 @@ tests:
             name: ANOTHER_VAR
             value: "another-value"
 
+  - it: should mount only the dedicated custom CA secret key and set standard CA env vars when enabled
+    template: api-deployment.yaml
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      api.customCA.enabled: true
+      api.customCA.secretName: braintrust-runtime-ca
+      api.customCA.secretKey: ca-bundle.pem
+      api.customCA.mountPath: /etc/braintrust/runtime-ca
+      api.customCA.filename: ca-bundle.pem
+    release:
+      namespace: "braintrust"
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: custom-ca-bundle
+            mountPath: /etc/braintrust/runtime-ca
+            readOnly: true
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: custom-ca-bundle
+            secret:
+              secretName: braintrust-runtime-ca
+              items:
+                - key: ca-bundle.pem
+                  path: ca-bundle.pem
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: NODE_EXTRA_CA_CERTS
+            value: /etc/braintrust/runtime-ca/ca-bundle.pem
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: REQUESTS_CA_BUNDLE
+            value: /etc/braintrust/runtime-ca/ca-bundle.pem
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: SSL_CERT_FILE
+            value: /etc/braintrust/runtime-ca/ca-bundle.pem
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: CURL_CA_BUNDLE
+            value: /etc/braintrust/runtime-ca/ca-bundle.pem
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: AWS_CA_BUNDLE
+            value: /etc/braintrust/runtime-ca/ca-bundle.pem
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: PIP_CERT
+            value: /etc/braintrust/runtime-ca/ca-bundle.pem
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: SSL_CERT_DIR
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: BRAINTRUST_RUNTIME_CA_BUNDLE_PATH
+
+  - it: should not include custom CA volume mounts or CA env vars when disabled
+    template: api-deployment.yaml
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      api.customCA.enabled: false
+      api.customCA.secretKey: ca-bundle.pem
+    release:
+      namespace: "braintrust"
+    asserts:
+      - equal:
+          path: spec.template.spec.volumes
+          value: []
+      - isNull:
+          path: spec.template.spec.containers[0].volumeMounts
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: NODE_EXTRA_CA_CERTS
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: REQUESTS_CA_BUNDLE
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: SSL_CERT_FILE
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: CURL_CA_BUNDLE
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: AWS_CA_BUNDLE
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: PIP_CERT
+
+  - it: should include custom CA and extraVolumes when both are configured
+    template: api-deployment.yaml
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      api.customCA.enabled: true
+      api.extraVolumes:
+        - name: otel-config
+          configMap:
+            name: otel-collector-config
+    release:
+      namespace: "braintrust"
+    asserts:
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: custom-ca-bundle
+            secret:
+              secretName: braintrust-runtime-ca
+              items:
+                - key: ca-bundle.pem
+                  path: ca-bundle.pem
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: otel-config
+            configMap:
+              name: otel-collector-config
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: custom-ca-bundle
+            mountPath: /etc/braintrust/runtime-ca
+            readOnly: true
+
+  - it: should include custom CA and tmpVolume mounts when both are configured
+    template: api-deployment.yaml
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      api.customCA.enabled: true
+      api.tmpVolume.enabled: true
+    release:
+      namespace: "braintrust"
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: custom-ca-bundle
+            mountPath: /etc/braintrust/runtime-ca
+            readOnly: true
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: tmp-volume
+            mountPath: /tmp
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: custom-ca-bundle
+            secret:
+              secretName: braintrust-runtime-ca
+              items:
+                - key: ca-bundle.pem
+                  path: ca-bundle.pem
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: tmp-volume
+            emptyDir: {}
+
   - it: should merge global and api labels
     template: api-deployment.yaml
     values:

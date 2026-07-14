@@ -127,10 +127,25 @@ spec:
               value: {{ .Values.api.healthServer.host | quote }}
             - name: TS_API_HEALTHSERVER_PORT
               value: {{ .Values.api.healthServer.port | quote }}
+            {{- if .Values.api.customCA.enabled }}
+            {{- $customCAPath := printf "%s/%s" (required "api.customCA.mountPath is required when api.customCA.enabled is true" .Values.api.customCA.mountPath) (required "api.customCA.filename is required when api.customCA.enabled is true" .Values.api.customCA.filename) }}
+            - name: NODE_EXTRA_CA_CERTS
+              value: {{ $customCAPath | quote }}
+            - name: REQUESTS_CA_BUNDLE
+              value: {{ $customCAPath | quote }}
+            - name: SSL_CERT_FILE
+              value: {{ $customCAPath | quote }}
+            - name: CURL_CA_BUNDLE
+              value: {{ $customCAPath | quote }}
+            - name: AWS_CA_BUNDLE
+              value: {{ $customCAPath | quote }}
+            - name: PIP_CERT
+              value: {{ $customCAPath | quote }}
+            {{- end }}
             {{- if .Values.api.extraEnvVars }}
             {{- toYaml .Values.api.extraEnvVars | nindent 12 }}
             {{- end }}
-          {{- if or .Values.api.tmpVolume.enabled (and (eq .Values.cloud "azure") .Values.azure.enableAzureKeyVaultDriver) }}
+          {{- if or .Values.api.tmpVolume.enabled (and (eq .Values.cloud "azure") .Values.azure.enableAzureKeyVaultDriver) .Values.api.customCA.enabled }}
           volumeMounts:
             {{- if .Values.api.tmpVolume.enabled }}
             - name: tmp-volume
@@ -141,12 +156,17 @@ spec:
               mountPath: "/mnt/secrets-store"
               readOnly: true
             {{- end }}
+            {{- if .Values.api.customCA.enabled }}
+            - name: custom-ca-bundle
+              mountPath: {{ required "api.customCA.mountPath is required when api.customCA.enabled is true" .Values.api.customCA.mountPath | quote }}
+              readOnly: true
+            {{- end }}
           {{- end }}
       {{- with .Values.api.extraContainers }}
       {{- toYaml . | nindent 8 }}
       {{- end }}
       volumes:
-        {{- if or .Values.api.tmpVolume.enabled (and (eq .Values.cloud "azure") .Values.azure.enableAzureKeyVaultDriver) .Values.api.extraVolumes }}
+        {{- if or .Values.api.tmpVolume.enabled (and (eq .Values.cloud "azure") .Values.azure.enableAzureKeyVaultDriver) .Values.api.customCA.enabled .Values.api.extraVolumes }}
         {{- if .Values.api.tmpVolume.enabled }}
         - name: tmp-volume
           emptyDir:
@@ -163,6 +183,14 @@ spec:
             readOnly: true
             volumeAttributes:
               secretProviderClass: {{ .Values.azure.keyVaultName }}
+        {{- end }}
+        {{- if .Values.api.customCA.enabled }}
+        - name: custom-ca-bundle
+          secret:
+            secretName: {{ required "api.customCA.secretName is required when api.customCA.enabled is true" .Values.api.customCA.secretName | quote }}
+            items:
+              - key: {{ required "api.customCA.secretKey is required when api.customCA.enabled is true" .Values.api.customCA.secretKey | quote }}
+                path: {{ required "api.customCA.filename is required when api.customCA.enabled is true" .Values.api.customCA.filename | quote }}
         {{- end }}
         {{- with .Values.api.extraVolumes }}
         {{- toYaml . | nindent 8 }}

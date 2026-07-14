@@ -50,6 +50,51 @@ The CSI driver will:
 2. Automatically sync them to the `braintrust-secrets` Kubernetes secret
 3. Keep the secrets in sync as they change in Key Vault
 
+## Optional: Enterprise CA bundle for user-code runtimes
+
+If your organization uses private or enterprise CAs, you can provide a dedicated Secret for a CA bundle and configure the API container, plus user-code runtimes that inherit environment from it, to trust that bundle.
+
+This feature:
+
+1. Uses a separate Secret for the CA bundle.
+2. Mounts only the configured Secret key via `items` (not the full Secret).
+3. Does not modify files under the system certificate store; clients that honor the configured env vars will trust the mounted bundle instead of (or in addition to) system defaults.
+4. Does not require root.
+5. Sets standard CA bundle environment variables on the API container (`NODE_EXTRA_CA_CERTS`, `REQUESTS_CA_BUNDLE`, `SSL_CERT_FILE`, `CURL_CA_BUNDLE`, `AWS_CA_BUNDLE`, and `PIP_CERT`).
+
+Example values:
+
+```yaml
+api:
+  customCA:
+    enabled: true
+    secretName: braintrust-runtime-ca
+    secretKey: ca-bundle.pem
+    mountPath: /etc/braintrust/runtime-ca
+    filename: ca-bundle.pem
+```
+
+Create the Secret before installing or upgrading the chart:
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: braintrust-runtime-ca
+type: Opaque
+stringData:
+  ca-bundle.pem: |
+    -----BEGIN CERTIFICATE-----
+    ...
+    -----END CERTIFICATE-----
+```
+
+The configured key should contain a full CA bundle, not only your private CA chain. Several of the environment variables set by this feature cause clients to use the configured file as their CA bundle, so include the public root certificates your workloads still need along with your enterprise root and intermediate certificates.
+
+`NODE_EXTRA_CA_CERTS` appends to the default trust store in Node.js, while `SSL_CERT_FILE`, `REQUESTS_CA_BUNDLE`, and `CURL_CA_BUNDLE` typically replace the default bundle for OpenSSL, Python, and curl clients. Because all of these variables point at the same mounted file, behavior can differ by runtime: a bundle with only your enterprise CA may work for Node.js user code but break Python or curl outbound HTTPS unless public roots are included.
+
+Kubernetes limits each Secret to 1 MiB. A normal combined CA bundle is typically well below that limit, but very large enterprise bundles should be checked before rollout.
+
 ## GKE with Local SSDs
 
 Braintrust requires local SSDs for maximum disk performance. Configuration varies depending on whether you're using GKE Autopilot or Standard mode.
