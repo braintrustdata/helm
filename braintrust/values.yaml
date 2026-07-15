@@ -87,6 +87,19 @@ skipPgForBrainstoreObjects: "all"
 # Progression: "" (disabled) -> "v1" (on 1.1.32) -> "v3" (on 2.0)
 brainstoreWalFooterVersion: "v3"
 
+# BTQL query.read audit logging configuration (requires data plane v2.6.0+).
+# When set, the API emits a query.read audit log entry for each BTQL query
+# run by users belonging to the listed org UUIDs. Two mutually exclusive modes:
+#   strict: audit rows are written synchronously before results are returned.
+#   best-effort: audit rows are written asynchronously; failures are logged.
+# Set UUIDs in exactly one list — setting both is a template error.
+# Example (strict mode):
+#   btqlAuditLogsStrictOrgIds: ["11111111-1111-4111-8111-111111111111", "22222222-2222-4222-8222-222222222222"]
+# Example (best-effort mode):
+#   btqlAuditLogsBestEffortOrgIds: ["11111111-1111-4111-8111-111111111111"]
+btqlAuditLogsStrictOrgIds: []
+btqlAuditLogsBestEffortOrgIds: []
+
 api:
   name: "braintrust-api"
   labels: {}

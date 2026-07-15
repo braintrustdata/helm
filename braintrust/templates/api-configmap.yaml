@@ -10,6 +10,11 @@
 {{- fail "global.primaryOrgName or api.extraEnvVars PRIMARY_ORG_NAME is required when global.orgName is empty or \"*\"; self-hosted service-token management needs a primary organization." -}}
 {{- end -}}
 {{- $allowedOrgIds := .Values.global.allowedOrgIds | default "" | toString | trim -}}
+{{- $btqlStrictOrgIds := .Values.btqlAuditLogsStrictOrgIds | default list -}}
+{{- $btqlBestEffortOrgIds := .Values.btqlAuditLogsBestEffortOrgIds | default list -}}
+{{- if and (gt (len $btqlStrictOrgIds) 0) (gt (len $btqlBestEffortOrgIds) 0) -}}
+{{- fail "Set either btqlAuditLogsStrictOrgIds or btqlAuditLogsBestEffortOrgIds, not both." -}}
+{{- end -}}
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -93,4 +98,10 @@ data:
   {{- end }}
   {{- if .Values.aiGateway.useGateway }}
   GATEWAY_URL: {{ include "braintrust.aiGatewayInternalUrl" . | quote }}
+  {{- end }}
+  {{- if $btqlStrictOrgIds }}
+  BTQL_AUDIT_LOGS_STRICT_ORG_IDS: {{ $btqlStrictOrgIds | join "," | quote }}
+  {{- end }}
+  {{- if $btqlBestEffortOrgIds }}
+  BTQL_AUDIT_LOGS_BEST_EFFORT_ORG_IDS: {{ $btqlBestEffortOrgIds | join "," | quote }}
   {{- end }}
