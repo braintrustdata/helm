@@ -15,6 +15,16 @@
 {{- if and (gt (len $btqlStrictOrgIds) 0) (gt (len $btqlBestEffortOrgIds) 0) -}}
 {{- fail "Set either btqlAuditLogsStrictOrgIds or btqlAuditLogsBestEffortOrgIds, not both." -}}
 {{- end -}}
+{{- range $btqlStrictOrgIds -}}
+{{- if not (regexMatch "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$" .) -}}
+{{- fail (printf "btqlAuditLogsStrictOrgIds: %q is not a valid UUID" .) -}}
+{{- end -}}
+{{- end -}}
+{{- range $btqlBestEffortOrgIds -}}
+{{- if not (regexMatch "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$" .) -}}
+{{- fail (printf "btqlAuditLogsBestEffortOrgIds: %q is not a valid UUID" .) -}}
+{{- end -}}
+{{- end -}}
 ---
 apiVersion: v1
 kind: ConfigMap

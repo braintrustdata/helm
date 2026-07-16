@@ -561,3 +561,27 @@ tests:
     asserts:
       - failedTemplate:
           errorMessage: "Set either btqlAuditLogsStrictOrgIds or btqlAuditLogsBestEffortOrgIds, not both."
+
+  - it: should fail when a strict org ID is not a valid UUID
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      btqlAuditLogsStrictOrgIds:
+        - "not-a-uuid"
+    release:
+      namespace: "braintrust"
+    asserts:
+      - failedTemplate:
+          errorMessage: "btqlAuditLogsStrictOrgIds: \"not-a-uuid\" is not a valid UUID"
+
+  - it: should fail when a best-effort org ID is not a valid UUID
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      btqlAuditLogsBestEffortOrgIds:
+        - "not-a-uuid"
+    release:
+      namespace: "braintrust"
+    asserts:
+      - failedTemplate:
+          errorMessage: "btqlAuditLogsBestEffortOrgIds: \"not-a-uuid\" is not a valid UUID"
