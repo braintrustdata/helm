@@ -18,6 +18,15 @@ objectStorage:
     brainstoreBucket: "<your brainstore bucket name>"
     apiBucket: "<your api bucket name>"
 
+# BTQL query.read audit logging (requires data plane v2.6.0+).
+# Uncomment exactly one block to enable audit logging for specific orgs.
+# Strict mode writes the audit row before returning results; best-effort
+# writes asynchronously and logs failures. Setting both is a template error.
+#
+# btqlAuditLogsStrictOrgIds: ["<braintrust-org-uuid>"]
+#
+# btqlAuditLogsBestEffortOrgIds: ["<braintrust-org-uuid>"]
+
 api:
   name: "braintrust-api"
   annotations:

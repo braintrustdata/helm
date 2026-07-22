@@ -505,3 +505,83 @@ tests:
       - equal:
           path: data.SKIP_PG_FOR_BRAINSTORE_OBJECTS
           value: "exclude:project_logs:abc123"
+
+  - it: should omit BTQL audit log env vars when both lists are empty
+    values:
+      - __fixtures__/base-values.yaml
+    release:
+      namespace: "braintrust"
+    asserts:
+      - isNull:
+          path: data.BTQL_AUDIT_LOGS_STRICT_ORG_IDS
+      - isNull:
+          path: data.BTQL_AUDIT_LOGS_BEST_EFFORT_ORG_IDS
+
+  - it: should set BTQL_AUDIT_LOGS_STRICT_ORG_IDS when strict org IDs are configured
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      btqlAuditLogsStrictOrgIds:
+        - "00000000-0000-4000-8000-000000000001"
+        - "00000000-0000-4000-8000-000000000002"
+    release:
+      namespace: "braintrust"
+    asserts:
+      - equal:
+          path: data.BTQL_AUDIT_LOGS_STRICT_ORG_IDS
+          value: "00000000-0000-4000-8000-000000000001,00000000-0000-4000-8000-000000000002"
+      - isNull:
+          path: data.BTQL_AUDIT_LOGS_BEST_EFFORT_ORG_IDS
+
+  - it: should set BTQL_AUDIT_LOGS_BEST_EFFORT_ORG_IDS when best-effort org IDs are configured
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      btqlAuditLogsBestEffortOrgIds:
+        - "00000000-0000-4000-8000-000000000001"
+    release:
+      namespace: "braintrust"
+    asserts:
+      - equal:
+          path: data.BTQL_AUDIT_LOGS_BEST_EFFORT_ORG_IDS
+          value: "00000000-0000-4000-8000-000000000001"
+      - isNull:
+          path: data.BTQL_AUDIT_LOGS_STRICT_ORG_IDS
+
+  - it: should fail when both strict and best-effort org IDs are set
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      btqlAuditLogsStrictOrgIds:
+        - "00000000-0000-4000-8000-000000000001"
+      btqlAuditLogsBestEffortOrgIds:
+        - "00000000-0000-4000-8000-000000000002"
+    release:
+      namespace: "braintrust"
+    asserts:
+      - failedTemplate:
+          errorMessage: "Set either btqlAuditLogsStrictOrgIds or btqlAuditLogsBestEffortOrgIds, not both."
+
+  - it: should fail when a strict org ID is not a valid UUID
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      btqlAuditLogsStrictOrgIds:
+        - "not-a-uuid"
+    release:
+      namespace: "braintrust"
+    asserts:
+      - failedTemplate:
+          errorMessage: "btqlAuditLogsStrictOrgIds: \"not-a-uuid\" is not a valid UUID"
+
+  - it: should fail when a best-effort org ID is not a valid UUID
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      btqlAuditLogsBestEffortOrgIds:
+        - "not-a-uuid"
+    release:
+      namespace: "braintrust"
+    asserts:
+      - failedTemplate:
+          errorMessage: "btqlAuditLogsBestEffortOrgIds: \"not-a-uuid\" is not a valid UUID"
