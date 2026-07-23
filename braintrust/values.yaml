@@ -110,7 +110,36 @@ api:
     service: {}
     pod: {}
     serviceaccount: {}
+    hpa: {}
+    autoscalingMetric: {}
   replicas: 4
+  # Autoscale the API on CPU and Node.js event-loop metrics via AutoscalingMetric + HPA.
+  # This GKE feature is Preview (Pre-GA). It requires:
+  # - GKE 1.35.1-gke.1396000 or later
+  # - the Performance HPA profile and Autoscaling API
+  # - roles/autoscaling.metricsWriter on all node service accounts
+  # - the Autoscaling API in the service perimeter when using VPC Service Controls
+  # When enabled, replicas above is ignored.
+  # See: https://docs.cloud.google.com/kubernetes-engine/docs/how-to/expose-custom-metrics-autoscaling
+  autoscaling:
+    enabled: false
+    minReplicas: 3
+    maxReplicas: 50
+    # Prometheus metrics path on the API health server (api.healthServer.port).
+    metricsPath: /metrics
+    cpu:
+      targetAverageUtilization: 50
+    # 0-1 ratio (0.4 = 40% event-loop utilization).
+    eventLoopUtilization:
+      targetAverageValue: "0.4"
+    # Seconds (0.05 = 50ms mean event-loop delay).
+    eventLoopDelayMean:
+      targetAverageValue: "0.05"
+    behavior:
+      scaleDown:
+        stabilizationWindowSeconds: 300
+      scaleUp:
+        stabilizationWindowSeconds: 60
   image:
     repository: public.ecr.aws/braintrust/standalone-api
     tag: v2.7.1

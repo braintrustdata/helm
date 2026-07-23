@@ -1,0 +1,197 @@
+suite: test API autoscaling templates
+templates:
+  - api-autoscaling-metric.yaml
+  - api-hpa.yaml
+  - api-deployment.yaml
+  - api-configmap.yaml
+tests:
+  - it: should not render AutoscalingMetric when autoscaling is disabled
+    template: api-autoscaling-metric.yaml
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      cloud: google
+      api.autoscaling.enabled: false
+    release:
+      namespace: "braintrust"
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should not render HPA when autoscaling is disabled
+    template: api-hpa.yaml
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      cloud: google
+      api.autoscaling.enabled: false
+    release:
+      namespace: "braintrust"
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should fail when autoscaling is enabled on a non-google cloud
+    template: api-hpa.yaml
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/aws-values.yaml
+    set:
+      api.autoscaling.enabled: true
+    release:
+      namespace: "braintrust"
+    asserts:
+      - failedTemplate:
+          errorMessage: "api.autoscaling is currently only supported when cloud is google (GKE)"
+
+  - it: should render AutoscalingMetric for GKE with event-loop gauges
+    template: api-autoscaling-metric.yaml
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      cloud: google
+      api.autoscaling.enabled: true
+    release:
+      namespace: "braintrust"
+    asserts:
+      - isKind:
+          of: AutoscalingMetric
+      - equal:
+          path: apiVersion
+          value: autoscaling.gke.io/v1beta1
+      - equal:
+          path: metadata.name
+          value: braintrust-api
+      - equal:
+          path: metadata.namespace
+          value: braintrust
+      - equal:
+          path: spec.metrics[0].pod.selector.matchLabels.app
+          value: braintrust-api
+      - equal:
+          path: spec.metrics[0].pod.containers[0].endpoint.port
+          value: 8001
+      - equal:
+          path: spec.metrics[0].pod.containers[0].endpoint.path
+          value: /metrics
+      - equal:
+          path: spec.metrics[0].pod.containers[0].metrics[0].gauge.name
+          value: braintrust-api-event-loop-utilization-ratio
+      - equal:
+          path: spec.metrics[0].pod.containers[0].metrics[0].gauge.prometheusMetricName
+          value: braintrust_api_event_loop_utilization_ratio
+      - equal:
+          path: spec.metrics[0].pod.containers[0].metrics[1].gauge.name
+          value: braintrust-api-event-loop-delay-mean-seconds
+      - equal:
+          path: spec.metrics[0].pod.containers[0].metrics[1].gauge.prometheusMetricName
+          value: braintrust_api_event_loop_delay_mean_seconds
+
+  - it: should render HPA with CPU and event-loop metrics matching AWS ECS defaults
+    template: api-hpa.yaml
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      cloud: google
+      api.autoscaling.enabled: true
+    release:
+      namespace: "braintrust"
+    asserts:
+      - isKind:
+          of: HorizontalPodAutoscaler
+      - equal:
+          path: apiVersion
+          value: autoscaling/v2
+      - equal:
+          path: metadata.name
+          value: braintrust-api
+      - equal:
+          path: spec.scaleTargetRef.name
+          value: braintrust-api
+      - equal:
+          path: spec.minReplicas
+          value: 3
+      - equal:
+          path: spec.maxReplicas
+          value: 50
+      - equal:
+          path: spec.metrics[0].type
+          value: Resource
+      - equal:
+          path: spec.metrics[0].resource.name
+          value: cpu
+      - equal:
+          path: spec.metrics[0].resource.target.averageUtilization
+          value: 50
+      - equal:
+          path: spec.metrics[1].pods.metric.name
+          value: autoscaling.gke.io|braintrust-api|braintrust-api-event-loop-utilization-ratio
+      - equal:
+          path: spec.metrics[1].pods.target.averageValue
+          value: "0.4"
+      - equal:
+          path: spec.metrics[2].pods.metric.name
+          value: autoscaling.gke.io|braintrust-api|braintrust-api-event-loop-delay-mean-seconds
+      - equal:
+          path: spec.metrics[2].pods.target.averageValue
+          value: "0.05"
+      - lengthEqual:
+          path: spec.metrics
+          count: 3
+      - equal:
+          path: spec.behavior.scaleDown.stabilizationWindowSeconds
+          value: 300
+      - equal:
+          path: spec.behavior.scaleUp.stabilizationWindowSeconds
+          value: 60
+
+  - it: should omit Deployment replicas and expose metrics port when autoscaling is enabled
+    template: api-deployment.yaml
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      cloud: google
+      api.autoscaling.enabled: true
+      api.replicas: 4
+    release:
+      namespace: "braintrust"
+    asserts:
+      - isNull:
+          path: spec.replicas
+      - contains:
+          path: spec.template.spec.containers[0].ports
+          content:
+            containerPort: 8000
+      - contains:
+          path: spec.template.spec.containers[0].ports
+          content:
+            containerPort: 8001
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: ENABLE_PROMETHEUS_METRICS
+            value: "true"
+
+  - it: should keep Deployment replicas when autoscaling is disabled
+    template: api-deployment.yaml
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      cloud: google
+      api.autoscaling.enabled: false
+      api.replicas: 4
+    release:
+      namespace: "braintrust"
+    asserts:
+      - equal:
+          path: spec.replicas
+          value: 4
+      - notContains:
+          path: spec.template.spec.containers[0].ports
+          content:
+            containerPort: 8001
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: ENABLE_PROMETHEUS_METRICS
+            value: "true"
