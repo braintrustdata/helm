@@ -1,7 +1,4 @@
-{{- if .Values.api.autoscaling.enabled }}
-{{- if ne .Values.cloud "google" }}
-{{- fail "api.autoscaling is currently only supported when cloud is google (GKE)" }}
-{{- end }}
+{{- if and .Values.api.autoscaling.enabled (eq .Values.cloud "google") }}
 apiVersion: autoscaling.gke.io/v1beta1
 kind: AutoscalingMetric
 metadata:
