@@ -50,7 +50,7 @@ The CSI driver will:
 2. Automatically sync them to the `braintrust-secrets` Kubernetes secret
 3. Keep the secrets in sync as they change in Key Vault
 
-## Optional: Enterprise CA bundle for user-code runtimes
+## Optional: Enterprise certificate authority (CA) bundle for user-code runtimes
 
 If your organization uses private or enterprise CAs, you can provide a dedicated Secret for a CA bundle and configure the API container, plus user-code runtimes that inherit environment from it, to trust that bundle.
 
