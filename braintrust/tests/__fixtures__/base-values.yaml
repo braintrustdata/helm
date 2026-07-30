@@ -39,6 +39,12 @@ api:
       cpu: "4"
       memory: "8Gi"
   allowCodeFunctionExecution: false
+  customCA:
+    enabled: false
+    secretName: "braintrust-runtime-ca"
+    secretKey: "ca-bundle.pem"
+    mountPath: "/etc/braintrust/runtime-ca"
+    filename: "ca-bundle.pem"
   backfillDisableHistorical: false
   backfillDisableNonhistorical: false
   allowInvalidBase64: false
