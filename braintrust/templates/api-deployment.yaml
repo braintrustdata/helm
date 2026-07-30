@@ -1,3 +1,14 @@
+{{- $customCA := .Values.api.customCA -}}
+{{- $customCAMountPath := "" -}}
+{{- $customCAFilename := "" -}}
+{{- $customCASecretName := "" -}}
+{{- $customCASecretKey := "" -}}
+{{- if $customCA.enabled -}}
+{{- $customCAMountPath = required "api.customCA.mountPath is required when api.customCA.enabled is true" $customCA.mountPath -}}
+{{- $customCAFilename = required "api.customCA.filename is required when api.customCA.enabled is true" $customCA.filename -}}
+{{- $customCASecretName = required "api.customCA.secretName is required when api.customCA.enabled is true" $customCA.secretName -}}
+{{- $customCASecretKey = required "api.customCA.secretKey is required when api.customCA.enabled is true" $customCA.secretKey -}}
+{{- end -}}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -127,8 +138,8 @@ spec:
               value: {{ .Values.api.healthServer.host | quote }}
             - name: TS_API_HEALTHSERVER_PORT
               value: {{ .Values.api.healthServer.port | quote }}
-            {{- if .Values.api.customCA.enabled }}
-            {{- $customCAPath := printf "%s/%s" (required "api.customCA.mountPath is required when api.customCA.enabled is true" .Values.api.customCA.mountPath) (required "api.customCA.filename is required when api.customCA.enabled is true" .Values.api.customCA.filename) }}
+            {{- if $customCA.enabled }}
+            {{- $customCAPath := printf "%s/%s" $customCAMountPath $customCAFilename }}
             - name: NODE_EXTRA_CA_CERTS
               value: {{ $customCAPath | quote }}
             - name: REQUESTS_CA_BUNDLE
@@ -145,7 +156,7 @@ spec:
             {{- if .Values.api.extraEnvVars }}
             {{- toYaml .Values.api.extraEnvVars | nindent 12 }}
             {{- end }}
-          {{- if or .Values.api.tmpVolume.enabled (and (eq .Values.cloud "azure") .Values.azure.enableAzureKeyVaultDriver) .Values.api.customCA.enabled }}
+          {{- if or .Values.api.tmpVolume.enabled (and (eq .Values.cloud "azure") .Values.azure.enableAzureKeyVaultDriver) $customCA.enabled }}
           volumeMounts:
             {{- if .Values.api.tmpVolume.enabled }}
             - name: tmp-volume
@@ -156,9 +167,9 @@ spec:
               mountPath: "/mnt/secrets-store"
               readOnly: true
             {{- end }}
-            {{- if .Values.api.customCA.enabled }}
+            {{- if $customCA.enabled }}
             - name: custom-ca-bundle
-              mountPath: {{ required "api.customCA.mountPath is required when api.customCA.enabled is true" .Values.api.customCA.mountPath | quote }}
+              mountPath: {{ $customCAMountPath | quote }}
               readOnly: true
             {{- end }}
           {{- end }}
@@ -166,7 +177,7 @@ spec:
       {{- toYaml . | nindent 8 }}
       {{- end }}
       volumes:
-        {{- if or .Values.api.tmpVolume.enabled (and (eq .Values.cloud "azure") .Values.azure.enableAzureKeyVaultDriver) .Values.api.customCA.enabled .Values.api.extraVolumes }}
+        {{- if or .Values.api.tmpVolume.enabled (and (eq .Values.cloud "azure") .Values.azure.enableAzureKeyVaultDriver) $customCA.enabled .Values.api.extraVolumes }}
         {{- if .Values.api.tmpVolume.enabled }}
         - name: tmp-volume
           emptyDir:
@@ -184,13 +195,13 @@ spec:
             volumeAttributes:
               secretProviderClass: {{ .Values.azure.keyVaultName }}
         {{- end }}
-        {{- if .Values.api.customCA.enabled }}
+        {{- if $customCA.enabled }}
         - name: custom-ca-bundle
           secret:
-            secretName: {{ required "api.customCA.secretName is required when api.customCA.enabled is true" .Values.api.customCA.secretName | quote }}
+            secretName: {{ $customCASecretName | quote }}
             items:
-              - key: {{ required "api.customCA.secretKey is required when api.customCA.enabled is true" .Values.api.customCA.secretKey | quote }}
-                path: {{ required "api.customCA.filename is required when api.customCA.enabled is true" .Values.api.customCA.filename | quote }}
+              - key: {{ $customCASecretKey | quote }}
+                path: {{ $customCAFilename | quote }}
         {{- end }}
         {{- with .Values.api.extraVolumes }}
         {{- toYaml . | nindent 8 }}
