@@ -128,7 +128,7 @@ api:
     sizeLimit: ""
   # Allow running user generated code functions (e.g. scorers/tools)
   allowCodeFunctionExecution: false
-  # Optional custom CA bundle support for user-code runtimes.
+  # Requires API image v2.9.0+. Optional custom CA bundle for user-code runtimes.
   # References a dedicated secret and mounts only one key via `items`.
   customCA:
     enabled: false

@@ -52,6 +52,8 @@ The CSI driver will:
 
 ## Optional: Enterprise certificate authority (CA) bundle for user-code runtimes
 
+Requires Data Plane / API image **v2.9.0** or later.
+
 If your organization uses private or enterprise CAs, you can provide a dedicated Secret for a CA bundle and configure the API container, plus user-code runtimes that inherit environment from it, to trust that bundle.
 
 This feature:
