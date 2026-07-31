@@ -1,0 +1,83 @@
+suite: test label merge isolation for API autoscaling resources
+templates:
+  - api-autoscaling-metric.yaml
+  - api-hpa.yaml
+  - brainstore-reader-configmap.yaml
+tests:
+  # New templates that merge labels must prove that component labels remain
+  # isolated when Helm renders them alongside other chart resources.
+  - it: should give AutoscalingMetric only global and API-specific labels
+    template: api-autoscaling-metric.yaml
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      cloud: google
+      api.autoscaling.enabled: true
+      global.labels.shared: global-autoscaling
+      global.labels.tier: global-tier
+      api.labels.tier: api-tier
+      api.labels.api-specific: api-autoscaling
+      brainstore.reader.labels.reader-specific: reader-config
+    release:
+      namespace: braintrust
+    asserts:
+      - equal:
+          path: metadata.labels.shared
+          value: global-autoscaling
+      - equal:
+          path: metadata.labels.tier
+          value: api-tier
+      - equal:
+          path: metadata.labels["api-specific"]
+          value: api-autoscaling
+      - isNull:
+          path: metadata.labels["reader-specific"]
+
+  - it: should give HPA only global and API-specific labels
+    template: api-hpa.yaml
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      cloud: google
+      api.autoscaling.enabled: true
+      global.labels.shared: global-autoscaling
+      global.labels.tier: global-tier
+      api.labels.tier: api-tier
+      api.labels.api-specific: api-autoscaling
+      brainstore.reader.labels.reader-specific: reader-config
+    release:
+      namespace: braintrust
+    asserts:
+      - equal:
+          path: metadata.labels.shared
+          value: global-autoscaling
+      - equal:
+          path: metadata.labels.tier
+          value: api-tier
+      - equal:
+          path: metadata.labels["api-specific"]
+          value: api-autoscaling
+      - isNull:
+          path: metadata.labels["reader-specific"]
+
+  - it: should not leak API labels into another rendered component
+    template: brainstore-reader-configmap.yaml
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      cloud: google
+      api.autoscaling.enabled: true
+      global.labels.shared: global-autoscaling
+      api.labels.api-specific: api-autoscaling
+      brainstore.reader.labels.reader-specific: reader-config
+    release:
+      namespace: braintrust
+    asserts:
+      - equal:
+          path: metadata.labels.shared
+          value: global-autoscaling
+      - equal:
+          path: metadata.labels["reader-specific"]
+          value: reader-config
+      - isNull:
+          path: metadata.labels["api-specific"]

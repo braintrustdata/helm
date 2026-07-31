@@ -217,6 +217,31 @@ Size the request for the pod's full local-storage usage:
 
 When you enable `tmpVolume`, make sure the `ephemeralStorage.request` still covers that extra space.
 
+## GKE API Autoscaling
+
+The API can autoscale on GKE using a Horizontal Pod Autoscaler backed by GKE's native `AutoscalingMetric` resource. When enabled, the API scales on three signals - CPU, Node.js event-loop utilization, and mean event-loop delay.
+
+This is underpinned by a **Preview (Pre-GA)** GKE feature. It requires:
+
+- GKE **1.35.1-gke.1396000** or later
+- The Performance HPA profile and the Autoscaling API enabled on the cluster
+- `roles/autoscaling.metricsWriter` granted to all node service accounts
+- The Autoscaling API included in your service perimeter when using VPC Service Controls
+
+See [Expose custom metrics for autoscaling](https://docs.cloud.google.com/kubernetes-engine/docs/how-to/expose-custom-metrics-autoscaling) for more details on `AutoscalingMetric` in GKE.
+
+Enable it in your values:
+
+```yaml
+api:
+  autoscaling:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 50
+```
+
+When enabled, `api.replicas` is ignored and the HPA controls the replica count.
+
 ## Testing
 
 This Helm chart includes comprehensive automated unit tests.

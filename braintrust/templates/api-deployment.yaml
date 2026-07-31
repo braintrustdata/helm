@@ -23,7 +23,9 @@ metadata:
     {{- toYaml . | nindent 4 }}
   {{- end }}
 spec:
+  {{- if not .Values.api.autoscaling.enabled }}
   replicas: {{ .Values.api.replicas }}
+  {{- end }}
   strategy:
     type: RollingUpdate
     rollingUpdate:
@@ -81,6 +83,9 @@ spec:
           {{- end }}
           ports:
             - containerPort: {{ .Values.api.service.port }}
+            {{- if .Values.api.autoscaling.enabled }}
+            - containerPort: {{ .Values.api.healthServer.port }}
+            {{- end }}
           resources:
             {{- toYaml .Values.api.resources | nindent 12 }}
           {{- with .Values.api.livenessProbe }}
@@ -152,6 +157,10 @@ spec:
               value: {{ $customCAPath | quote }}
             - name: PIP_CERT
               value: {{ $customCAPath | quote }}
+            {{- end }}
+            {{- if .Values.api.autoscaling.enabled }}
+            - name: ENABLE_PROMETHEUS_METRICS
+              value: "true"
             {{- end }}
             {{- if .Values.api.extraEnvVars }}
             {{- toYaml .Values.api.extraEnvVars | nindent 12 }}

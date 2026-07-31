@@ -25,6 +25,14 @@ api:
     service:
       networking.gke.io/load-balancer-type: "Internal"
   replicas: 4
+  # Alternatively, autoscale the API on CPU and event-loop metrics.
+  # This is a Preview (Pre-GA) GKE feature requiring 1.35.1-gke.1396000 or later
+  # and the prerequisites documented in the main values.yaml.
+  # See api.autoscaling in the main values.yaml file for more details.
+  # autoscaling:
+  #   enabled: true
+  #   minReplicas: 3
+  #   maxReplicas: 50
   service:
     type: LoadBalancer
     port: 8000

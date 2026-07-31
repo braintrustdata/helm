@@ -1,0 +1,50 @@
+{{- if .Values.api.autoscaling.enabled }}
+{{- if ne .Values.cloud "google" }}
+{{- fail "api.autoscaling is currently only supported when cloud is google (GKE)" }}
+{{- end }}
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ .Values.api.name }}
+  namespace: {{ include "braintrust.namespace" . }}
+  {{- with (merge (deepCopy .Values.api.labels) .Values.global.labels) }}
+  labels:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with .Values.api.annotations.hpa }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ .Values.api.name }}
+  minReplicas: {{ .Values.api.autoscaling.minReplicas }}
+  maxReplicas: {{ .Values.api.autoscaling.maxReplicas }}
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: {{ .Values.api.autoscaling.cpu.targetAverageUtilization }}
+    - type: Pods
+      pods:
+        metric:
+          name: autoscaling.gke.io|{{ .Values.api.name }}|braintrust-api-event-loop-utilization-ratio
+        target:
+          type: AverageValue
+          averageValue: {{ .Values.api.autoscaling.eventLoopUtilization.targetAverageValue | quote }}
+    - type: Pods
+      pods:
+        metric:
+          name: autoscaling.gke.io|{{ .Values.api.name }}|braintrust-api-event-loop-delay-mean-seconds
+        target:
+          type: AverageValue
+          averageValue: {{ .Values.api.autoscaling.eventLoopDelayMean.targetAverageValue | quote }}
+  {{- with .Values.api.autoscaling.behavior }}
+  behavior:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- end }}

@@ -1,0 +1,36 @@
+{{- if .Values.api.autoscaling.enabled }}
+{{- if ne .Values.cloud "google" }}
+{{- fail "api.autoscaling is currently only supported when cloud is google (GKE)" }}
+{{- end }}
+apiVersion: autoscaling.gke.io/v1beta1
+kind: AutoscalingMetric
+metadata:
+  name: {{ .Values.api.name }}
+  namespace: {{ include "braintrust.namespace" . }}
+  {{- with (merge (deepCopy .Values.api.labels) .Values.global.labels) }}
+  labels:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with .Values.api.annotations.autoscalingMetric }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  metrics:
+  - pod:
+      selector:
+        matchLabels:
+          app: {{ .Values.api.name }}
+      containers:
+      - endpoint:
+          port: {{ .Values.api.healthServer.port }}
+          path: {{ .Values.api.autoscaling.metricsPath }}
+        metrics:
+        - gauge:
+            # GKE gauge names must match ^[a-z]([-a-z0-9]*[a-z0-9])?
+            name: braintrust-api-event-loop-utilization-ratio
+            prometheusMetricName: braintrust_api_event_loop_utilization_ratio
+        - gauge:
+            name: braintrust-api-event-loop-delay-mean-seconds
+            prometheusMetricName: braintrust_api_event_loop_delay_mean_seconds
+{{- end }}
