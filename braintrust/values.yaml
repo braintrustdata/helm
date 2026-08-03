@@ -125,7 +125,8 @@ api:
   # - the Autoscaling API in the service perimeter when using VPC Service Controls
   # See: https://docs.cloud.google.com/kubernetes-engine/docs/how-to/expose-custom-metrics-autoscaling
   #
-  # cloud=aws (EKS): in-chart Prometheus + prometheus-adapter + HPA (custom.metrics).
+  # cloud=aws (EKS) / cloud=azure (AKS): in-chart Prometheus + prometheus-adapter
+  # + HPA (custom.metrics). Same /metrics contract as GKE.
   # When enabled, replicas above is ignored.
   autoscaling:
     enabled: false
@@ -147,7 +148,7 @@ api:
         stabilizationWindowSeconds: 300
       scaleUp:
         stabilizationWindowSeconds: 60
-    # Used when cloud=aws (Prometheus + prometheus-adapter).
+    # Used when cloud=aws or cloud=azure (Prometheus + prometheus-adapter).
     prometheus:
       image:
         repository: prom/prometheus
