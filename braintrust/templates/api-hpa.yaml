@@ -1,6 +1,6 @@
 {{- if .Values.api.autoscaling.enabled }}
-{{- if and (ne .Values.cloud "google") (ne .Values.cloud "aws") }}
-{{- fail "api.autoscaling is currently only supported when cloud is google (GKE) or aws (EKS)" }}
+{{- if and (ne .Values.cloud "google") (ne .Values.cloud "aws") (ne .Values.cloud "azure") }}
+{{- fail "api.autoscaling is currently only supported when cloud is google (GKE), aws (EKS), or azure (AKS)" }}
 {{- end }}
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
@@ -44,7 +44,7 @@ spec:
         target:
           type: AverageValue
           averageValue: {{ .Values.api.autoscaling.eventLoopDelayMean.targetAverageValue | quote }}
-    {{- else if eq .Values.cloud "aws" }}
+    {{- else if or (eq .Values.cloud "aws") (eq .Values.cloud "azure") }}
     - type: Pods
       pods:
         metric:
