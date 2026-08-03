@@ -1,0 +1,159 @@
+{{- if and .Values.api.autoscaling.enabled (eq .Values.cloud "aws") }}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ .Values.api.name }}-autoscaling-prometheus-adapter
+  namespace: {{ include "braintrust.namespace" . }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "braintrust.namespace" . }}-{{ .Values.api.name }}-autoscaling-prometheus-adapter
+rules:
+  - apiGroups: [""]
+    resources: ["namespaces", "pods", "services"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "braintrust.namespace" . }}-{{ .Values.api.name }}-autoscaling-prometheus-adapter
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "braintrust.namespace" . }}-{{ .Values.api.name }}-autoscaling-prometheus-adapter
+subjects:
+  - kind: ServiceAccount
+    name: {{ .Values.api.name }}-autoscaling-prometheus-adapter
+    namespace: {{ include "braintrust.namespace" . }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ .Values.api.name }}-autoscaling-prometheus-adapter-auth-reader
+  namespace: kube-system
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: extension-apiserver-authentication-reader
+subjects:
+  - kind: ServiceAccount
+    name: {{ .Values.api.name }}-autoscaling-prometheus-adapter
+    namespace: {{ include "braintrust.namespace" . }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "braintrust.namespace" . }}-{{ .Values.api.name }}-autoscaling-prometheus-adapter-auth-delegator
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: system:auth-delegator
+subjects:
+  - kind: ServiceAccount
+    name: {{ .Values.api.name }}-autoscaling-prometheus-adapter
+    namespace: {{ include "braintrust.namespace" . }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.api.name }}-autoscaling-prometheus-adapter
+  namespace: {{ include "braintrust.namespace" . }}
+data:
+  config.yaml: |
+    rules:
+      - seriesQuery: 'braintrust_api_event_loop_delay_mean_seconds{namespace!="",pod!=""}'
+        resources:
+          overrides:
+            namespace:
+              resource: namespace
+            pod:
+              resource: pod
+        name:
+          matches: "^braintrust_api_(.*)"
+          as: "$1"
+        metricsQuery: avg(<<.Series>>{<<.LabelMatchers>>}) by (<<.GroupBy>>)
+      - seriesQuery: 'braintrust_api_event_loop_utilization_ratio{namespace!="",pod!=""}'
+        resources:
+          overrides:
+            namespace:
+              resource: namespace
+            pod:
+              resource: pod
+        name:
+          matches: "^braintrust_api_(.*)"
+          as: "$1"
+        metricsQuery: avg(<<.Series>>{<<.LabelMatchers>>}) by (<<.GroupBy>>)
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.api.name }}-autoscaling-prometheus-adapter
+  namespace: {{ include "braintrust.namespace" . }}
+spec:
+  selector:
+    app: {{ .Values.api.name }}-autoscaling-prometheus-adapter
+  ports:
+    - name: https
+      port: 443
+      targetPort: 6443
+---
+apiVersion: apiregistration.k8s.io/v1
+kind: APIService
+metadata:
+  name: v1beta1.custom.metrics.k8s.io
+spec:
+  service:
+    name: {{ .Values.api.name }}-autoscaling-prometheus-adapter
+    namespace: {{ include "braintrust.namespace" . }}
+    port: 443
+  group: custom.metrics.k8s.io
+  version: v1beta1
+  insecureSkipTLSVerify: true
+  groupPriorityMinimum: 100
+  versionPriority: 100
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.api.name }}-autoscaling-prometheus-adapter
+  namespace: {{ include "braintrust.namespace" . }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ .Values.api.name }}-autoscaling-prometheus-adapter
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.api.name }}-autoscaling-prometheus-adapter
+    spec:
+      serviceAccountName: {{ .Values.api.name }}-autoscaling-prometheus-adapter
+      containers:
+        - name: prometheus-adapter
+          image: "{{ .Values.api.autoscaling.adapter.image.repository }}:{{ .Values.api.autoscaling.adapter.image.tag }}"
+          imagePullPolicy: {{ .Values.api.autoscaling.adapter.image.pullPolicy }}
+          args:
+            - --secure-port=6443
+            - --cert-dir=/tmp/cert
+            - --prometheus-url=http://{{ .Values.api.name }}-autoscaling-prometheus.{{ include "braintrust.namespace" . }}.svc:9090
+            - --metrics-relist-interval={{ .Values.api.autoscaling.prometheus.scrapeInterval }}
+            - --config=/etc/adapter/config.yaml
+            - --v=2
+          ports:
+            - containerPort: 6443
+              name: https
+          resources:
+            {{- toYaml .Values.api.autoscaling.adapter.resources | nindent 12 }}
+          volumeMounts:
+            - name: config
+              mountPath: /etc/adapter
+            - name: tmp
+              mountPath: /tmp/cert
+      volumes:
+        - name: config
+          configMap:
+            name: {{ .Values.api.name }}-autoscaling-prometheus-adapter
+        - name: tmp
+          emptyDir: {}
+{{- end }}
