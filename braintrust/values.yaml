@@ -123,7 +123,7 @@ api:
   # See: https://docs.cloud.google.com/kubernetes-engine/docs/how-to/expose-custom-metrics-autoscaling
   autoscaling:
     enabled: false
-    minReplicas: 3
+    minReplicas: 4
     maxReplicas: 50
     # Prometheus metrics path on the API health server (api.healthServer.port).
     # This endpoint was introduced in v2.9.0+ of the Braintrust data plane.

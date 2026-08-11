@@ -236,7 +236,7 @@ Enable it in your values:
 api:
   autoscaling:
     enabled: true
-    minReplicas: 3
+    minReplicas: 4
     maxReplicas: 50
 ```
 

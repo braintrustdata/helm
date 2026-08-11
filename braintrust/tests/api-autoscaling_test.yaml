@@ -110,7 +110,7 @@ tests:
           value: braintrust-api
       - equal:
           path: spec.minReplicas
-          value: 3
+          value: 4
       - equal:
           path: spec.maxReplicas
           value: 50

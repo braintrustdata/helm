@@ -31,7 +31,7 @@ api:
   # See api.autoscaling in the main values.yaml file for more details.
   # autoscaling:
   #   enabled: true
-  #   minReplicas: 3
+  #   minReplicas: 4
   #   maxReplicas: 50
   service:
     type: LoadBalancer
