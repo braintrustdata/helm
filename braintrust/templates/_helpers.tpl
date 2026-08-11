@@ -33,6 +33,51 @@ http://{{ .Values.api.service.name | default .Values.api.name }}.{{ include "bra
 {{- end -}}
 
 {{/*
+Build one API pool from the shared api values plus pool-specific overrides.
+Pool extraEnvVars are appended so shared provider configuration is retained.
+*/}}
+{{- define "braintrust.apiPoolConfig" -}}
+{{- $base := deepCopy .root.Values.api -}}
+{{- $_ := unset $base "workloadIsolation" -}}
+{{- $overrides := deepCopy (.overrides | default dict) -}}
+{{- $baseExtraEnvVars := get $base "extraEnvVars" | default (list) -}}
+{{- $poolExtraEnvVars := get $overrides "extraEnvVars" | default (list) -}}
+{{- $_ := unset $overrides "extraEnvVars" -}}
+{{- $pool := mergeOverwrite $base $overrides -}}
+{{- $_ := set $pool "extraEnvVars" (concat $baseExtraEnvVars $poolExtraEnvVars) -}}
+{{- toYaml $pool -}}
+{{- end -}}
+
+{{/*
+Return the API pools rendered by the chart. The default pool always exists;
+ingest and background are added only when workload isolation is enabled.
+*/}}
+{{- define "braintrust.apiPools" -}}
+{{- $default := include "braintrust.apiPoolConfig" (dict "root" . "overrides" (dict)) | fromYaml -}}
+{{- $pools := list (dict "role" "default" "config" $default) -}}
+{{- if .Values.api.workloadIsolation.enabled -}}
+{{- $ingest := include "braintrust.apiPoolConfig" (dict "root" . "overrides" .Values.api.workloadIsolation.ingest) | fromYaml -}}
+{{- $background := include "braintrust.apiPoolConfig" (dict "root" . "overrides" .Values.api.workloadIsolation.background) | fromYaml -}}
+{{- $pools = append $pools (dict "role" "ingest" "config" $ingest) -}}
+{{- $pools = append $pools (dict "role" "background" "config" $background) -}}
+{{- end -}}
+{{- toYaml $pools -}}
+{{- end -}}
+
+{{/*
+Internal cluster URL Brainstore uses for function/scoring traffic. When API
+workload isolation is enabled, all Brainstore roles use the background pool.
+*/}}
+{{- define "braintrust.apiAiProxyInternalUrl" -}}
+{{- if .Values.api.workloadIsolation.enabled -}}
+{{- $background := include "braintrust.apiPoolConfig" (dict "root" . "overrides" .Values.api.workloadIsolation.background) | fromYaml -}}
+http://{{ $background.service.name | default $background.name }}:{{ $background.service.port }}
+{{- else -}}
+http://{{ .Values.api.service.name | default .Values.api.name }}:{{ .Values.api.service.port }}
+{{- end -}}
+{{- end -}}
+
+{{/*
 Internal cluster URL for the AI Gateway service.
 */}}
 {{- define "braintrust.aiGatewayInternalUrl" -}}

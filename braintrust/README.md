@@ -217,6 +217,31 @@ Size the request for the pod's full local-storage usage:
 
 When you enable `tmpVolume`, make sure the `ephemeralStorage.request` still covers that extra space.
 
+## API workload isolation
+
+`api.workloadIsolation.enabled` creates fixed-capacity `braintrust-api-ingest`
+and `braintrust-api-background` Deployments and Services alongside the existing
+default `braintrust-api` pool. The pools share the same image and base
+configuration, while allowing independent replicas, resources, probes, rollout
+settings, environment overrides, topology spreading, and disruption budgets.
+
+Enabling the pools does not configure a public ingress. The ingress or gateway
+must preserve `braintrust-api` as its default backend and route these paths:
+
+| Pool | Paths |
+| --- | --- |
+| `braintrust-api-ingest` | `/logs3`, `/otel/v1/traces`, `/attachment`, `/attachment/status` |
+| `braintrust-api-background` | `/v1/eval`, `/v1/eval/*`, `/function/eval`, `/function/sandbox`, `/function/use`, `/function/invoke-async-batch`, `/function/insert-functions`, `/automation/logs/trigger`, `/v1/proxy/chat/completions`, `/v1/proxy/responses` |
+
+Brainstore's internal `BRAINSTORE_AI_PROXY_URL` automatically targets the
+background Service while isolation is enabled. Disabling the feature removes
+the additional workloads and returns Brainstore to the default API Service,
+providing the rollback path.
+
+This feature does not enable autoscaling. Configure fixed replica counts under
+`api.replicas`, `api.workloadIsolation.ingest.replicas`, and
+`api.workloadIsolation.background.replicas`.
+
 ## Testing
 
 This Helm chart includes comprehensive automated unit tests.

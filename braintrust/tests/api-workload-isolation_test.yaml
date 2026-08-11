@@ -1,0 +1,193 @@
+suite: test API workload isolation
+templates:
+  - api-deployment.yaml
+  - api-configmap.yaml
+  - api-service.yaml
+  - api-pdb.yaml
+  - brainstore-fastreader-deployment.yaml
+  - brainstore-fastreader-configmap.yaml
+tests:
+  - it: should preserve one default deployment when isolation is disabled
+    template: api-deployment.yaml
+    values:
+      - __fixtures__/base-values.yaml
+    asserts:
+      - hasDocuments:
+          count: 1
+      - equal:
+          path: metadata.name
+          value: braintrust-api
+      - equal:
+          path: spec.replicas
+          value: 1
+
+  - it: should render the ingest deployment with its own fixed capacity and topology budget
+    template: api-deployment.yaml
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      api.workloadIsolation.enabled: true
+      api.workloadIsolation.ingest.replicas: 3
+    documentIndex: 1
+    asserts:
+      - equal:
+          path: metadata.name
+          value: braintrust-api-ingest
+      - equal:
+          path: spec.replicas
+          value: 3
+      - equal:
+          path: spec.template.metadata.labels["braintrust.com/api-pool"]
+          value: ingest
+      - equal:
+          path: spec.template.spec.topologySpreadConstraints[0].labelSelector.matchLabels.app
+          value: braintrust-api-ingest
+
+  - it: should merge shared and background-specific API configuration
+    template: api-deployment.yaml
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      api.workloadIsolation.enabled: true
+      api.workloadIsolation.background.replicas: 5
+      api.extraEnvVars:
+        - name: SHARED_SETTING
+          value: shared
+      api.workloadIsolation.background.extraEnvVars:
+        - name: POOL_SETTING
+          value: background
+      api.workloadIsolation.background.resources:
+        requests:
+          cpu: "3"
+          memory: 6Gi
+        limits:
+          cpu: "3"
+          memory: 6Gi
+    documentIndex: 2
+    asserts:
+      - equal:
+          path: metadata.name
+          value: braintrust-api-background
+      - equal:
+          path: spec.replicas
+          value: 5
+      - equal:
+          path: spec.template.spec.containers[0].resources.requests.cpu
+          value: "3"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: SHARED_SETTING
+            value: shared
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: POOL_SETTING
+            value: background
+
+  - it: should render an isolated ingest Service with inherited annotations
+    template: api-service.yaml
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      api.workloadIsolation.enabled: true
+      api.annotations.service:
+        cloud.google.com/neg: '{"ingress":true}'
+    documentIndex: 1
+    asserts:
+      - equal:
+          path: metadata.name
+          value: braintrust-api-ingest
+      - equal:
+          path: metadata.annotations["cloud.google.com/neg"]
+          value: '{"ingress":true}'
+      - equal:
+          path: spec.selector.app
+          value: braintrust-api-ingest
+
+  - it: should render a dedicated disruption budget for the background pool
+    template: api-pdb.yaml
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      api.workloadIsolation.enabled: true
+      api.workloadIsolation.background.podDisruptionBudget.minAvailable: 2
+    documentIndex: 1
+    asserts:
+      - isKind:
+          of: PodDisruptionBudget
+      - equal:
+          path: metadata.name
+          value: braintrust-api-background
+      - equal:
+          path: spec.minAvailable
+          value: 2
+      - equal:
+          path: spec.selector.matchLabels.app
+          value: braintrust-api-background
+
+  - it: should route fast-reader AI proxy traffic to the background pool
+    template: brainstore-fastreader-deployment.yaml
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      api.workloadIsolation.enabled: true
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: BRAINSTORE_AI_PROXY_URL
+            value: "http://braintrust-api-background:8000"
+
+  - it: should isolate Deployment labels between API pools
+    template: api-deployment.yaml
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      api.workloadIsolation.enabled: true
+      api.workloadIsolation.ingest.labels.ingest-only: ingest
+      api.workloadIsolation.background.labels.background-only: background
+    documentIndex: 1
+    asserts:
+      - equal:
+          path: metadata.labels["ingest-only"]
+          value: ingest
+      - isNull:
+          path: metadata.labels["background-only"]
+      - equal:
+          path: spec.template.metadata.labels["ingest-only"]
+          value: ingest
+      - isNull:
+          path: spec.template.metadata.labels["background-only"]
+
+  - it: should isolate Service labels between API pools
+    template: api-service.yaml
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      api.workloadIsolation.enabled: true
+      api.workloadIsolation.ingest.labels.ingest-only: ingest
+      api.workloadIsolation.background.labels.background-only: background
+    documentIndex: 2
+    asserts:
+      - equal:
+          path: metadata.labels["background-only"]
+          value: background
+      - isNull:
+          path: metadata.labels["ingest-only"]
+
+  - it: should isolate disruption-budget labels between API pools
+    template: api-pdb.yaml
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      api.workloadIsolation.enabled: true
+      api.workloadIsolation.ingest.labels.ingest-only: ingest
+      api.workloadIsolation.background.labels.background-only: background
+    documentIndex: 0
+    asserts:
+      - equal:
+          path: metadata.labels["ingest-only"]
+          value: ingest
+      - isNull:
+          path: metadata.labels["background-only"]
