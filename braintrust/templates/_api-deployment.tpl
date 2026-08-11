@@ -14,8 +14,12 @@
 {{- $customCASecretName = required "api.customCA.secretName is required when api.customCA.enabled is true" $customCA.secretName -}}
 {{- $customCASecretKey = required "api.customCA.secretKey is required when api.customCA.enabled is true" $customCA.secretKey -}}
 {{- end -}}
-{{- $resourceLabels := mergeOverwrite (deepCopy $root.Values.global.labels) (deepCopy $api.labels) (dict "braintrust.com/api-pool" $role) -}}
-{{- $podLabels := mergeOverwrite (deepCopy $root.Values.global.labels) (deepCopy $api.labels) (deepCopy $api.podLabels) (dict "app" $api.name "braintrust.com/api-pool" $role) -}}
+{{- $poolLabels := dict -}}
+{{- if or $root.Values.api.workloadIsolation.enabled (ne $role "default") -}}
+{{- $_ := set $poolLabels "braintrust.com/api-pool" $role -}}
+{{- end -}}
+{{- $resourceLabels := mergeOverwrite (deepCopy $root.Values.global.labels) (deepCopy $api.labels) $poolLabels -}}
+{{- $podLabels := mergeOverwrite (deepCopy $root.Values.global.labels) (deepCopy $api.labels) (deepCopy $api.podLabels) (dict "app" $api.name) $poolLabels -}}
 {{- if eq $root.Values.cloud "azure" -}}
 {{- $_ := set $podLabels "azure.workload.identity/use" "true" -}}
 {{- end -}}

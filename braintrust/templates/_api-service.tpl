@@ -3,7 +3,11 @@
 {{- $root := .root -}}
 {{- $api := .api -}}
 {{- $role := .role -}}
-{{- $resourceLabels := mergeOverwrite (deepCopy $root.Values.global.labels) (deepCopy $api.labels) (dict "braintrust.com/api-pool" $role) -}}
+{{- $poolLabels := dict -}}
+{{- if or $root.Values.api.workloadIsolation.enabled (ne $role "default") -}}
+{{- $_ := set $poolLabels "braintrust.com/api-pool" $role -}}
+{{- end -}}
+{{- $resourceLabels := mergeOverwrite (deepCopy $root.Values.global.labels) (deepCopy $api.labels) $poolLabels -}}
 apiVersion: v1
 kind: Service
 metadata:

@@ -20,6 +20,23 @@ tests:
       - equal:
           path: spec.replicas
           value: 1
+      - isNull:
+          path: metadata.labels["braintrust.com/api-pool"]
+      - isNull:
+          path: spec.template.metadata.labels["braintrust.com/api-pool"]
+
+  - it: should not label the default Service when isolation is disabled
+    template: api-service.yaml
+    values:
+      - __fixtures__/base-values.yaml
+    asserts:
+      - hasDocuments:
+          count: 1
+      - equal:
+          path: metadata.name
+          value: braintrust-api
+      - isNull:
+          path: metadata.labels["braintrust.com/api-pool"]
 
   - it: should render the ingest deployment with its own fixed capacity and topology budget
     template: api-deployment.yaml
