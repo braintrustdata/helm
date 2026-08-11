@@ -172,6 +172,28 @@ tests:
             name: ENABLE_PROMETHEUS_METRICS
             value: "true"
 
+  - it: should set ENABLE_PROMETHEUS_METRICS after extraEnvVars so autoscaling wins
+    template: api-deployment.yaml
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      cloud: google
+      api.autoscaling.enabled: true
+      api.extraEnvVars:
+        - name: ENABLE_PROMETHEUS_METRICS
+          value: "false"
+        - name: SOME_OTHER_VAR
+          value: "x"
+    release:
+      namespace: "braintrust"
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].env[-1].name
+          value: ENABLE_PROMETHEUS_METRICS
+      - equal:
+          path: spec.template.spec.containers[0].env[-1].value
+          value: "true"
+
   - it: should keep Deployment replicas when autoscaling is disabled
     template: api-deployment.yaml
     values:

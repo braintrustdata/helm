@@ -158,12 +158,12 @@ spec:
             - name: PIP_CERT
               value: {{ $customCAPath | quote }}
             {{- end }}
+            {{- if .Values.api.extraEnvVars }}
+            {{- toYaml .Values.api.extraEnvVars | nindent 12 }}
+            {{- end }}
             {{- if .Values.api.autoscaling.enabled }}
             - name: ENABLE_PROMETHEUS_METRICS
               value: "true"
-            {{- end }}
-            {{- if .Values.api.extraEnvVars }}
-            {{- toYaml .Values.api.extraEnvVars | nindent 12 }}
             {{- end }}
           {{- if or .Values.api.tmpVolume.enabled (and (eq .Values.cloud "azure") .Values.azure.enableAzureKeyVaultDriver) $customCA.enabled }}
           volumeMounts:
