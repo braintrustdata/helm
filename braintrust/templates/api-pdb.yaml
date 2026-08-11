@@ -7,7 +7,7 @@
 {{- if gt $rendered 0 }}
 ---
 {{- end }}
-{{- $resourceLabels := mergeOverwrite (deepCopy $root.Values.global.labels) (deepCopy $api.labels) (dict "braintrust.com/api-pool" $pool.role) -}}
+{{ $resourceLabels := mergeOverwrite (deepCopy $root.Values.global.labels) (deepCopy $api.labels) (dict "braintrust.com/api-pool" $pool.role) -}}
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
