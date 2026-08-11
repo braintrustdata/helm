@@ -1,0 +1,17 @@
+suite: test API autoscaling CRD requirement
+templates:
+  - api-hpa.yaml
+# Do not advertise autoscaling.gke.io here — this suite asserts the fail path.
+tests:
+  - it: should fail when AutoscalingMetric API is unavailable
+    template: api-hpa.yaml
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      cloud: google
+      api.autoscaling.enabled: true
+    release:
+      namespace: "braintrust"
+    asserts:
+      - failedTemplate:
+          errorPattern: "api\\.autoscaling requires the AutoscalingMetric API \\(autoscaling\\.gke\\.io/v1beta1\\)"

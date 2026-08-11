@@ -40,6 +40,18 @@ http://{{ .Values.aiGateway.service.name | default .Values.aiGateway.name }}.{{ 
 {{- end -}}
 
 {{/*
+Validate API autoscaling prerequisites (GKE + AutoscalingMetric CRD).
+*/}}
+{{- define "braintrust.apiAutoscaling.validate" -}}
+{{- if ne .Values.cloud "google" }}
+{{- fail "api.autoscaling is currently only supported when cloud is google (GKE)" }}
+{{- end }}
+{{- if not (.Capabilities.APIVersions.Has "autoscaling.gke.io/v1beta1") }}
+{{- fail "api.autoscaling requires the AutoscalingMetric API (autoscaling.gke.io/v1beta1). Use GKE 1.35.1 or later, or verify with: kubectl api-resources | grep autoscalingmetric. For helm template without a cluster, pass --api-versions=autoscaling.gke.io/v1beta1." }}
+{{- end }}
+{{- end -}}
+
+{{/*
 Render Brainstore container resources with provider-specific ephemeral storage.
 
 Google Autopilot keeps the legacy behavior of defaulting the ephemeral-storage

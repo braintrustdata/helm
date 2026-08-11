@@ -1,7 +1,5 @@
 {{- if .Values.api.autoscaling.enabled }}
-{{- if ne .Values.cloud "google" }}
-{{- fail "api.autoscaling is currently only supported when cloud is google (GKE)" }}
-{{- end }}
+{{- include "braintrust.apiAutoscaling.validate" . }}
 apiVersion: autoscaling.gke.io/v1beta1
 kind: AutoscalingMetric
 metadata:

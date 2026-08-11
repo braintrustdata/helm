@@ -119,6 +119,7 @@ api:
   # - the Performance HPA profile and Autoscaling API
   # - roles/autoscaling.metricsWriter on all node service accounts
   # - the Autoscaling API in the service perimeter when using VPC Service Controls
+  # Helm install/upgrade fails if autoscaling.gke.io/v1beta1 is not on the cluster.
   # When enabled, replicas above is ignored.
   # See: https://docs.cloud.google.com/kubernetes-engine/docs/how-to/expose-custom-metrics-autoscaling
   autoscaling:

@@ -4,6 +4,9 @@ templates:
   - api-hpa.yaml
   - api-deployment.yaml
   - api-configmap.yaml
+capabilities:
+  apiVersions:
+    - autoscaling.gke.io/v1beta1
 tests:
   - it: should not render AutoscalingMetric when autoscaling is disabled
     template: api-autoscaling-metric.yaml
