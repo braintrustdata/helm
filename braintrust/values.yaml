@@ -117,9 +117,12 @@ api:
   # route the documented paths to these Services when this is enabled.
   workloadIsolation:
     enabled: false
+    # Keep this false while staging pools for an existing deployment. Set it
+    # true only after the background pool is healthy and its routes are ready.
+    brainstoreAiProxyToBackground: true
     ingest:
       name: "braintrust-api-ingest"
-      replicas: 2
+      replicas: 3
       service:
         name: "braintrust-api-ingest"
       podDisruptionBudget:
@@ -129,7 +132,7 @@ api:
         enabled: true
     background:
       name: "braintrust-api-background"
-      replicas: 2
+      replicas: 3
       service:
         name: "braintrust-api-background"
       podDisruptionBudget:

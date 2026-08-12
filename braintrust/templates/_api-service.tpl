@@ -5,7 +5,7 @@
 {{- $role := .role -}}
 {{- $poolLabels := dict -}}
 {{- if or $root.Values.api.workloadIsolation.enabled (ne $role "default") -}}
-{{- $_ := set $poolLabels "braintrust.com/api-pool" $role -}}
+{{- $_ := set $poolLabels "braintrust.dev/api-pool" $role -}}
 {{- end -}}
 {{- $resourceLabels := mergeOverwrite (deepCopy $root.Values.global.labels) (deepCopy $api.labels) $poolLabels -}}
 apiVersion: v1

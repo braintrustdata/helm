@@ -65,11 +65,12 @@ ingest and background are added only when workload isolation is enabled.
 {{- end -}}
 
 {{/*
-Internal cluster URL Brainstore uses for function/scoring traffic. When API
-workload isolation is enabled, all Brainstore roles use the background pool.
+Internal cluster URL Brainstore uses for function/scoring traffic. The
+background pool is used only after workload isolation has been activated for
+Brainstore, allowing existing deployments to stage a ready background pool.
 */}}
 {{- define "braintrust.apiAiProxyInternalUrl" -}}
-{{- if .Values.api.workloadIsolation.enabled -}}
+{{- if and .Values.api.workloadIsolation.enabled .Values.api.workloadIsolation.brainstoreAiProxyToBackground -}}
 {{- $background := include "braintrust.apiPoolConfig" (dict "root" . "overrides" .Values.api.workloadIsolation.background) | fromYaml -}}
 http://{{ $background.service.name | default $background.name }}:{{ $background.service.port }}
 {{- else -}}

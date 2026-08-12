@@ -234,11 +234,16 @@ must preserve `braintrust-api` as its default backend and route these paths:
 | `braintrust-api-ingest` | `/logs3`, `/otel/v1/traces`, `/attachment`, `/attachment/status` |
 | `braintrust-api-background` | `/v1/eval`, `/v1/eval/*`, `/function/eval`, `/function/sandbox`, `/function/use`, `/function/invoke-async-batch`, `/function/insert-functions`, `/automation/logs/trigger`, `/v1/proxy/chat/completions`, `/v1/proxy/responses` |
 
-Brainstore's internal `BRAINSTORE_AI_PROXY_URL` automatically targets the
-background Service while isolation is enabled. To roll back, first route the
-isolated public paths back to the default API Service and verify it is serving
-them. Only then disable workload isolation in the chart; the chart cannot
-update an external ingress or gateway on its own.
+By default, Brainstore's internal `BRAINSTORE_AI_PROXY_URL` targets the
+background Service while isolation is enabled. For an existing deployment,
+first create the pools with
+`api.workloadIsolation.brainstoreAiProxyToBackground: false`, and keep public
+paths on the default Service. Verify the background pool is ready, then route
+the classified public paths and set `brainstoreAiProxyToBackground: true` in a
+later release. To roll back, first return both the public paths and
+`brainstoreAiProxyToBackground` to the default API Service and verify it is
+serving them. Only then disable workload isolation in the chart; the chart
+cannot update an external ingress or gateway on its own.
 
 This feature does not enable autoscaling. Configure fixed replica counts under
 `api.replicas`, `api.workloadIsolation.ingest.replicas`, and

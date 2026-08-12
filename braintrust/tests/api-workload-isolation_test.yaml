@@ -21,9 +21,9 @@ tests:
           path: spec.replicas
           value: 1
       - isNull:
-          path: metadata.labels["braintrust.com/api-pool"]
+          path: metadata.labels["braintrust.dev/api-pool"]
       - isNull:
-          path: spec.template.metadata.labels["braintrust.com/api-pool"]
+          path: spec.template.metadata.labels["braintrust.dev/api-pool"]
 
   - it: should not label the default Service when isolation is disabled
     template: api-service.yaml
@@ -36,7 +36,7 @@ tests:
           path: metadata.name
           value: braintrust-api
       - isNull:
-          path: metadata.labels["braintrust.com/api-pool"]
+          path: metadata.labels["braintrust.dev/api-pool"]
 
   - it: should render the ingest deployment with its own fixed capacity and topology budget
     template: api-deployment.yaml
@@ -54,7 +54,7 @@ tests:
           path: spec.replicas
           value: 3
       - equal:
-          path: spec.template.metadata.labels["braintrust.com/api-pool"]
+          path: spec.template.metadata.labels["braintrust.dev/api-pool"]
           value: ingest
       - equal:
           path: spec.template.spec.topologySpreadConstraints[0].labelSelector.matchLabels.app
@@ -155,6 +155,20 @@ tests:
           content:
             name: BRAINSTORE_AI_PROXY_URL
             value: "http://braintrust-api-background:8000"
+
+  - it: should retain the default AI proxy target while the background pool is staged
+    template: brainstore-fastreader-deployment.yaml
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      api.workloadIsolation.enabled: true
+      api.workloadIsolation.brainstoreAiProxyToBackground: false
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: BRAINSTORE_AI_PROXY_URL
+            value: "http://braintrust-api:8000"
 
   - it: should isolate Deployment labels between API pools
     template: api-deployment.yaml

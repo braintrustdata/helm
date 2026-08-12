@@ -16,7 +16,7 @@
 {{- end -}}
 {{- $poolLabels := dict -}}
 {{- if or $root.Values.api.workloadIsolation.enabled (ne $role "default") -}}
-{{- $_ := set $poolLabels "braintrust.com/api-pool" $role -}}
+{{- $_ := set $poolLabels "braintrust.dev/api-pool" $role -}}
 {{- end -}}
 {{- $resourceLabels := mergeOverwrite (deepCopy $root.Values.global.labels) (deepCopy $api.labels) $poolLabels -}}
 {{- $podLabels := mergeOverwrite (deepCopy $root.Values.global.labels) (deepCopy $api.labels) (deepCopy $api.podLabels) (dict "app" $api.name) $poolLabels -}}
@@ -42,7 +42,11 @@ metadata:
 spec:
   replicas: {{ $api.replicas }}
   strategy:
-    {{- toYaml $api.strategy | nindent 4 }}
+    type: {{ $api.strategy.type }}
+    {{- with $api.strategy.rollingUpdate }}
+    rollingUpdate:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
   selector:
     matchLabels:
       app: {{ $api.name }}
