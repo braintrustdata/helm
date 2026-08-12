@@ -233,8 +233,8 @@ route these paths:
 | Pool | Paths |
 | --- | --- |
 | `braintrust-api` (default) | All requests not matched by an explicit ingest or background route |
-| `braintrust-api-ingest` | `/logs3`, `/otel/v1/traces`, `/attachment`, `/attachment/status` |
-| `braintrust-api-background` | `/v1/eval`, `/v1/eval/*`, `/function/eval`, `/function/sandbox`, `/function/use`, `/function/invoke-async-batch`, `/function/insert-functions`, `/automation/logs/trigger`, `/v1/proxy/chat/completions`, `/v1/proxy/responses` |
+| `braintrust-api-ingest` | `POST /logs3`, `POST /otel/v1/traces`, `POST /attachment`, `POST /attachment/status` |
+| `braintrust-api-background` | `POST /v1/eval`, `POST /v1/eval/*`, `POST /function/eval`, `POST /function/sandbox`, `POST /function/use`, `POST /function/invoke-async-batch`, `POST /function/insert-functions`, `POST /automation/logs/trigger`; all methods for `/v1/proxy/chat/completions`, `/v1/proxy/responses` |
 
 By default, Brainstore's internal `BRAINSTORE_AI_PROXY_URL` targets the
 background Service while isolation is enabled. For an existing deployment,
