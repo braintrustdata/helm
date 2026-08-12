@@ -33,6 +33,6 @@ spec:
 {{ include "braintrust.apiWorkloadIsolationVirtualServiceRoutes" . | nindent 4 }}
     {{- end }}
     {{- range .Values.virtualService.http }}
-    - {{- toYaml . | nindent 6 }}
+    - {{ toYaml . | nindent 6 | trim }}
     {{- end }}
 {{- end }}
