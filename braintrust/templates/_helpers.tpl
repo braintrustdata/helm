@@ -67,11 +67,11 @@ ingest and background are added only when workload isolation is enabled.
 {{/*
 Render the product-owned workload-isolation routes for an Istio VirtualService.
 The static route contract is packaged with the chart at
-files/api-workload-isolation-routes.yaml. User-supplied virtualService.http
+files/contracts/api-workload-isolation-routes.yaml. User-supplied virtualService.http
 routes are rendered after these routes as custom fallback behavior.
 */}}
 {{- define "braintrust.apiWorkloadIsolationVirtualServiceRoutes" -}}
-{{- $contract := .Files.Get "files/api-workload-isolation-routes.yaml" | fromYaml -}}
+{{- $contract := .Files.Get "files/contracts/api-workload-isolation-routes.yaml" | fromYaml -}}
 {{- $ingest := include "braintrust.apiPoolConfig" (dict "root" . "overrides" .Values.api.workloadIsolation.ingest) | fromYaml -}}
 {{- $background := include "braintrust.apiPoolConfig" (dict "root" . "overrides" .Values.api.workloadIsolation.background) | fromYaml -}}
 {{- $ingestDestination := dict "host" ($ingest.service.name | default $ingest.name) "port" (dict "number" $ingest.service.port) -}}

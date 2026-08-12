@@ -226,7 +226,7 @@ configuration, while allowing independent replicas, resources, probes, rollout
 settings, environment overrides, topology spreading, and disruption budgets.
 
 The product-owned route contract is defined in
-[`files/api-workload-isolation-routes.yaml`](files/api-workload-isolation-routes.yaml).
+[`files/contracts/api-workload-isolation-routes.yaml`](files/contracts/api-workload-isolation-routes.yaml).
 An ingress or gateway must preserve `braintrust-api` as its default backend and
 route these paths:
 
