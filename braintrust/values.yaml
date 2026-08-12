@@ -111,6 +111,35 @@ api:
     pod: {}
     serviceaccount: {}
   replicas: 4
+  # Optional fixed-capacity workload isolation. This creates dedicated API
+  # Deployments and Services for ingestion and background work while retaining
+  # api.name as the default pool for all remaining traffic. Public ingress must
+  # route the documented paths to these Services when this is enabled.
+  workloadIsolation:
+    enabled: false
+    # Keep this false while staging pools for an existing deployment. Set it
+    # true only after the background pool is healthy and its routes are ready.
+    brainstoreAiProxyToBackground: true
+    ingest:
+      name: "braintrust-api-ingest"
+      replicas: 3
+      service:
+        name: "braintrust-api-ingest"
+      podDisruptionBudget:
+        enabled: true
+        minAvailable: 1
+      topologySpread:
+        enabled: true
+    background:
+      name: "braintrust-api-background"
+      replicas: 3
+      service:
+        name: "braintrust-api-background"
+      podDisruptionBudget:
+        enabled: true
+        minAvailable: 1
+      topologySpread:
+        enabled: true
   image:
     repository: public.ecr.aws/braintrust/standalone-api
     tag: v2.10.0
@@ -136,6 +165,19 @@ api:
     limits:
       cpu: "4"
       memory: "8Gi"
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 100%
+      maxUnavailable: 0
+  podDisruptionBudget:
+    enabled: false
+    minAvailable: 1
+  topologySpread:
+    enabled: false
+    maxSkew: 1
+    topologyKey: topology.kubernetes.io/zone
+    whenUnsatisfiable: ScheduleAnyway
   tmpVolume:
     enabled: false
     sizeLimit: ""
@@ -503,9 +545,16 @@ virtualService:
   # List of hosts/domains
   hosts:
     - "braintrust.example.com"
+  # Optional integration with api.workloadIsolation. When enabled, the chart
+  # emits the product-owned ingest/background route contract before the routes
+  # below. This must be enabled only after the isolated pools are healthy.
+  workloadIsolation:
+    enabled: false
   # HTTP routing rules
-  # The destination host will use api.service.name (or api.name if service.name is empty)
-  # The destination port will use api.service.port (default: 8000)
+  # These routes are retained after workload-isolation routes as fallback or
+  # custom behavior for non-classified paths. The destination host will use
+  # api.service.name (or api.name if service.name is empty); the destination
+  # port defaults to 8000.
   http:
     - match:
         - uri:

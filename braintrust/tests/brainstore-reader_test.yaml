@@ -325,6 +325,21 @@ tests:
             name: BRAINSTORE_AI_PROXY_URL
             value: "http://braintrust-api:8000"
 
+  - it: should route AI proxy traffic to the background API pool when isolation is enabled
+    template: brainstore-reader-deployment.yaml
+    values:
+      - __fixtures__/base-values.yaml
+    release:
+      namespace: "braintrust"
+    set:
+      api.workloadIsolation.enabled: true
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: BRAINSTORE_AI_PROXY_URL
+            value: "http://braintrust-api-background:8000"
+
   - it: should include extraContainers when provided (e.g. OTEL collector sidecar)
     template: brainstore-reader-deployment.yaml
     values:
