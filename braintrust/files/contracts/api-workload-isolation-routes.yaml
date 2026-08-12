@@ -7,20 +7,49 @@
 version: v1
 pools:
   ingest:
-    exact:
-      - /logs3
-      - /otel/v1/traces
-      - /attachment
-      - /attachment/status
+    routes:
+      - path: /logs3
+        pathType: exact
+        method: POST
+      - path: /otel/v1/traces
+        pathType: exact
+        method: POST
+      - path: /attachment
+        pathType: exact
+        method: POST
+      - path: /attachment/status
+        pathType: exact
+        method: POST
   background:
-    prefix:
-      - /v1/eval
-    exact:
-      - /function/eval
-      - /function/sandbox
-      - /function/use
-      - /function/invoke-async-batch
-      - /function/insert-functions
-      - /automation/logs/trigger
-      - /v1/proxy/chat/completions
-      - /v1/proxy/responses
+    routes:
+      # Keep this distinct from the trailing-slash prefix. Istio URI
+      # prefixes are string prefixes, so /v1/eval would also match
+      # /v1/evaluate.
+      - path: /v1/eval
+        pathType: exact
+        method: POST
+      - path: /v1/eval/
+        pathType: prefix
+        method: POST
+      - path: /function/eval
+        pathType: exact
+        method: POST
+      - path: /function/sandbox
+        pathType: exact
+        method: POST
+      - path: /function/use
+        pathType: exact
+        method: POST
+      - path: /function/invoke-async-batch
+        pathType: exact
+        method: POST
+      - path: /function/insert-functions
+        pathType: exact
+        method: POST
+      - path: /automation/logs/trigger
+        pathType: exact
+        method: POST
+      - path: /v1/proxy/chat/completions
+        pathType: exact
+      - path: /v1/proxy/responses
+        pathType: exact

@@ -77,14 +77,19 @@ routes are rendered after these routes as custom fallback behavior.
 {{- $ingestDestination := dict "host" ($ingest.service.name | default $ingest.name) "port" (dict "number" $ingest.service.port) -}}
 {{- $backgroundDestination := dict "host" ($background.service.name | default $background.name) "port" (dict "number" $background.service.port) -}}
 {{- $routes := list -}}
-{{- range $path := $contract.pools.ingest.exact -}}
-{{- $routes = append $routes (dict "match" (list (dict "uri" (dict "exact" $path))) "route" (list (dict "destination" $ingestDestination))) -}}
+{{- range $route := $contract.pools.ingest.routes -}}
+{{- $match := dict "uri" (dict $route.pathType $route.path) -}}
+{{- if $route.method -}}
+{{- $_ := set $match "method" (dict "exact" $route.method) -}}
 {{- end -}}
-{{- range $path := $contract.pools.background.prefix -}}
-{{- $routes = append $routes (dict "match" (list (dict "uri" (dict "prefix" $path))) "route" (list (dict "destination" $backgroundDestination))) -}}
+{{- $routes = append $routes (dict "match" (list $match) "route" (list (dict "destination" $ingestDestination))) -}}
 {{- end -}}
-{{- range $path := $contract.pools.background.exact -}}
-{{- $routes = append $routes (dict "match" (list (dict "uri" (dict "exact" $path))) "route" (list (dict "destination" $backgroundDestination))) -}}
+{{- range $route := $contract.pools.background.routes -}}
+{{- $match := dict "uri" (dict $route.pathType $route.path) -}}
+{{- if $route.method -}}
+{{- $_ := set $match "method" (dict "exact" $route.method) -}}
+{{- end -}}
+{{- $routes = append $routes (dict "match" (list $match) "route" (list (dict "destination" $backgroundDestination))) -}}
 {{- end -}}
 {{- toYaml $routes -}}
 {{- end -}}

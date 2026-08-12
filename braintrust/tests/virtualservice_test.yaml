@@ -277,22 +277,33 @@ tests:
           path: spec.http[0].route[0].destination.host
           value: custom-ingest
       - equal:
-          path: spec.http[4].match[0].uri.prefix
+          path: spec.http[0].match[0].method.exact
+          value: POST
+      - equal:
+          path: spec.http[4].match[0].uri.exact
           value: /v1/eval
       - equal:
           path: spec.http[4].route[0].destination.host
           value: custom-background
       - equal:
-          path: spec.http[12].match[0].uri.exact
+          path: spec.http[5].match[0].uri.prefix
+          value: /v1/eval/
+      - equal:
+          path: spec.http[5].match[0].method.exact
+          value: POST
+      - equal:
+          path: spec.http[13].match[0].uri.exact
           value: /v1/proxy/responses
       - equal:
-          path: spec.http[12].route[0].destination.host
+          path: spec.http[13].route[0].destination.host
           value: custom-background
+      - isNull:
+          path: spec.http[13].match[0].method
       - equal:
-          path: spec.http[13].match[0].uri.prefix
+          path: spec.http[14].match[0].uri.prefix
           value: /
       - equal:
-          path: spec.http[13].route[0].destination.host
+          path: spec.http[14].route[0].destination.host
           value: braintrust-api
 
   - it: should reject workload-isolation routes without the API pools

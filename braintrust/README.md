@@ -254,7 +254,10 @@ existing `virtualService.http` rules, which remain available for fallback or
 custom routing of non-classified paths. The product-owned routes take
 precedence, so do not use `virtualService.http` to override a classified path.
 This option requires both `virtualService.enabled: true` and
-`api.workloadIsolation.enabled: true`.
+`api.workloadIsolation.enabled: true`. It preserves the AWS route methods:
+ingest, eval, function, and automation routes match `POST`; proxy routes match
+all methods. GKE Ingress cannot route by method, so its equivalent integration
+classifies matching paths for all methods.
 
 This feature does not enable autoscaling. Configure fixed replica counts under
 `api.replicas`, `api.workloadIsolation.ingest.replicas`, and
