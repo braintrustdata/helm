@@ -225,8 +225,10 @@ default `braintrust-api` pool. The pools share the same image and base
 configuration, while allowing independent replicas, resources, probes, rollout
 settings, environment overrides, topology spreading, and disruption budgets.
 
-Enabling the pools does not configure a public ingress. The ingress or gateway
-must preserve `braintrust-api` as its default backend and route these paths:
+The product-owned route contract is defined in
+[`files/api-workload-isolation-routes.yaml`](files/api-workload-isolation-routes.yaml).
+An ingress or gateway must preserve `braintrust-api` as its default backend and
+route these paths:
 
 | Pool | Paths |
 | --- | --- |
@@ -244,6 +246,15 @@ later release. To roll back, first return both the public paths and
 `brainstoreAiProxyToBackground` to the default API Service and verify it is
 serving them. Only then disable workload isolation in the chart; the chart
 cannot update an external ingress or gateway on its own.
+
+When using the chart-managed Istio `VirtualService`, set
+`virtualService.workloadIsolation.enabled: true` during the second release.
+The chart then renders the same product-owned route contract ahead of the
+existing `virtualService.http` rules, which remain available for fallback or
+custom routing of non-classified paths. The product-owned routes take
+precedence, so do not use `virtualService.http` to override a classified path.
+This option requires both `virtualService.enabled: true` and
+`api.workloadIsolation.enabled: true`.
 
 This feature does not enable autoscaling. Configure fixed replica counts under
 `api.replicas`, `api.workloadIsolation.ingest.replicas`, and

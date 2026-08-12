@@ -1,0 +1,26 @@
+# Canonical public route ownership for API workload isolation.
+#
+# This is product-controlled rather than a chart value: changing it changes
+# which API pool receives customer traffic. Ingress and gateway integrations
+# must implement this contract and retain the default API Service for all
+# unmatched requests.
+version: v1
+pools:
+  ingest:
+    exact:
+      - /logs3
+      - /otel/v1/traces
+      - /attachment
+      - /attachment/status
+  background:
+    prefix:
+      - /v1/eval
+    exact:
+      - /function/eval
+      - /function/sandbox
+      - /function/use
+      - /function/invoke-async-batch
+      - /function/insert-functions
+      - /automation/logs/trigger
+      - /v1/proxy/chat/completions
+      - /v1/proxy/responses

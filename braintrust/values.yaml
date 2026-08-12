@@ -545,9 +545,16 @@ virtualService:
   # List of hosts/domains
   hosts:
     - "braintrust.example.com"
+  # Optional integration with api.workloadIsolation. When enabled, the chart
+  # emits the product-owned ingest/background route contract before the routes
+  # below. This must be enabled only after the isolated pools are healthy.
+  workloadIsolation:
+    enabled: false
   # HTTP routing rules
-  # The destination host will use api.service.name (or api.name if service.name is empty)
-  # The destination port will use api.service.port (default: 8000)
+  # These routes are retained after workload-isolation routes as fallback or
+  # custom behavior for non-classified paths. The destination host will use
+  # api.service.name (or api.name if service.name is empty); the destination
+  # port defaults to 8000.
   http:
     - match:
         - uri:
