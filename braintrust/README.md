@@ -219,7 +219,7 @@ When you enable `tmpVolume`, make sure the `ephemeralStorage.request` still cove
 
 ## GKE API Autoscaling
 
-The API can autoscale on GKE using a Horizontal Pod Autoscaler backed by GKE's native `AutoscalingMetric` resource. When enabled, the API scales on three signals - CPU, Node.js event-loop utilization, and mean event-loop delay.
+The API can autoscale on GKE using a Horizontal Pod Autoscaler backed by GKE's native `AutoscalingMetric` resource. When enabled, each API pool scales on three signals - CPU, Node.js event-loop utilization, and mean event-loop delay.
 
 This is underpinned by a **Preview (Pre-GA)** GKE feature. It requires:
 
@@ -240,7 +240,53 @@ api:
     maxReplicas: 50
 ```
 
-When enabled, `api.replicas` is ignored and the HPA controls the replica count.
+When enabled for a pool, that pool's `replicas` setting is ignored and the HPA controls the replica count. With `api.workloadIsolation.enabled`, ingest and background pools inherit these settings and can override `minReplicas` / `maxReplicas` under `api.workloadIsolation.<pool>.autoscaling`.
+
+## API workload isolation
+
+`api.workloadIsolation.enabled` creates fixed-capacity `braintrust-api-ingest`
+and `braintrust-api-background` Deployments and Services alongside the existing
+default `braintrust-api` pool. The pools share the same image and base
+configuration, while allowing independent replicas, resources, probes, rollout
+settings, environment overrides, topology spreading, and disruption budgets.
+
+The product-owned route contract is defined in
+[`files/contracts/api-workload-isolation-routes.yaml`](files/contracts/api-workload-isolation-routes.yaml).
+An ingress or gateway must preserve `braintrust-api` as its default backend and
+route these paths:
+
+| Pool | Paths |
+| --- | --- |
+| `braintrust-api` (default) | All requests not matched by an explicit ingest or background route |
+| `braintrust-api-ingest` | `POST /logs3`, `POST /otel/v1/traces`, `POST /attachment`, `POST /attachment/status` |
+| `braintrust-api-background` | `POST /v1/eval`, `POST /v1/eval/*`, `POST /function/eval`, `POST /function/sandbox`, `POST /function/use`, `POST /function/invoke-async-batch`, `POST /function/insert-functions`, `POST /automation/logs/trigger`; all methods for `/v1/proxy/chat/completions`, `/v1/proxy/responses` |
+
+By default, Brainstore's internal `BRAINSTORE_AI_PROXY_URL` targets the
+background Service while isolation is enabled. For an existing deployment,
+first create the pools with
+`api.workloadIsolation.brainstoreAiProxyToBackground: false`, and keep public
+paths on the default Service. Verify the background pool is ready, then route
+the classified public paths and set `brainstoreAiProxyToBackground: true` in a
+later release. To roll back, first return both the public paths and
+`brainstoreAiProxyToBackground` to the default API Service and verify it is
+serving them. Only then disable workload isolation in the chart; the chart
+cannot update an external ingress or gateway on its own.
+
+When using the chart-managed Istio `VirtualService`, set
+`virtualService.workloadIsolation.enabled: true` during the second release.
+The chart then renders the same product-owned route contract ahead of the
+existing `virtualService.http` rules, which remain available for fallback or
+custom routing of non-classified paths. The product-owned routes take
+precedence, so do not use `virtualService.http` to override a classified path.
+This option requires both `virtualService.enabled: true` and
+`api.workloadIsolation.enabled: true`. It preserves the AWS route methods:
+ingest, eval, function, and automation routes match `POST`; proxy routes match
+all methods. GKE Ingress cannot route by method, so its equivalent integration
+classifies matching paths for all methods.
+
+Pools use fixed replica counts by default (`api.replicas` and
+`api.workloadIsolation.<pool>.replicas`). On GKE, enable `api.autoscaling` to
+let each pool scale independently instead.
 
 ## Testing
 

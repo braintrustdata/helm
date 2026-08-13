@@ -1,3 +1,10 @@
+{{- $virtualServiceWorkloadIsolation := .Values.virtualService.workloadIsolation | default dict -}}
+{{- if and $virtualServiceWorkloadIsolation.enabled (not .Values.virtualService.enabled) -}}
+{{- fail "virtualService.workloadIsolation.enabled requires virtualService.enabled." -}}
+{{- end -}}
+{{- if and $virtualServiceWorkloadIsolation.enabled (not .Values.api.workloadIsolation.enabled) -}}
+{{- fail "virtualService.workloadIsolation.enabled requires api.workloadIsolation.enabled." -}}
+{{- end -}}
 {{- if .Values.virtualService.enabled }}
 apiVersion: networking.istio.io/v1
 kind: VirtualService
@@ -22,7 +29,10 @@ spec:
     {{- toYaml . | nindent 4 }}
   {{- end }}
   http:
+    {{- if $virtualServiceWorkloadIsolation.enabled }}
+    {{- include "braintrust.apiWorkloadIsolationVirtualServiceRoutes" . | nindent 4 }}
+    {{- end }}
     {{- range .Values.virtualService.http }}
-    - {{- toYaml . | nindent 6 }}
+    - {{ toYaml . | nindent 6 | trim }}
     {{- end }}
 {{- end }}

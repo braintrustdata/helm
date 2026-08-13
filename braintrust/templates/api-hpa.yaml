@@ -1,15 +1,32 @@
-{{- if .Values.api.autoscaling.enabled }}
-{{- include "braintrust.apiAutoscaling.validate" . }}
+{{- $root := . -}}
+{{- $pools := include "braintrust.apiPools" . | fromYamlArray -}}
+{{- $validated := false -}}
+{{- $rendered := 0 -}}
+{{- range $pool := $pools -}}
+{{- $api := $pool.config -}}
+{{- if dig "autoscaling" "enabled" false $api -}}
+{{- if not $validated -}}
+{{- include "braintrust.apiAutoscaling.validate" $root -}}
+{{- $validated = true -}}
+{{- end -}}
+{{- if gt $rendered 0 }}
+---
+{{- end }}
+{{- $poolLabels := dict -}}
+{{- if or $root.Values.api.workloadIsolation.enabled (ne $pool.role "default") -}}
+{{- $_ := set $poolLabels "braintrust.dev/api-pool" $pool.role -}}
+{{- end -}}
+{{- $resourceLabels := mergeOverwrite (deepCopy $root.Values.global.labels) (deepCopy $api.labels) $poolLabels -}}
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
-  name: {{ .Values.api.name }}
-  namespace: {{ include "braintrust.namespace" . }}
-  {{- with (merge (deepCopy .Values.api.labels) .Values.global.labels) }}
+  name: {{ $api.name }}
+  namespace: {{ include "braintrust.namespace" $root }}
+  {{- with $resourceLabels }}
   labels:
     {{- toYaml . | nindent 4 }}
   {{- end }}
-  {{- with .Values.api.annotations.hpa }}
+  {{- with $api.annotations.hpa }}
   annotations:
     {{- toYaml . | nindent 4 }}
   {{- end }}
@@ -17,32 +34,34 @@ spec:
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
-    name: {{ .Values.api.name }}
-  minReplicas: {{ .Values.api.autoscaling.minReplicas }}
-  maxReplicas: {{ .Values.api.autoscaling.maxReplicas }}
+    name: {{ $api.name }}
+  minReplicas: {{ $api.autoscaling.minReplicas }}
+  maxReplicas: {{ $api.autoscaling.maxReplicas }}
   metrics:
     - type: Resource
       resource:
         name: cpu
         target:
           type: Utilization
-          averageUtilization: {{ .Values.api.autoscaling.cpu.targetAverageUtilization }}
+          averageUtilization: {{ $api.autoscaling.cpu.targetAverageUtilization }}
     - type: Pods
       pods:
         metric:
-          name: autoscaling.gke.io|{{ .Values.api.name }}|braintrust-api-event-loop-utilization-ratio
+          name: autoscaling.gke.io|{{ $api.name }}|braintrust-api-event-loop-utilization-ratio
         target:
           type: AverageValue
-          averageValue: {{ .Values.api.autoscaling.eventLoopUtilization.targetAverageValue | quote }}
+          averageValue: {{ $api.autoscaling.eventLoopUtilization.targetAverageValue | quote }}
     - type: Pods
       pods:
         metric:
-          name: autoscaling.gke.io|{{ .Values.api.name }}|braintrust-api-event-loop-delay-mean-seconds
+          name: autoscaling.gke.io|{{ $api.name }}|braintrust-api-event-loop-delay-mean-seconds
         target:
           type: AverageValue
-          averageValue: {{ .Values.api.autoscaling.eventLoopDelayMean.targetAverageValue | quote }}
-  {{- with .Values.api.autoscaling.behavior }}
+          averageValue: {{ $api.autoscaling.eventLoopDelayMean.targetAverageValue | quote }}
+  {{- with $api.autoscaling.behavior }}
   behavior:
     {{- toYaml . | nindent 4 }}
   {{- end }}
+{{- $rendered = add1 $rendered -}}
+{{- end -}}
 {{- end }}
