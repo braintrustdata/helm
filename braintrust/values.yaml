@@ -167,7 +167,7 @@ api:
       # Inherited from api.autoscaling when enabled; override capacity per pool.
       autoscaling:
         minReplicas: 3
-        maxReplicas: 100
+        maxReplicas: 200
     background:
       name: "braintrust-api-background"
       replicas: 3

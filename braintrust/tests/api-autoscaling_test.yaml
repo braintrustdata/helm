@@ -283,7 +283,7 @@ tests:
           value: 3
       - equal:
           path: spec.maxReplicas
-          value: 100
+          value: 200
       - equal:
           path: spec.metrics[1].pods.metric.name
           value: autoscaling.gke.io|braintrust-api-ingest|braintrust-api-event-loop-utilization-ratio
