@@ -336,4 +336,5 @@ Example values files for different cloud providers and configurations are locate
 
 - `examples/google-autopilot/values.yaml`: GKE Autopilot deployment.
 - `examples/google-autopilot-cel/values.yaml`: GKE Autopilot deployment with CEL-friendly security settings.
+- `examples/google-api-isolation-autoscaling/values.yaml`: Minimal example for API workload isolation and per-pool autoscaling on GKE (combine with an Autopilot or Standard values file).
 - `examples/google-standard/values.yaml`: GKE Standard deployment.
