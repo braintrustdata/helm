@@ -47,6 +47,7 @@ spec:
         target:
           type: Utilization
           averageUtilization: {{ $api.autoscaling.cpu.targetAverageUtilization }}
+    {{- if eq $root.Values.cloud "google" }}
     - type: Pods
       pods:
         metric:
@@ -61,6 +62,22 @@ spec:
         target:
           type: AverageValue
           averageValue: {{ $api.autoscaling.eventLoopDelayMean.targetAverageValue | quote }}
+    {{- else if eq $root.Values.cloud "aws" }}
+    - type: Pods
+      pods:
+        metric:
+          name: event_loop_utilization_ratio
+        target:
+          type: AverageValue
+          averageValue: {{ $api.autoscaling.eventLoopUtilization.targetAverageValue | quote }}
+    - type: Pods
+      pods:
+        metric:
+          name: event_loop_delay_mean_seconds
+        target:
+          type: AverageValue
+          averageValue: {{ $api.autoscaling.eventLoopDelayMean.targetAverageValue | quote }}
+    {{- end }}
   {{- with $api.autoscaling.behavior }}
   behavior:
     {{- toYaml . | nindent 4 }}

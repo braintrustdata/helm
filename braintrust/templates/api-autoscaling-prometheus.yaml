@@ -1,0 +1,123 @@
+{{- if and .Values.api.autoscaling.enabled (eq .Values.cloud "aws") }}
+{{- $scrapeApps := list .Values.api.name -}}
+{{- if .Values.api.workloadIsolation.enabled -}}
+{{- $scrapeApps = append $scrapeApps .Values.api.workloadIsolation.ingest.name -}}
+{{- $scrapeApps = append $scrapeApps .Values.api.workloadIsolation.background.name -}}
+{{- end -}}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ .Values.api.name }}-autoscaling-prometheus
+  namespace: {{ include "braintrust.namespace" . }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "braintrust.namespace" . }}-{{ .Values.api.name }}-autoscaling-prometheus
+rules:
+  - apiGroups: [""]
+    resources: ["nodes", "nodes/proxy", "services", "endpoints", "pods"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["discovery.k8s.io"]
+    resources: ["endpointslices"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "braintrust.namespace" . }}-{{ .Values.api.name }}-autoscaling-prometheus
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "braintrust.namespace" . }}-{{ .Values.api.name }}-autoscaling-prometheus
+subjects:
+  - kind: ServiceAccount
+    name: {{ .Values.api.name }}-autoscaling-prometheus
+    namespace: {{ include "braintrust.namespace" . }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.api.name }}-autoscaling-prometheus
+  namespace: {{ include "braintrust.namespace" . }}
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: {{ .Values.api.autoscaling.prometheus.scrapeInterval }}
+      evaluation_interval: {{ .Values.api.autoscaling.prometheus.scrapeInterval }}
+
+    scrape_configs:
+      - job_name: braintrust-api-autoscaling
+        kubernetes_sd_configs:
+          - role: pod
+            namespaces:
+              names:
+                - {{ include "braintrust.namespace" . }}
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_label_app]
+            regex: {{ join "|" $scrapeApps }}
+            action: keep
+          - source_labels: [__meta_kubernetes_pod_ip]
+            target_label: __address__
+            replacement: $1:{{ .Values.api.healthServer.port }}
+          - source_labels: [__meta_kubernetes_namespace]
+            target_label: namespace
+          - source_labels: [__meta_kubernetes_pod_name]
+            target_label: pod
+        metrics_path: {{ .Values.api.autoscaling.metricsPath }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.api.name }}-autoscaling-prometheus
+  namespace: {{ include "braintrust.namespace" . }}
+spec:
+  selector:
+    app: {{ .Values.api.name }}-autoscaling-prometheus
+  ports:
+    - name: http
+      port: 9090
+      targetPort: 9090
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.api.name }}-autoscaling-prometheus
+  namespace: {{ include "braintrust.namespace" . }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ .Values.api.name }}-autoscaling-prometheus
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.api.name }}-autoscaling-prometheus
+    spec:
+      serviceAccountName: {{ .Values.api.name }}-autoscaling-prometheus
+      containers:
+        - name: prometheus
+          image: "{{ .Values.api.autoscaling.prometheus.image.repository }}:{{ .Values.api.autoscaling.prometheus.image.tag }}"
+          imagePullPolicy: {{ .Values.api.autoscaling.prometheus.image.pullPolicy }}
+          args:
+            - --config.file=/etc/prometheus/prometheus.yml
+            - --storage.tsdb.path=/prometheus
+            - --storage.tsdb.retention.time={{ .Values.api.autoscaling.prometheus.retention }}
+            - --web.enable-lifecycle
+          ports:
+            - containerPort: 9090
+              name: http
+          resources:
+            {{- toYaml .Values.api.autoscaling.prometheus.resources | nindent 12 }}
+          volumeMounts:
+            - name: config
+              mountPath: /etc/prometheus
+            - name: data
+              mountPath: /prometheus
+      volumes:
+        - name: config
+          configMap:
+            name: {{ .Values.api.name }}-autoscaling-prometheus
+        - name: data
+          emptyDir: {}
+{{- end }}
