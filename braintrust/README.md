@@ -243,9 +243,9 @@ api:
 
 When enabled for a pool, that pool's `replicas` setting is ignored and the HPA controls the replica count. With `api.workloadIsolation.enabled`, ingest and background pools inherit these settings and can override `minReplicas` / `maxReplicas` under `api.workloadIsolation.<pool>.autoscaling`.
 
-## EKS API Autoscaling
+## EKS / AKS API Autoscaling
 
-On AWS (`cloud: aws`), the same `api.autoscaling` values deploy an in-chart Prometheus scrape of each API pool's health `/metrics` endpoint and a prometheus-adapter that exposes event-loop gauges to HPA via `custom.metrics.k8s.io`. Targets match GKE / ECS defaults (CPU 50% on the `api` container, event-loop utilization `0.4`, delay mean `0.05s`).
+On AWS (`cloud: aws`) or Azure (`cloud: azure`), the same `api.autoscaling` values deploy an in-chart Prometheus scrape of each API pool's health `/metrics` endpoint and a prometheus-adapter that exposes event-loop gauges to HPA via `custom.metrics.k8s.io`. Targets match GKE / ECS defaults (CPU 50% on the `api` container, event-loop utilization `0.4`, delay mean `0.05s`).
 
 Requires API image **v2.9.0+**. With workload isolation enabled, Prometheus scrapes every pool (`api.name`, ingest, and background).
 

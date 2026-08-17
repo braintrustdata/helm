@@ -1,4 +1,4 @@
-{{- if and .Values.api.autoscaling.enabled (eq .Values.cloud "aws") }}
+{{- if and .Values.api.autoscaling.enabled (or (eq .Values.cloud "aws") (eq .Values.cloud "azure")) }}
 apiVersion: v1
 kind: ServiceAccount
 metadata:
