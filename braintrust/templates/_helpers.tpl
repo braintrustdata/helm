@@ -125,8 +125,8 @@ EKS uses in-chart Prometheus + prometheus-adapter (no GKE CRD).
 {{- if not (.Capabilities.APIVersions.Has "autoscaling.gke.io/v1beta1") }}
 {{- fail "api.autoscaling requires the AutoscalingMetric API (autoscaling.gke.io/v1beta1). Use GKE 1.35.1 or later, or verify with: kubectl api-resources | grep autoscalingmetric. For helm template without a cluster, pass --api-versions=autoscaling.gke.io/v1beta1." }}
 {{- end }}
-{{- else if ne .Values.cloud "aws" }}
-{{- fail "api.autoscaling is currently only supported when cloud is google (GKE) or aws (EKS)" }}
+{{- else if and (ne .Values.cloud "aws") (ne .Values.cloud "azure") }}
+{{- fail "api.autoscaling is currently only supported when cloud is google (GKE), aws (EKS), or azure (AKS)" }}
 {{- end }}
 {{- end -}}
 
