@@ -1,4 +1,5 @@
 {{- $root := . -}}
+{{- if eq $root.Values.cloud "google" -}}
 {{- $pools := include "braintrust.apiPools" . | fromYamlArray -}}
 {{- $validated := false -}}
 {{- $rendered := 0 -}}
@@ -49,5 +50,6 @@ spec:
             name: braintrust-api-event-loop-delay-mean-seconds
             prometheusMetricName: braintrust_api_event_loop_delay_mean_seconds
 {{- $rendered = add1 $rendered -}}
+{{- end -}}
 {{- end -}}
 {{- end }}

@@ -113,19 +113,20 @@ api:
     hpa: {}
     autoscalingMetric: {}
   replicas: 4
-  # Autoscale API pools on CPU and Node.js event-loop metrics via AutoscalingMetric + HPA.
+  # Autoscale API pools on CPU and Node.js event-loop metrics.
   # Applies to every rendered API pool (default, and ingest/background when
   # workloadIsolation is enabled). Pool overrides can set minReplicas/maxReplicas
   # (or disable) under api.workloadIsolation.<pool>.autoscaling.
-  # The GKE feature for custom autoscaling metrics is in Preview (Pre-GA). It requires:
+  # cloud=google (GKE): AutoscalingMetric CRD + HPA. Preview (Pre-GA); requires:
   # - Braintrust API / data plane v2.9.0+ (Prometheus /metrics on the API health server)
   # - GKE 1.35.1-gke.1396000 or later
   # - the Performance HPA profile and Autoscaling API
   # - roles/autoscaling.metricsWriter on all node service accounts
   # - the Autoscaling API in the service perimeter when using VPC Service Controls
   # Helm install/upgrade fails if autoscaling.gke.io/v1beta1 is not on the cluster.
-  # When enabled for a pool, that pool's replicas setting is ignored.
   # See: https://docs.cloud.google.com/kubernetes-engine/docs/how-to/expose-custom-metrics-autoscaling
+  # cloud=aws (EKS): in-chart Prometheus + prometheus-adapter + HPA (custom.metrics).
+  # When enabled for a pool, that pool's replicas setting is ignored.
   autoscaling:
     enabled: false
     minReplicas: 4
@@ -146,6 +147,31 @@ api:
         stabilizationWindowSeconds: 300
       scaleUp:
         stabilizationWindowSeconds: 60
+    # Used when cloud=aws (Prometheus + prometheus-adapter).
+    prometheus:
+      image:
+        repository: prom/prometheus
+        tag: v3.8.0
+        pullPolicy: IfNotPresent
+      retention: 1h
+      scrapeInterval: 15s
+      resources:
+        requests:
+          cpu: 100m
+          memory: 256Mi
+        limits:
+          memory: 512Mi
+    adapter:
+      image:
+        repository: registry.k8s.io/prometheus-adapter/prometheus-adapter
+        tag: v0.12.0
+        pullPolicy: IfNotPresent
+      resources:
+        requests:
+          cpu: 100m
+          memory: 128Mi
+        limits:
+          memory: 256Mi
   # Optional fixed-capacity workload isolation. This creates dedicated API
   # Deployments and Services for ingestion and background work while retaining
   # api.name as the default pool for all remaining traffic. Public ingress must
