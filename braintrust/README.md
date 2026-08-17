@@ -217,6 +217,32 @@ Size the request for the pod's full local-storage usage:
 
 When you enable `tmpVolume`, make sure the `ephemeralStorage.request` still covers that extra space.
 
+## GKE API Autoscaling
+
+The API can autoscale on GKE using a Horizontal Pod Autoscaler backed by GKE's native `AutoscalingMetric` resource. When enabled, each API pool scales on three signals - CPU (scoped to the `api` container via `ContainerResource`, so sidecars are excluded), Node.js event-loop utilization, and mean event-loop delay.
+
+This is underpinned by a **Preview (Pre-GA)** GKE feature. It requires:
+
+- Braintrust API / data plane **v2.9.0** or later (Prometheus `/metrics` on the API health server)
+- GKE **1.35.1-gke.1396000** or later
+- The Performance HPA profile and the Autoscaling API enabled on the cluster
+- `roles/autoscaling.metricsWriter` granted to all node service accounts
+- The Autoscaling API included in your service perimeter when using VPC Service Controls
+
+See [Expose custom metrics for autoscaling](https://docs.cloud.google.com/kubernetes-engine/docs/how-to/expose-custom-metrics-autoscaling) for more details on `AutoscalingMetric` in GKE.
+
+Enable it in your values:
+
+```yaml
+api:
+  autoscaling:
+    enabled: true
+    minReplicas: 4
+    maxReplicas: 50
+```
+
+When enabled for a pool, that pool's `replicas` setting is ignored and the HPA controls the replica count. With `api.workloadIsolation.enabled`, ingest and background pools inherit these settings and can override `minReplicas` / `maxReplicas` under `api.workloadIsolation.<pool>.autoscaling`.
+
 ## API workload isolation
 
 `api.workloadIsolation.enabled` creates fixed-capacity `braintrust-api-ingest`
@@ -259,9 +285,9 @@ ingest, eval, function, and automation routes match `POST`; proxy routes match
 all methods. GKE Ingress cannot route by method, so its equivalent integration
 classifies matching paths for all methods.
 
-This feature does not enable autoscaling. Configure fixed replica counts under
-`api.replicas`, `api.workloadIsolation.ingest.replicas`, and
-`api.workloadIsolation.background.replicas`.
+Pools use fixed replica counts by default (`api.replicas` and
+`api.workloadIsolation.<pool>.replicas`). On GKE, enable `api.autoscaling` to
+let each pool scale independently instead.
 
 ## Testing
 
@@ -311,4 +337,5 @@ Example values files for different cloud providers and configurations are locate
 
 - `examples/google-autopilot/values.yaml`: GKE Autopilot deployment.
 - `examples/google-autopilot-cel/values.yaml`: GKE Autopilot deployment with CEL-friendly security settings.
+- `examples/google-api-isolation-autoscaling/values.yaml`: Minimal example for API workload isolation and per-pool autoscaling on GKE (combine with an Autopilot or Standard values file).
 - `examples/google-standard/values.yaml`: GKE Standard deployment.

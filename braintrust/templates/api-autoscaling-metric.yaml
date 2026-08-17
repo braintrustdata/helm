@@ -1,0 +1,53 @@
+{{- $root := . -}}
+{{- $pools := include "braintrust.apiPools" . | fromYamlArray -}}
+{{- $validated := false -}}
+{{- $rendered := 0 -}}
+{{- range $pool := $pools -}}
+{{- $api := $pool.config -}}
+{{- if dig "autoscaling" "enabled" false $api -}}
+{{- if not $validated -}}
+{{- include "braintrust.apiAutoscaling.validate" $root -}}
+{{- $validated = true -}}
+{{- end -}}
+{{- if gt $rendered 0 }}
+---
+{{- end }}
+{{- $poolLabels := dict -}}
+{{- if or $root.Values.api.workloadIsolation.enabled (ne $pool.role "default") -}}
+{{- $_ := set $poolLabels "braintrust.dev/api-pool" $pool.role -}}
+{{- end -}}
+{{- $resourceLabels := mergeOverwrite (deepCopy $root.Values.global.labels) (deepCopy $api.labels) $poolLabels -}}
+apiVersion: autoscaling.gke.io/v1beta1
+kind: AutoscalingMetric
+metadata:
+  name: {{ $api.name }}
+  namespace: {{ include "braintrust.namespace" $root }}
+  {{- with $resourceLabels }}
+  labels:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with $api.annotations.autoscalingMetric }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  metrics:
+  - pod:
+      selector:
+        matchLabels:
+          app: {{ $api.name }}
+      containers:
+      - endpoint:
+          port: {{ $api.healthServer.port }}
+          path: {{ $api.autoscaling.metricsPath }}
+        metrics:
+        - gauge:
+            # GKE gauge names must match ^[a-z]([-a-z0-9]*[a-z0-9])?
+            name: braintrust-api-event-loop-utilization-ratio
+            prometheusMetricName: braintrust_api_event_loop_utilization_ratio
+        - gauge:
+            name: braintrust-api-event-loop-delay-mean-seconds
+            prometheusMetricName: braintrust_api_event_loop_delay_mean_seconds
+{{- $rendered = add1 $rendered -}}
+{{- end -}}
+{{- end }}

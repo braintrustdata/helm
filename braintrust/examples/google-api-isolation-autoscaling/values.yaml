@@ -1,0 +1,48 @@
+# Minimal GKE example with API workload isolation + per-pool autoscaling.
+#
+# Combine this with a normal google-autopilot (or google-standard) values
+# file - only the fields below are specific to this pattern.
+#
+# Sizing:
+# - api.autoscaling is shared by every pool
+# - api.workloadIsolation.<pool>.autoscaling deep-merges on top
+# - With autoscaling enabled, set capacity via minReplicas/maxReplicas
+#   (Helm `replicas` is not applied to those Deployments)
+#
+# Also requires GKE 1.35.1+ with AutoscalingMetric, and ingress routes for the
+# isolation contract (see README & files/contracts/api-workload-isolation-routes.yaml).
+
+api:
+  autoscaling:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 40
+    # Metric targets (inherited by every pool unless overridden below).
+    cpu:
+      targetAverageUtilization: 50
+    eventLoopUtilization:
+      targetAverageValue: "0.4" # 0-1 ratio (0.4 is 40%)
+    eventLoopDelayMean:
+      targetAverageValue: "0.05" # seconds (0.05 is 50ms)
+    # HPA scale velocity (inherited by every pool unless overridden below).
+    behavior:
+      scaleDown:
+        stabilizationWindowSeconds: 300
+      scaleUp:
+        stabilizationWindowSeconds: 60
+  workloadIsolation:
+    enabled: true
+    ingest:
+      autoscaling:
+        minReplicas: 3
+        maxReplicas: 60
+        # Example pool-specific overrides: higher ELU target, faster scale-out.
+        eventLoopUtilization:
+          targetAverageValue: "0.5" # 0-1 ratio (0.5 is 50%)
+        behavior:
+          scaleUp:
+            stabilizationWindowSeconds: 30
+    background:
+      autoscaling:
+        minReplicas: 3
+        maxReplicas: 50

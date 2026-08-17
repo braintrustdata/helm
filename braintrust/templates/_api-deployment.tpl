@@ -40,7 +40,9 @@ metadata:
     {{- toYaml . | nindent 4 }}
   {{- end }}
 spec:
+  {{- if not (dig "autoscaling" "enabled" false $api) }}
   replicas: {{ $api.replicas }}
+  {{- end }}
   strategy:
     type: {{ $api.strategy.type }}
     {{- with $api.strategy.rollingUpdate }}
@@ -101,6 +103,9 @@ spec:
           {{- end }}
           ports:
             - containerPort: {{ $api.service.port }}
+            {{- if dig "autoscaling" "enabled" false $api }}
+            - containerPort: {{ $api.healthServer.port }}
+            {{- end }}
           resources:
             {{- toYaml $api.resources | nindent 12 }}
           {{- with $api.livenessProbe }}
@@ -175,6 +180,10 @@ spec:
             {{- end }}
             {{- with $api.extraEnvVars }}
             {{- toYaml . | nindent 12 }}
+            {{- end }}
+            {{- if dig "autoscaling" "enabled" false $api }}
+            - name: ENABLE_PROMETHEUS_METRICS
+              value: "true"
             {{- end }}
           {{- if or $api.tmpVolume.enabled (and (eq $root.Values.cloud "azure") $root.Values.azure.enableAzureKeyVaultDriver) $customCA.enabled }}
           volumeMounts:
