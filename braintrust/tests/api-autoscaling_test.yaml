@@ -119,12 +119,15 @@ tests:
           value: 50
       - equal:
           path: spec.metrics[0].type
-          value: Resource
+          value: ContainerResource
       - equal:
-          path: spec.metrics[0].resource.name
+          path: spec.metrics[0].containerResource.name
           value: cpu
       - equal:
-          path: spec.metrics[0].resource.target.averageUtilization
+          path: spec.metrics[0].containerResource.container
+          value: api
+      - equal:
+          path: spec.metrics[0].containerResource.target.averageUtilization
           value: 50
       - equal:
           path: spec.metrics[1].pods.metric.name

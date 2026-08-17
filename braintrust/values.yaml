@@ -118,6 +118,7 @@ api:
   # workloadIsolation is enabled). Pool overrides can set minReplicas/maxReplicas
   # (or disable) under api.workloadIsolation.<pool>.autoscaling.
   # The GKE feature for custom autoscaling metrics is in Preview (Pre-GA). It requires:
+  # - Braintrust API / data plane v2.9.0+ (Prometheus /metrics on the API health server)
   # - GKE 1.35.1-gke.1396000 or later
   # - the Performance HPA profile and Autoscaling API
   # - roles/autoscaling.metricsWriter on all node service accounts
@@ -130,8 +131,8 @@ api:
     minReplicas: 4
     maxReplicas: 50
     # Prometheus metrics path on the API health server (api.healthServer.port).
-    # This endpoint was introduced in v2.9.0+ of the Braintrust data plane.
     metricsPath: /metrics
+    # HPA uses ContainerResource for the api container (sidecars excluded).
     cpu:
       targetAverageUtilization: 50
     # 0-1 ratio (0.4 = 40% event-loop utilization).

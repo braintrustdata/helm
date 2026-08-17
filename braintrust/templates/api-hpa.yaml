@@ -38,9 +38,12 @@ spec:
   minReplicas: {{ $api.autoscaling.minReplicas }}
   maxReplicas: {{ $api.autoscaling.maxReplicas }}
   metrics:
-    - type: Resource
-      resource:
+    # ContainerResource scopes CPU to the api container so sidecars / extraContainers
+    # do not skew utilization. Custom Pods metrics are already API-scoped via /metrics.
+    - type: ContainerResource
+      containerResource:
         name: cpu
+        container: api
         target:
           type: Utilization
           averageUtilization: {{ $api.autoscaling.cpu.targetAverageUtilization }}

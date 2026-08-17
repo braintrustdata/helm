@@ -219,10 +219,11 @@ When you enable `tmpVolume`, make sure the `ephemeralStorage.request` still cove
 
 ## GKE API Autoscaling
 
-The API can autoscale on GKE using a Horizontal Pod Autoscaler backed by GKE's native `AutoscalingMetric` resource. When enabled, each API pool scales on three signals - CPU, Node.js event-loop utilization, and mean event-loop delay.
+The API can autoscale on GKE using a Horizontal Pod Autoscaler backed by GKE's native `AutoscalingMetric` resource. When enabled, each API pool scales on three signals - CPU (scoped to the `api` container via `ContainerResource`, so sidecars are excluded), Node.js event-loop utilization, and mean event-loop delay.
 
 This is underpinned by a **Preview (Pre-GA)** GKE feature. It requires:
 
+- Braintrust API / data plane **v2.9.0** or later (Prometheus `/metrics` on the API health server)
 - GKE **1.35.1-gke.1396000** or later
 - The Performance HPA profile and the Autoscaling API enabled on the cluster
 - `roles/autoscaling.metricsWriter` granted to all node service accounts
