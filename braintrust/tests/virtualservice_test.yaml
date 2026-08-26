@@ -327,3 +327,26 @@ tests:
     asserts:
       - failedTemplate:
           errorMessage: "virtualService.workloadIsolation.enabled requires virtualService.enabled."
+
+  - it: should route Loop Runtime before the API fallback
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/loop-runtime-values.yaml
+    set:
+      virtualService.enabled: true
+    asserts:
+      - equal:
+          path: spec.http[0].match[0].uri.exact
+          value: /loop/runtime
+      - equal:
+          path: spec.http[0].match[1].uri.prefix
+          value: /loop/runtime/
+      - equal:
+          path: spec.http[0].route[0].destination.host
+          value: braintrust-loop-runtime
+      - equal:
+          path: spec.http[0].route[0].destination.port.number
+          value: 4001
+      - equal:
+          path: spec.http[1].match[0].uri.prefix
+          value: /

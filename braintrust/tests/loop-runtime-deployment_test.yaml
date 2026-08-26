@@ -1,0 +1,69 @@
+suite: test Loop Runtime Deployment template
+templates:
+  - loop-runtime-deployment.yaml
+  - loop-runtime-configmap.yaml
+tests:
+  - it: should not render when Loop Runtime is disabled
+    values:
+      - __fixtures__/base-values.yaml
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should render a hardened runtime pod with data-plane secrets
+    template: loop-runtime-deployment.yaml
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/loop-runtime-values.yaml
+    asserts:
+      - isKind:
+          of: Deployment
+      - equal:
+          path: metadata.name
+          value: braintrust-loop-runtime
+      - equal:
+          path: spec.template.spec.serviceAccountName
+          value: braintrust-loop-runtime
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: test/loop-runtime:v1.0.0
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.allowPrivilegeEscalation
+          value: false
+      - contains:
+          path: spec.template.spec.containers[0].securityContext.capabilities.drop
+          content: ALL
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: BRAINSTORE_METADATA_URI
+            valueFrom:
+              secretKeyRef:
+                name: braintrust-secrets
+                key: PG_URL
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: SERVICE_TOKEN_SECRET_KEY
+            valueFrom:
+              secretKeyRef:
+                name: braintrust-secrets
+                key: FUNCTION_SECRET_KEY
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: BRAINSTORE_LOCKS_URI
+            valueFrom:
+              secretKeyRef:
+                name: braintrust-secrets
+                key: REDIS_URL
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: state-volume
+            mountPath: /mnt/tmp/loop-runtime
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: cache-volume
+            emptyDir: {}

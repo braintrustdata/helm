@@ -116,6 +116,57 @@ http://{{ .Values.aiGateway.service.name | default .Values.aiGateway.name }}.{{ 
 {{- end -}}
 
 {{/*
+Validate the AWS-only Loop Runtime configuration. Terraform supplies the
+MicroVM image and connector values; Helm supplies the Kubernetes workload.
+*/}}
+{{- define "braintrust.loopRuntime.validate" -}}
+{{- if .Values.loopRuntime.enabled -}}
+{{- if ne .Values.cloud "aws" -}}
+{{- fail "loopRuntime.enabled requires cloud: aws because the current sandbox backend uses AWS Lambda MicroVMs." -}}
+{{- end -}}
+{{- $_ := required "objectStorage.aws.brainstoreBucket is required when loopRuntime.enabled is true" .Values.objectStorage.aws.brainstoreBucket -}}
+{{- $_ := required "objectStorage.aws.codeBundleBucket is required when loopRuntime.enabled is true" .Values.objectStorage.aws.codeBundleBucket -}}
+{{- $_ := required "loopRuntime.sandbox.imageIdentifier is required when loopRuntime.enabled is true (use Terraform output loop_runtime_microvm_image_arn)" .Values.loopRuntime.sandbox.imageIdentifier -}}
+{{- $_ := required "loopRuntime.sandbox.region is required when loopRuntime.enabled is true" .Values.loopRuntime.sandbox.region -}}
+{{- $_ := required "loopRuntime.sandbox.ingressNetworkConnectorArns is required when loopRuntime.enabled is true (use Terraform sandbox output)" .Values.loopRuntime.sandbox.ingressNetworkConnectorArns -}}
+{{- $_ := required "loopRuntime.sandbox.egressNetworkConnectorArns is required when loopRuntime.enabled is true (use Terraform sandbox output)" .Values.loopRuntime.sandbox.egressNetworkConnectorArns -}}
+{{- $_ := required "loopRuntime.serviceAccount.name is required when loopRuntime.enabled is true" .Values.loopRuntime.serviceAccount.name -}}
+{{- if .Values.loopRuntime.sandbox.allowExecutionRole -}}
+{{- $_ := required "loopRuntime.sandbox.executionRoleArn is required when loopRuntime.sandbox.allowExecutionRole is true" .Values.loopRuntime.sandbox.executionRoleArn -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
+
+{{/* Internal cluster URL for the Loop Runtime service. */}}
+{{- define "braintrust.loopRuntimeInternalUrl" -}}
+http://{{ .Values.loopRuntime.service.name | default .Values.loopRuntime.name }}.{{ include "braintrust.namespace" . }}:{{ .Values.loopRuntime.service.port }}
+{{- end -}}
+
+{{/* Stable Redis key namespace for a Helm-managed Loop Runtime. */}}
+{{- define "braintrust.loopRuntimeRedisNamespace" -}}
+{{- .Values.loopRuntime.redisNamespace | default (printf "loop-runtime:%s" .Release.Name) -}}
+{{- end -}}
+
+{{/* Internal cluster URL for the Brainstore fast reader used by Loop Runtime. */}}
+{{- define "braintrust.brainstoreFastReaderInternalUrl" -}}
+http://{{ .Values.brainstore.fastreader.service.name | default .Values.brainstore.fastreader.name }}.{{ include "braintrust.namespace" . }}:{{ .Values.brainstore.fastreader.service.port }}
+{{- end -}}
+
+{{/* Product-owned Loop Runtime routes for an Istio VirtualService. */}}
+{{- define "braintrust.loopRuntimeVirtualServiceRoutes" -}}
+- match:
+    - uri:
+        exact: /loop/runtime
+    - uri:
+        prefix: /loop/runtime/
+  route:
+    - destination:
+        host: {{ .Values.loopRuntime.service.name | default .Values.loopRuntime.name }}
+        port:
+          number: {{ .Values.loopRuntime.service.port }}
+{{- end -}}
+
+{{/*
 Validate API autoscaling prerequisites (GKE + AutoscalingMetric CRD).
 */}}
 {{- define "braintrust.apiAutoscaling.validate" -}}

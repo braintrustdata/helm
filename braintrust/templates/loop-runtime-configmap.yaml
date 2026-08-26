@@ -1,0 +1,71 @@
+{{- include "braintrust.loopRuntime.validate" . -}}
+{{- if .Values.loopRuntime.enabled -}}
+{{- $apiUrl := default (include "braintrust.apiInternalUrl" .) .Values.loopRuntime.braintrustApiUrl -}}
+{{- $aiProxyUrl := default (include "braintrust.apiAiProxyInternalUrl" .) .Values.loopRuntime.aiProxyUrl -}}
+{{- $brainstoreReaderUrl := default (include "braintrust.brainstoreFastReaderInternalUrl" .) .Values.loopRuntime.brainstoreReaderUrl -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.loopRuntime.name }}
+  namespace: {{ include "braintrust.namespace" . }}
+  {{- with (mergeOverwrite (deepCopy .Values.global.labels) (deepCopy .Values.loopRuntime.labels)) }}
+  labels:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with .Values.loopRuntime.annotations.configmap }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+data:
+  BRAINTRUST_LEGACY_IDS: "true"
+  LOOP_RUNTIME_HOST: "0.0.0.0"
+  LOOP_RUNTIME_PORT: {{ .Values.loopRuntime.service.port | quote }}
+  LOOP_RUNTIME_LIFECYCLE_LOG: {{ .Values.loopRuntime.lifecycleLog | toString | quote }}
+  LOOP_RUNTIME_REDIS_NAMESPACE: {{ include "braintrust.loopRuntimeRedisNamespace" . | quote }}
+  LOOP_RUNTIME_STATE_DIR: {{ .Values.loopRuntime.stateDir | quote }}
+  ORG_NAME: {{ .Values.global.orgName | default "" | toString | trim | quote }}
+  BRAINTRUST_API_URL: {{ $apiUrl | quote }}
+  LOOP_RUNTIME_AI_PROXY_URL: {{ $aiProxyUrl | quote }}
+  LOOP_RUNTIME_BRAINSTORE_READER_URL: {{ $brainstoreReaderUrl | quote }}
+  BRAINSTORE_VERBOSE: "1"
+  BRAINSTORE_INDEX_URI: "s3://{{ .Values.objectStorage.aws.brainstoreBucket }}/brainstore/index"
+  BRAINSTORE_REALTIME_WAL_URI: "s3://{{ .Values.objectStorage.aws.brainstoreBucket }}/brainstore/wal"
+  BRAINSTORE_CODE_BUNDLE_URI: "s3://{{ .Values.objectStorage.aws.codeBundleBucket }}"
+  BRAINSTORE_CACHE_DIR: {{ .Values.loopRuntime.cacheDir | quote }}
+  BRAINSTORE_CONTROL_PLANE_TELEMETRY: {{ .Values.global.controlPlaneTelemetry | quote }}
+  BRAINSTORE_DISABLE_STATUS_UPDATES: {{ .Values.loopRuntime.brainstoreDisableStatusUpdates | toString | quote }}
+  NO_COLOR: "1"
+  AWS_DEFAULT_REGION: {{ .Values.loopRuntime.sandbox.region | quote }}
+  AWS_REGION: {{ .Values.loopRuntime.sandbox.region | quote }}
+  EXO_SANDBOX_PROVIDER: {{ .Values.loopRuntime.sandbox.provider | quote }}
+  EXO_SANDBOX_IMAGE: {{ .Values.loopRuntime.sandbox.image | quote }}
+  AWS_LAMBDA_MICROVM_IMAGE_IDENTIFIER: {{ .Values.loopRuntime.sandbox.imageIdentifier | quote }}
+  AWS_LAMBDA_MICROVM_REGION: {{ .Values.loopRuntime.sandbox.region | quote }}
+  AWS_LAMBDA_MICROVM_INGRESS_NETWORK_CONNECTOR_ARNS: {{ .Values.loopRuntime.sandbox.ingressNetworkConnectorArns | quote }}
+  AWS_LAMBDA_MICROVM_EGRESS_NETWORK_CONNECTOR_ARNS: {{ .Values.loopRuntime.sandbox.egressNetworkConnectorArns | quote }}
+  AWS_LAMBDA_MICROVM_MAX_IDLE_DURATION_SECONDS: {{ .Values.loopRuntime.sandbox.maxIdleDurationSeconds | quote }}
+  AWS_LAMBDA_MICROVM_SUSPENDED_DURATION_SECONDS: {{ .Values.loopRuntime.sandbox.suspendedDurationSeconds | quote }}
+  AWS_LAMBDA_MICROVM_AUTO_RESUME_ENABLED: {{ .Values.loopRuntime.sandbox.autoResumeEnabled | toString | quote }}
+  AWS_LAMBDA_MICROVM_MAXIMUM_DURATION_SECONDS: {{ .Values.loopRuntime.sandbox.maximumDurationSeconds | quote }}
+  AWS_LAMBDA_MICROVM_AUTH_TOKEN_EXPIRATION_MINUTES: {{ .Values.loopRuntime.sandbox.authTokenExpirationMinutes | quote }}
+  AWS_LAMBDA_MICROVM_RUNTIME_PORT: {{ .Values.loopRuntime.sandbox.runtimePort | quote }}
+  {{- if .Values.loopRuntime.sandbox.allowExecutionRole }}
+  AWS_LAMBDA_MICROVM_EXECUTION_ROLE_ARN: {{ .Values.loopRuntime.sandbox.executionRoleArn | quote }}
+  AWS_LAMBDA_MICROVM_ALLOW_EXECUTION_ROLE: "true"
+  {{- end }}
+  {{- with (.Values.global.allowedOrgIds | default "" | toString | trim) }}
+  ALLOWED_ORG_IDS: {{ . | quote }}
+  {{- end }}
+  {{- if eq .Values.brainstore.locksBackend "objectStorage" }}
+  BRAINSTORE_LOCKS_URI: "s3://{{ .Values.objectStorage.aws.brainstoreBucket }}/brainstore/locks"
+  {{- end }}
+  {{- if .Values.brainstoreWalFooterVersion }}
+  BRAINSTORE_WAL_FOOTER_VERSION: {{ .Values.brainstoreWalFooterVersion | quote }}
+  {{- end }}
+  {{- if .Values.skipPgForBrainstoreObjects }}
+  SKIP_PG_FOR_BRAINSTORE_OBJECTS: {{ .Values.skipPgForBrainstoreObjects | quote }}
+  {{- end }}
+  {{- if or .Values.brainstoreWalFooterVersion .Values.skipPgForBrainstoreObjects }}
+  BRAINSTORE_WAL_USE_EFFICIENT_FORMAT: "true"
+  {{- end }}
+{{- end }}
