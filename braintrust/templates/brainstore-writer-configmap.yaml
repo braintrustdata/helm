@@ -28,7 +28,7 @@ data:
   BRAINSTORE_INDEX_URI: "az://{{ .Values.objectStorage.azure.brainstoreContainer }}/brainstore/index"
   BRAINSTORE_REALTIME_WAL_URI: "az://{{ .Values.objectStorage.azure.brainstoreContainer }}/brainstore/wal"
   {{- if eq .Values.brainstore.locksBackend "objectStorage" }}
-  BRAINSTORE_LOCKS_URI: "az://{{ .Values.objectStorage.azure.brainstoreContainer }}/{{ include "braintrust.brainstoreLocksS3Path" . }}"
+  BRAINSTORE_LOCKS_URI: "az://{{ .Values.objectStorage.azure.brainstoreContainer }}/brainstore/locks"
   {{- end }}
   {{- if .Values.objectStorage.azure.responseContainer }}
   BRAINSTORE_RESPONSE_CACHE_URI: "az://{{ .Values.objectStorage.azure.responseContainer }}/brainstore-cache"
@@ -40,7 +40,7 @@ data:
   BRAINSTORE_INDEX_URI: "s3://{{ .Values.objectStorage.aws.brainstoreBucket }}/brainstore/index"
   BRAINSTORE_REALTIME_WAL_URI: "s3://{{ .Values.objectStorage.aws.brainstoreBucket }}/brainstore/wal"
   {{- if eq .Values.brainstore.locksBackend "objectStorage" }}
-  BRAINSTORE_LOCKS_URI: "s3://{{ .Values.objectStorage.aws.brainstoreBucket }}/{{ include "braintrust.brainstoreLocksS3Path" . }}"
+  BRAINSTORE_LOCKS_URI: "s3://{{ .Values.objectStorage.aws.brainstoreBucket }}/brainstore/locks"
   {{- end }}
   {{- if .Values.objectStorage.aws.responseBucket }}
   BRAINSTORE_RESPONSE_CACHE_URI: "s3://{{ .Values.objectStorage.aws.responseBucket }}/brainstore-cache"
@@ -52,7 +52,7 @@ data:
   BRAINSTORE_INDEX_URI: "gs://{{ .Values.objectStorage.google.brainstoreBucket }}/brainstore/index"
   BRAINSTORE_REALTIME_WAL_URI: "gs://{{ .Values.objectStorage.google.brainstoreBucket }}/brainstore/wal"
   {{- if eq .Values.brainstore.locksBackend "objectStorage" }}
-  BRAINSTORE_LOCKS_URI: "gs://{{ .Values.objectStorage.google.brainstoreBucket }}/{{ include "braintrust.brainstoreLocksS3Path" . }}"
+  BRAINSTORE_LOCKS_URI: "gs://{{ .Values.objectStorage.google.brainstoreBucket }}/brainstore/locks"
   {{- end }}
   {{- if .Values.objectStorage.google.apiBucket }}
   BRAINSTORE_RESPONSE_CACHE_URI: "gs://{{ .Values.objectStorage.google.apiBucket }}/brainstore-cache"

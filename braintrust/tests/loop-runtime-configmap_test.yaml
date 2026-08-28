@@ -57,18 +57,6 @@ tests:
           path: data.BRAINSTORE_LOCKS_URI
           value: s3://test-brainstore-bucket/brainstore/locks
 
-  - it: should use the configured shared object storage lock prefix
-    values:
-      - __fixtures__/base-values.yaml
-      - __fixtures__/loop-runtime-values.yaml
-    set:
-      brainstore.locksBackend: objectStorage
-      brainstore.locksS3Path: /custom/locks
-    asserts:
-      - equal:
-          path: data.BRAINSTORE_LOCKS_URI
-          value: s3://test-brainstore-bucket/custom/locks
-
   - it: should reject Loop Runtime on non-AWS clouds
     values:
       - __fixtures__/base-values.yaml
