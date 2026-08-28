@@ -67,3 +67,21 @@ tests:
           content:
             name: cache-volume
             emptyDir: {}
+
+  - it: should keep probes on the named service port when the port changes
+    template: loop-runtime-deployment.yaml
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/loop-runtime-values.yaml
+    set:
+      loopRuntime.service.port: 5000
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].ports[0].containerPort
+          value: 5000
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.httpGet.port
+          value: http
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.httpGet.port
+          value: http

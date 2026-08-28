@@ -26,6 +26,17 @@ created by the Terraform data-plane module. Configure the chart with the
 Terraform outputs:
 
 ```yaml
+cloud: aws
+
+objectStorage:
+  aws:
+    brainstoreBucket: "<terraform output brainstore_s3_bucket_name>"
+    codeBundleBucket: "<terraform output code_bundle_s3_bucket_name>"
+
+# Keep this prefix aligned with Terraform when using object-storage locks.
+brainstore:
+  locksS3Path: "<terraform output loop_runtime_locks_s3_path>"
+
 loopRuntime:
   enabled: true
   image:

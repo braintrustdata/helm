@@ -353,7 +353,8 @@ loopRuntime:
   livenessProbe:
     httpGet:
       path: /health/liveness
-      port: 4001
+      # Use the named Service port so this follows service.port changes.
+      port: http
     initialDelaySeconds: 10
     periodSeconds: 30
     timeoutSeconds: 5
@@ -362,7 +363,8 @@ loopRuntime:
   readinessProbe:
     httpGet:
       path: /health/liveness
-      port: 4001
+      # Use the named Service port so this follows service.port changes.
+      port: http
     initialDelaySeconds: 10
     periodSeconds: 10
     timeoutSeconds: 5
@@ -476,6 +478,10 @@ brainstore:
   # WARNING: If you have an existing deployment, DO NOT change this setting.
   # Changing the locks backend on an existing deployment could cause data corruption at this time.
   locksBackend: "redis"
+  # Object-storage lock prefix shared by Brainstore and Loop Runtime. For
+  # external EKS deployments, set this to Terraform's normalized
+  # loop_runtime_locks_s3_path output when locksBackend is objectStorage.
+  locksS3Path: "brainstore/locks"
   # Health check probes (applies to both reader and writer)
   livenessProbe:
     httpGet:

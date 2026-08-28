@@ -137,6 +137,11 @@ MicroVM image and connector values; Helm supplies the Kubernetes workload.
 {{- end -}}
 {{- end -}}
 
+{{/* Shared object-storage lock prefix for Brainstore and Loop Runtime. */}}
+{{- define "braintrust.brainstoreLocksS3Path" -}}
+{{- trimPrefix "/" .Values.brainstore.locksS3Path -}}
+{{- end -}}
+
 {{/* Internal cluster URL for the Loop Runtime service. */}}
 {{- define "braintrust.loopRuntimeInternalUrl" -}}
 http://{{ .Values.loopRuntime.service.name | default .Values.loopRuntime.name }}.{{ include "braintrust.namespace" . }}:{{ .Values.loopRuntime.service.port }}

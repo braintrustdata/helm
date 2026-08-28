@@ -124,6 +124,20 @@ tests:
           path: data.BRAINSTORE_LOCKS_URI
           value: "s3://test-brainstore-bucket/brainstore/locks"
 
+  - it: should use the configured shared object storage lock prefix for AWS
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/aws-values.yaml
+    set:
+      brainstore.locksBackend: "objectStorage"
+      brainstore.locksS3Path: "/custom/locks"
+    release:
+      namespace: "braintrust"
+    asserts:
+      - equal:
+          path: data.BRAINSTORE_LOCKS_URI
+          value: "s3://test-brainstore-bucket/custom/locks"
+
   - it: should include locks URI when locksBackend is objectStorage for Azure
     values:
       - __fixtures__/base-values.yaml
