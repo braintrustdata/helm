@@ -288,6 +288,107 @@ api:
   extraContainers: []
   extraVolumes: []
 
+# Loop Runtime configuration (AWS EKS only)
+# Terraform creates the AWS MicroVM image, network connectors, and IAM role;
+# this chart runs the Loop Runtime process in Kubernetes.
+loopRuntime:
+  enabled: false
+  name: "braintrust-loop-runtime"
+  labels: {}
+  podLabels: {}
+  annotations:
+    configmap: {}
+    deployment: {}
+    service: {}
+    pod: {}
+    serviceaccount: {}
+  replicas: 1
+  image:
+    repository: public.ecr.aws/braintrust/loop-runtime
+    tag: latest-2.x
+    pullPolicy: IfNotPresent
+  service:
+    # Optional name for the Service. If empty, loopRuntime.name is used.
+    name: ""
+    type: ClusterIP
+    port: 4001
+    portName: http
+  serviceAccount:
+    name: "braintrust-loop-runtime"
+    # Set this to Terraform's loop_runtime_eks_role_arn when using IRSA. Leave
+    # it empty when the role is attached through an EKS Pod Identity association.
+    awsRoleArn: ""
+    annotations: {}
+  # These URLs default to in-cluster services. Set them when the API, AI proxy,
+  # or Brainstore is exposed through a different service or namespace.
+  braintrustApiUrl: ""
+  aiProxyUrl: ""
+  brainstoreReaderUrl: ""
+  # Defaults to loop-runtime:<Helm release name>; set explicitly when retaining
+  # an existing Loop Runtime Redis namespace across release renames.
+  redisNamespace: ""
+  lifecycleLog: "0"
+  brainstoreDisableStatusUpdates: "false"
+  stateDir: "/mnt/tmp/loop-runtime"
+  cacheDir: "/mnt/tmp/brainstore"
+  resources:
+    requests:
+      cpu: "2"
+      memory: "8Gi"
+    limits:
+      cpu: "2"
+      memory: "8Gi"
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+    runAsGroup: 1000
+    fsGroup: 1000
+    seccompProfile:
+      type: RuntimeDefault
+  securityContext:
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+        - ALL
+  livenessProbe:
+    httpGet:
+      path: /health/liveness
+    initialDelaySeconds: 10
+    periodSeconds: 30
+    timeoutSeconds: 5
+    failureThreshold: 3
+    successThreshold: 1
+  readinessProbe:
+    httpGet:
+      path: /health/liveness
+    initialDelaySeconds: 10
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+    successThreshold: 1
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  sandbox:
+    provider: "aws-lambda-microvm"
+    image: "lambda-microvm"
+    # These values come from Terraform outputs. They are required when enabled.
+    imageIdentifier: ""
+    region: ""
+    ingressNetworkConnectorArns: ""
+    egressNetworkConnectorArns: ""
+    maxIdleDurationSeconds: 900
+    suspendedDurationSeconds: 28800
+    autoResumeEnabled: true
+    maximumDurationSeconds: 28800
+    authTokenExpirationMinutes: 30
+    runtimePort: 8080
+    executionRoleArn: ""
+    allowExecutionRole: false
+  extraEnvVars: []
+  extraContainers: []
+  extraVolumes: []
+
 # AI Gateway configuration (optional)
 # Deploys the Braintrust AI gateway service for LLM proxying and completions caching.
 # Recommended rollout: enabled=true first, wait for gateway pods to be ready, then useGateway=true.

@@ -5,6 +5,7 @@
 {{- if and $virtualServiceWorkloadIsolation.enabled (not .Values.api.workloadIsolation.enabled) -}}
 {{- fail "virtualService.workloadIsolation.enabled requires api.workloadIsolation.enabled." -}}
 {{- end -}}
+{{- include "braintrust.loopRuntime.validate" . -}}
 {{- if .Values.virtualService.enabled }}
 apiVersion: networking.istio.io/v1
 kind: VirtualService
@@ -29,6 +30,9 @@ spec:
     {{- toYaml . | nindent 4 }}
   {{- end }}
   http:
+    {{- if .Values.loopRuntime.enabled }}
+    {{- include "braintrust.loopRuntimeVirtualServiceRoutes" . | nindent 4 }}
+    {{- end }}
     {{- if $virtualServiceWorkloadIsolation.enabled }}
     {{- include "braintrust.apiWorkloadIsolationVirtualServiceRoutes" . | nindent 4 }}
     {{- end }}

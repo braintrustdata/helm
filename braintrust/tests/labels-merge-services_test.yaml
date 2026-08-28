@@ -1,6 +1,7 @@
 suite: test label merge isolation for services (deepCopy fix)
 templates:
   - api-service.yaml
+  - loop-runtime-service.yaml
   - brainstore-reader-service.yaml
   - brainstore-writer-service.yaml
   - brainstore-fastreader-service.yaml
@@ -117,3 +118,33 @@ tests:
           path: metadata.labels["reader-specific"]
       - isNull:
           path: metadata.labels["writer-specific"]
+
+  - it: should give Loop Runtime service only global and runtime-specific labels
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/loop-runtime-values.yaml
+    set:
+      global.labels.shared: "global-service"
+      loopRuntime.labels.loop-specific: "loop-service"
+      api.labels.api-specific: "api-service"
+      brainstore.reader.labels.reader-specific: "reader-service"
+      brainstore.writer.labels.writer-specific: "writer-service"
+      brainstore.fastreader.labels.fastreader-specific: "fastreader-service"
+    release:
+      namespace: "braintrust"
+    template: loop-runtime-service.yaml
+    asserts:
+      - equal:
+          path: metadata.labels.shared
+          value: global-service
+      - equal:
+          path: metadata.labels["loop-specific"]
+          value: loop-service
+      - isNull:
+          path: metadata.labels["api-specific"]
+      - isNull:
+          path: metadata.labels["reader-specific"]
+      - isNull:
+          path: metadata.labels["writer-specific"]
+      - isNull:
+          path: metadata.labels["fastreader-specific"]
