@@ -403,13 +403,13 @@ brainstore:
       service: {}
       pod: {}
     replicas: 2
-    # Keep cache-heavy Brainstore rollouts bounded by replacing one pod at a
-    # time and requiring the replacement to remain Ready before continuing.
-    minReadySeconds: 60
+    # Configure rollout pacing for this Brainstore role. Defaults preserve the
+    # rollout behavior from earlier chart versions.
+    minReadySeconds: 0
     strategy:
       type: RollingUpdate
       rollingUpdate:
-        maxSurge: 1
+        maxSurge: 100%
         maxUnavailable: 0
     service:
       name: ""
@@ -462,11 +462,11 @@ brainstore:
       service: {}
       pod: {}
     replicas: 2
-    minReadySeconds: 60
+    minReadySeconds: 0
     strategy:
       type: RollingUpdate
       rollingUpdate:
-        maxSurge: 1
+        maxSurge: 100%
         maxUnavailable: 0
     service:
       name: ""
@@ -519,11 +519,11 @@ brainstore:
       service: {}
       pod: {}
     replicas: 1
-    minReadySeconds: 60
+    minReadySeconds: 0
     strategy:
       type: RollingUpdate
       rollingUpdate:
-        maxSurge: 1
+        maxSurge: 100%
         maxUnavailable: 0
     service:
       name: ""

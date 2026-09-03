@@ -20,13 +20,13 @@ tests:
           value: 1
       - equal:
           path: spec.minReadySeconds
-          value: 60
+          value: 0
       - equal:
           path: spec.strategy.type
           value: RollingUpdate
       - equal:
           path: spec.strategy.rollingUpdate.maxSurge
-          value: 1
+          value: 100%
       - equal:
           path: spec.strategy.rollingUpdate.maxUnavailable
           value: 0
