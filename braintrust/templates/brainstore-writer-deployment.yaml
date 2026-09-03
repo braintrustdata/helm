@@ -13,11 +13,13 @@ metadata:
   {{- end }}
 spec:
   replicas: {{ .Values.brainstore.writer.replicas }}
+  minReadySeconds: {{ .Values.brainstore.writer.minReadySeconds }}
   strategy:
-    type: RollingUpdate
+    type: {{ .Values.brainstore.writer.strategy.type }}
+    {{- if eq .Values.brainstore.writer.strategy.type "RollingUpdate" }}
     rollingUpdate:
-      maxSurge: 100%
-      maxUnavailable: 0
+      {{- toYaml .Values.brainstore.writer.strategy.rollingUpdate | nindent 6 }}
+    {{- end }}
   selector:
     matchLabels:
       app: {{ .Values.brainstore.writer.name }}

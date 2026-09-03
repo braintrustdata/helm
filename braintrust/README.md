@@ -289,6 +289,38 @@ Pools use fixed replica counts by default (`api.replicas` and
 `api.workloadIsolation.<pool>.replicas`). On GKE, enable `api.autoscaling` to
 let each pool scale independently instead.
 
+## Brainstore Rollout Controls
+
+Brainstore readers, fast readers, and writers use independently configurable
+Deployment strategies. By default, each role starts one replacement pod at a
+time, keeps all existing replicas available, and requires a new pod to remain
+Ready for 60 seconds before it is considered available. This bounds concurrent
+cache warm-up and compaction pressure during upgrades while preserving serving
+capacity.
+
+Cache-heavy or high-throughput deployments can use a longer readiness dwell:
+
+```yaml
+brainstore:
+  writer:
+    minReadySeconds: 300
+    strategy:
+      type: RollingUpdate
+      rollingUpdate:
+        maxSurge: 1
+        maxUnavailable: 0
+  reader:
+    minReadySeconds: 120
+  fastreader:
+    minReadySeconds: 120
+```
+
+The same `strategy` and `minReadySeconds` settings are available under each
+Brainstore role. A longer dwell reduces rollout pressure but does not prove that
+a pod's local cache is fully warm; monitor workload health until the rollout has
+converged. `maxUnavailable: 0` also requires enough cluster capacity for the
+configured surge.
+
 ## Testing
 
 This Helm chart includes comprehensive automated unit tests.
