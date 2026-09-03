@@ -291,12 +291,24 @@ let each pool scale independently instead.
 
 ## Brainstore Rollout Controls
 
-Brainstore readers, fast readers, and writers use independently configurable
-Deployment strategies. By default, each role starts one replacement pod at a
-time, keeps all existing replicas available, and requires a new pod to remain
-Ready for 60 seconds before it is considered available. This bounds concurrent
-cache warm-up and compaction pressure during upgrades while preserving serving
-capacity.
+Brainstore readers, fast readers, and writers have independently configurable
+Deployment strategies and readiness dwell times. These controls let operators
+limit how many replacement pods start together and require replacements to
+remain Ready before an upgrade continues. This can reduce simultaneous cache
+warm-up, object-storage, scheduling, and compaction pressure in cache-heavy or
+high-throughput deployments.
+
+The defaults preserve the rollout behavior from earlier chart versions:
+
+- `strategy.type: RollingUpdate`
+- `strategy.rollingUpdate.maxSurge: 100%`
+- `strategy.rollingUpdate.maxUnavailable: 0`
+- `minReadySeconds: 0`
+
+Upgrading the chart without overriding these values does not change rollout
+pacing. This feature also does not change the pod template, so it does not
+restart Brainstore pods by itself. Custom settings take effect the next time a
+pod-template change triggers a rollout.
 
 Cache-heavy or high-throughput deployments can use a longer readiness dwell:
 
@@ -311,8 +323,18 @@ brainstore:
         maxUnavailable: 0
   reader:
     minReadySeconds: 120
+    strategy:
+      type: RollingUpdate
+      rollingUpdate:
+        maxSurge: 1
+        maxUnavailable: 0
   fastreader:
     minReadySeconds: 120
+    strategy:
+      type: RollingUpdate
+      rollingUpdate:
+        maxSurge: 1
+        maxUnavailable: 0
 ```
 
 The same `strategy` and `minReadySeconds` settings are available under each
