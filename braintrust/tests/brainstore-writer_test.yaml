@@ -19,11 +19,59 @@ tests:
           path: spec.replicas
           value: 1
       - equal:
+          path: spec.minReadySeconds
+          value: 60
+      - equal:
+          path: spec.strategy.type
+          value: RollingUpdate
+      - equal:
+          path: spec.strategy.rollingUpdate.maxSurge
+          value: 1
+      - equal:
+          path: spec.strategy.rollingUpdate.maxUnavailable
+          value: 0
+      - equal:
           path: spec.template.spec.containers[0].name
           value: brainstore-writer
       - equal:
           path: spec.template.spec.containers[0].image
           value: test/brainstore:v1.0.0
+
+  - it: should render custom Brainstore Writer rollout controls
+    template: brainstore-writer-deployment.yaml
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      brainstore.writer.minReadySeconds: 300
+      brainstore.writer.strategy.rollingUpdate.maxSurge: 2
+      brainstore.writer.strategy.rollingUpdate.maxUnavailable: 1
+    release:
+      namespace: "braintrust"
+    asserts:
+      - equal:
+          path: spec.minReadySeconds
+          value: 300
+      - equal:
+          path: spec.strategy.rollingUpdate.maxSurge
+          value: 2
+      - equal:
+          path: spec.strategy.rollingUpdate.maxUnavailable
+          value: 1
+
+  - it: should omit rollingUpdate settings for Recreate strategy
+    template: brainstore-writer-deployment.yaml
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      brainstore.writer.strategy.type: Recreate
+    release:
+      namespace: "braintrust"
+    asserts:
+      - equal:
+          path: spec.strategy.type
+          value: Recreate
+      - isNull:
+          path: spec.strategy.rollingUpdate
 
   - it: should include azure workload identity label when cloud is azure
     template: brainstore-writer-deployment.yaml
