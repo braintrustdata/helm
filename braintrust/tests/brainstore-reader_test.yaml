@@ -22,6 +22,9 @@ tests:
           path: spec.minReadySeconds
           value: 0
       - equal:
+          path: spec.progressDeadlineSeconds
+          value: 600
+      - equal:
           path: spec.strategy.type
           value: RollingUpdate
       - equal:
@@ -43,6 +46,7 @@ tests:
       - __fixtures__/base-values.yaml
     set:
       brainstore.reader.minReadySeconds: 120
+      brainstore.reader.progressDeadlineSeconds: 900
       brainstore.reader.strategy.rollingUpdate.maxSurge: 2
       brainstore.reader.strategy.rollingUpdate.maxUnavailable: 1
     release:
@@ -52,11 +56,27 @@ tests:
           path: spec.minReadySeconds
           value: 120
       - equal:
+          path: spec.progressDeadlineSeconds
+          value: 900
+      - equal:
           path: spec.strategy.rollingUpdate.maxSurge
           value: 2
       - equal:
           path: spec.strategy.rollingUpdate.maxUnavailable
           value: 1
+
+  - it: should reject a progress deadline that does not exceed the readiness dwell
+    template: brainstore-reader-deployment.yaml
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      brainstore.reader.minReadySeconds: 600
+      brainstore.reader.progressDeadlineSeconds: 600
+    release:
+      namespace: "braintrust"
+    asserts:
+      - failedTemplate:
+          errorMessage: "brainstore.reader.progressDeadlineSeconds (600) must be greater than brainstore.reader.minReadySeconds (600)"
 
   - it: should include azure workload identity label when cloud is azure
     template: brainstore-reader-deployment.yaml

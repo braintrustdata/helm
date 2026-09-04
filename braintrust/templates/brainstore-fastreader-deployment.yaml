@@ -1,3 +1,4 @@
+{{- include "braintrust.brainstoreRollout.validate" (dict "role" "fastreader" "config" .Values.brainstore.fastreader) }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -14,6 +15,7 @@ metadata:
 spec:
   replicas: {{ .Values.brainstore.fastreader.replicas }}
   minReadySeconds: {{ .Values.brainstore.fastreader.minReadySeconds }}
+  progressDeadlineSeconds: {{ .Values.brainstore.fastreader.progressDeadlineSeconds }}
   strategy:
     type: {{ .Values.brainstore.fastreader.strategy.type }}
     {{- if eq .Values.brainstore.fastreader.strategy.type "RollingUpdate" }}
