@@ -10,11 +10,11 @@ Get the namespace to use for resources
 {{- end -}}
 
 {{/*
-Build backward-compatible Brainstore Deployment rollout settings for one role.
+Build backward-compatible Deployment rollout settings for one workload.
 Template-level defaults are required because `helm upgrade --reuse-values` from
 a chart version that predates these settings does not merge in new chart values.
 */}}
-{{- define "braintrust.brainstoreRollout.config" -}}
+{{- define "braintrust.deploymentRollout.config" -}}
 {{- $defaultStrategy := dict
   "type" "RollingUpdate"
   "rollingUpdate" (dict "maxSurge" "100%" "maxUnavailable" 0)
@@ -29,13 +29,14 @@ a chart version that predates these settings does not merge in new chart values.
 {{- end -}}
 
 {{/*
-Validate Brainstore Deployment rollout timing for one role.
+Validate Deployment rollout timing for one workload.
 */}}
-{{- define "braintrust.brainstoreRollout.validate" -}}
+{{- define "braintrust.deploymentRollout.validate" -}}
+{{- $path := required "deployment rollout configuration path is required" .path -}}
 {{- $minReadySeconds := int .config.minReadySeconds -}}
 {{- $progressDeadlineSeconds := int .config.progressDeadlineSeconds -}}
 {{- if le $progressDeadlineSeconds $minReadySeconds -}}
-{{- fail (printf "brainstore.%s.progressDeadlineSeconds (%d) must be greater than brainstore.%s.minReadySeconds (%d)" .role $progressDeadlineSeconds .role $minReadySeconds) -}}
+{{- fail (printf "%s.progressDeadlineSeconds (%d) must be greater than %s.minReadySeconds (%d)" $path $progressDeadlineSeconds $path $minReadySeconds) -}}
 {{- end -}}
 {{- end -}}
 

@@ -1,5 +1,5 @@
-{{- $rollout := include "braintrust.brainstoreRollout.config" (dict "config" .Values.brainstore.writer) | fromYaml -}}
-{{- include "braintrust.brainstoreRollout.validate" (dict "role" "writer" "config" $rollout) }}
+{{- $rollout := include "braintrust.deploymentRollout.config" (dict "config" .Values.brainstore.writer) | fromYaml -}}
+{{- include "braintrust.deploymentRollout.validate" (dict "path" "brainstore.writer" "config" $rollout) }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
