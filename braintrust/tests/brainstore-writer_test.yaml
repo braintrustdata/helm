@@ -65,6 +65,30 @@ tests:
           path: spec.strategy.rollingUpdate.maxUnavailable
           value: 1
 
+  - it: should preserve legacy rollout defaults when reused values omit rollout controls
+    template: brainstore-writer-deployment.yaml
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/pre-rollout-values.yaml
+    release:
+      namespace: "braintrust"
+    asserts:
+      - equal:
+          path: spec.minReadySeconds
+          value: 0
+      - equal:
+          path: spec.progressDeadlineSeconds
+          value: 600
+      - equal:
+          path: spec.strategy.type
+          value: RollingUpdate
+      - equal:
+          path: spec.strategy.rollingUpdate.maxSurge
+          value: 100%
+      - equal:
+          path: spec.strategy.rollingUpdate.maxUnavailable
+          value: 0
+
   - it: should reject a progress deadline that does not exceed the readiness dwell
     template: brainstore-writer-deployment.yaml
     values:

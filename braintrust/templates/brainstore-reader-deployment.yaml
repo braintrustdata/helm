@@ -1,4 +1,5 @@
-{{- include "braintrust.brainstoreRollout.validate" (dict "role" "reader" "config" .Values.brainstore.reader) }}
+{{- $rollout := include "braintrust.brainstoreRollout.config" (dict "config" .Values.brainstore.reader) | fromYaml -}}
+{{- include "braintrust.brainstoreRollout.validate" (dict "role" "reader" "config" $rollout) }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -14,13 +15,13 @@ metadata:
   {{- end }}
 spec:
   replicas: {{ .Values.brainstore.reader.replicas }}
-  minReadySeconds: {{ .Values.brainstore.reader.minReadySeconds }}
-  progressDeadlineSeconds: {{ .Values.brainstore.reader.progressDeadlineSeconds }}
+  minReadySeconds: {{ $rollout.minReadySeconds }}
+  progressDeadlineSeconds: {{ $rollout.progressDeadlineSeconds }}
   strategy:
-    type: {{ .Values.brainstore.reader.strategy.type }}
-    {{- if eq .Values.brainstore.reader.strategy.type "RollingUpdate" }}
+    type: {{ $rollout.strategy.type }}
+    {{- if eq $rollout.strategy.type "RollingUpdate" }}
     rollingUpdate:
-      {{- toYaml .Values.brainstore.reader.strategy.rollingUpdate | nindent 6 }}
+      {{- toYaml $rollout.strategy.rollingUpdate | nindent 6 }}
     {{- end }}
   selector:
     matchLabels:

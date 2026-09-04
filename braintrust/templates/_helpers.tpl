@@ -10,6 +10,25 @@ Get the namespace to use for resources
 {{- end -}}
 
 {{/*
+Build backward-compatible Brainstore Deployment rollout settings for one role.
+Template-level defaults are required because `helm upgrade --reuse-values` from
+a chart version that predates these settings does not merge in new chart values.
+*/}}
+{{- define "braintrust.brainstoreRollout.config" -}}
+{{- $defaultStrategy := dict
+  "type" "RollingUpdate"
+  "rollingUpdate" (dict "maxSurge" "100%" "maxUnavailable" 0)
+-}}
+{{- $strategy := mergeOverwrite (deepCopy $defaultStrategy) (deepCopy (.config.strategy | default dict)) -}}
+{{- $rollout := dict
+  "minReadySeconds" (int (.config.minReadySeconds | default 0))
+  "progressDeadlineSeconds" (int (.config.progressDeadlineSeconds | default 600))
+  "strategy" $strategy
+-}}
+{{- toYaml $rollout -}}
+{{- end -}}
+
+{{/*
 Validate Brainstore Deployment rollout timing for one role.
 */}}
 {{- define "braintrust.brainstoreRollout.validate" -}}
