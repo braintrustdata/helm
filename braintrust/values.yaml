@@ -406,6 +406,7 @@ brainstore:
     # Configure rollout pacing for this Brainstore role. Defaults preserve the
     # rollout behavior from earlier chart versions.
     minReadySeconds: 0
+    progressDeadlineSeconds: 600
     strategy:
       type: RollingUpdate
       rollingUpdate:
@@ -463,6 +464,7 @@ brainstore:
       pod: {}
     replicas: 2
     minReadySeconds: 0
+    progressDeadlineSeconds: 600
     strategy:
       type: RollingUpdate
       rollingUpdate:
@@ -520,6 +522,7 @@ brainstore:
       pod: {}
     replicas: 1
     minReadySeconds: 0
+    progressDeadlineSeconds: 600
     strategy:
       type: RollingUpdate
       rollingUpdate:

@@ -10,6 +10,17 @@ Get the namespace to use for resources
 {{- end -}}
 
 {{/*
+Validate Brainstore Deployment rollout timing for one role.
+*/}}
+{{- define "braintrust.brainstoreRollout.validate" -}}
+{{- $minReadySeconds := int .config.minReadySeconds -}}
+{{- $progressDeadlineSeconds := int .config.progressDeadlineSeconds -}}
+{{- if le $progressDeadlineSeconds $minReadySeconds -}}
+{{- fail (printf "brainstore.%s.progressDeadlineSeconds (%d) must be greater than brainstore.%s.minReadySeconds (%d)" .role $progressDeadlineSeconds .role $minReadySeconds) -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
 Static fast reader query sources used by API.
 */}}
 {{- define "braintrust.fastReaderQuerySourcesCsv" -}}
