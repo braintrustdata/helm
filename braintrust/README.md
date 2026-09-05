@@ -289,6 +289,85 @@ Pools use fixed replica counts by default (`api.replicas` and
 `api.workloadIsolation.<pool>.replicas`). On GKE, enable `api.autoscaling` to
 let each pool scale independently instead.
 
+## Brainstore Rollout Controls
+
+Brainstore readers, fast readers, and writers have independently configurable
+Deployment strategies and readiness dwell times. These controls let operators
+limit how many replacement pods start together and require replacements to
+remain Ready before an upgrade continues. This can reduce simultaneous cache
+warm-up, object-storage, scheduling, and compaction pressure in cache-heavy or
+high-throughput deployments.
+
+The defaults preserve the rollout behavior from earlier chart versions:
+
+- `strategy.type: RollingUpdate`
+- `strategy.rollingUpdate.maxSurge: 100%`
+- `strategy.rollingUpdate.maxUnavailable: 0`
+- `minReadySeconds: 0`
+- `progressDeadlineSeconds: 600`
+
+Upgrading the chart without overriding these values does not change rollout
+pacing. This feature also does not change the pod template, so it does not
+restart Brainstore pods by itself. Custom settings take effect the next time a
+pod-template change triggers a rollout.
+
+Cache-heavy or high-throughput deployments can use a longer readiness dwell:
+
+```yaml
+brainstore:
+  writer:
+    minReadySeconds: 300
+    progressDeadlineSeconds: 900
+    strategy:
+      type: RollingUpdate
+      rollingUpdate:
+        maxSurge: 1
+        maxUnavailable: 0
+  reader:
+    minReadySeconds: 120
+    progressDeadlineSeconds: 600
+    strategy:
+      type: RollingUpdate
+      rollingUpdate:
+        maxSurge: 1
+        maxUnavailable: 0
+  fastreader:
+    minReadySeconds: 120
+    progressDeadlineSeconds: 600
+    strategy:
+      type: RollingUpdate
+      rollingUpdate:
+        maxSurge: 1
+        maxUnavailable: 0
+```
+
+The same `strategy`, `minReadySeconds`, and `progressDeadlineSeconds` settings
+are available under each Brainstore role. `progressDeadlineSeconds` must be
+greater than `minReadySeconds`; the chart rejects an invalid pairing. Keep
+enough deadline margin for scheduling, image pulls, startup, and the readiness
+dwell.
+
+A longer dwell reduces rollout pressure but does not prove that a pod's local
+cache is fully warm; monitor workload health until the rollout has converged.
+`maxUnavailable: 0` also requires enough cluster capacity for the configured
+surge.
+
+Slow rollouts extend the period during which old and new Brainstore versions
+run together. Follow version-specific upgrade guidance and do not change
+`brainstoreWalFooterVersion` in the same upgrade as an image version bump,
+except where the documented data plane 2.0 upgrade sequence explicitly permits
+it. See the [data plane 2.0 upgrade guide](https://www.braintrust.dev/docs/admin/self-hosting/upgrade/v2).
+
+Setting `strategy.type: Recreate` stops all pods in that Brainstore role before
+creating replacements. This causes a complete role outage and, with the default
+single writer, pauses background processing until the replacement becomes
+Ready.
+
+These settings pace Deployment-managed rollouts only. The chart does not
+currently create PodDisruptionBudgets for Brainstore, so these controls do not
+limit voluntary disruptions such as node drains or protect against involuntary
+pod or node failures.
+
 ## Testing
 
 This Helm chart includes comprehensive automated unit tests.

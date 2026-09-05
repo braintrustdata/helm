@@ -1,0 +1,16 @@
+# Simulate values retained by `helm upgrade --reuse-values` from a chart release
+# that predates the Brainstore rollout controls. Explicit nulls remove the new
+# chart defaults during Helm value coalescing.
+brainstore:
+  reader:
+    minReadySeconds: null
+    progressDeadlineSeconds: null
+    strategy: null
+  fastreader:
+    minReadySeconds: null
+    progressDeadlineSeconds: null
+    strategy: null
+  writer:
+    minReadySeconds: null
+    progressDeadlineSeconds: null
+    strategy: null

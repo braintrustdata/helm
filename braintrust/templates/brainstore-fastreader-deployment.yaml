@@ -1,3 +1,5 @@
+{{- $rollout := include "braintrust.deploymentRollout.config" (dict "config" .Values.brainstore.fastreader) | fromYaml -}}
+{{- include "braintrust.deploymentRollout.validate" (dict "path" "brainstore.fastreader" "config" $rollout) }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -13,11 +15,14 @@ metadata:
   {{- end }}
 spec:
   replicas: {{ .Values.brainstore.fastreader.replicas }}
+  minReadySeconds: {{ $rollout.minReadySeconds }}
+  progressDeadlineSeconds: {{ $rollout.progressDeadlineSeconds }}
   strategy:
-    type: RollingUpdate
+    type: {{ $rollout.strategy.type }}
+    {{- if eq $rollout.strategy.type "RollingUpdate" }}
     rollingUpdate:
-      maxSurge: 100%
-      maxUnavailable: 0
+      {{- toYaml $rollout.strategy.rollingUpdate | nindent 6 }}
+    {{- end }}
   selector:
     matchLabels:
       app: {{ .Values.brainstore.fastreader.name }}

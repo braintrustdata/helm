@@ -10,6 +10,37 @@ Get the namespace to use for resources
 {{- end -}}
 
 {{/*
+Build backward-compatible Deployment rollout settings for one workload.
+Template-level defaults are required because `helm upgrade --reuse-values` from
+a chart version that predates these settings does not merge in new chart values.
+*/}}
+{{- define "braintrust.deploymentRollout.config" -}}
+{{- $defaultStrategy := dict
+  "type" "RollingUpdate"
+  "rollingUpdate" (dict "maxSurge" "100%" "maxUnavailable" 0)
+-}}
+{{- $strategy := mergeOverwrite (deepCopy $defaultStrategy) (deepCopy (.config.strategy | default dict)) -}}
+{{- $rollout := dict
+  "minReadySeconds" (int (.config.minReadySeconds | default 0))
+  "progressDeadlineSeconds" (int (.config.progressDeadlineSeconds | default 600))
+  "strategy" $strategy
+-}}
+{{- toYaml $rollout -}}
+{{- end -}}
+
+{{/*
+Validate Deployment rollout timing for one workload.
+*/}}
+{{- define "braintrust.deploymentRollout.validate" -}}
+{{- $path := required "deployment rollout configuration path is required" .path -}}
+{{- $minReadySeconds := int .config.minReadySeconds -}}
+{{- $progressDeadlineSeconds := int .config.progressDeadlineSeconds -}}
+{{- if le $progressDeadlineSeconds $minReadySeconds -}}
+{{- fail (printf "%s.progressDeadlineSeconds (%d) must be greater than %s.minReadySeconds (%d)" $path $progressDeadlineSeconds $path $minReadySeconds) -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
 Static fast reader query sources used by API.
 */}}
 {{- define "braintrust.fastReaderQuerySourcesCsv" -}}

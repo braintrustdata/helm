@@ -19,6 +19,21 @@ tests:
           path: spec.replicas
           value: 1
       - equal:
+          path: spec.minReadySeconds
+          value: 0
+      - equal:
+          path: spec.progressDeadlineSeconds
+          value: 600
+      - equal:
+          path: spec.strategy.type
+          value: RollingUpdate
+      - equal:
+          path: spec.strategy.rollingUpdate.maxSurge
+          value: 100%
+      - equal:
+          path: spec.strategy.rollingUpdate.maxUnavailable
+          value: 0
+      - equal:
           path: spec.template.spec.containers[0].name
           value: brainstore-fastreader
       - equal:
@@ -27,6 +42,68 @@ tests:
       - equal:
           path: spec.template.spec.containers[0].envFrom[0].configMapRef.name
           value: brainstore-fastreader
+
+  - it: should render custom Brainstore Fast Reader rollout controls
+    template: brainstore-fastreader-deployment.yaml
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      brainstore.fastreader.minReadySeconds: 120
+      brainstore.fastreader.progressDeadlineSeconds: 900
+      brainstore.fastreader.strategy.rollingUpdate.maxSurge: 2
+      brainstore.fastreader.strategy.rollingUpdate.maxUnavailable: 1
+    release:
+      namespace: "braintrust"
+    asserts:
+      - equal:
+          path: spec.minReadySeconds
+          value: 120
+      - equal:
+          path: spec.progressDeadlineSeconds
+          value: 900
+      - equal:
+          path: spec.strategy.rollingUpdate.maxSurge
+          value: 2
+      - equal:
+          path: spec.strategy.rollingUpdate.maxUnavailable
+          value: 1
+
+  - it: should preserve legacy rollout defaults when reused values omit rollout controls
+    template: brainstore-fastreader-deployment.yaml
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/pre-rollout-values.yaml
+    release:
+      namespace: "braintrust"
+    asserts:
+      - equal:
+          path: spec.minReadySeconds
+          value: 0
+      - equal:
+          path: spec.progressDeadlineSeconds
+          value: 600
+      - equal:
+          path: spec.strategy.type
+          value: RollingUpdate
+      - equal:
+          path: spec.strategy.rollingUpdate.maxSurge
+          value: 100%
+      - equal:
+          path: spec.strategy.rollingUpdate.maxUnavailable
+          value: 0
+
+  - it: should reject a progress deadline that does not exceed the readiness dwell
+    template: brainstore-fastreader-deployment.yaml
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      brainstore.fastreader.minReadySeconds: 600
+      brainstore.fastreader.progressDeadlineSeconds: 600
+    release:
+      namespace: "braintrust"
+    asserts:
+      - failedTemplate:
+          errorMessage: "brainstore.fastreader.progressDeadlineSeconds (600) must be greater than brainstore.fastreader.minReadySeconds (600)"
 
   - it: should include extraEnvVars when provided
     template: brainstore-fastreader-deployment.yaml
