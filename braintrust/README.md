@@ -152,6 +152,8 @@ brainstore:
 
 For Standard mode clusters, create node pools with local SSDs, then deploy:
 
+Use the stable `braintrust/node-pool` role label in each node selector. Terraform node pool replacements can use generated GKE pool names.
+
 **Configure the Helm chart:**
    ```yaml
    cloud: "google"
@@ -159,10 +161,18 @@ For Standard mode clusters, create node pools with local SSDs, then deploy:
    google:
      mode: "standard"
 
+   api:
+     nodeSelector:
+       braintrust/node-pool: "services"
+
+   aiGateway:
+     nodeSelector:
+       braintrust/node-pool: "services"
+
    brainstore:
      reader:
        nodeSelector:
-         cloud.google.com/gke-nodepool: "brainstore"  # Target your node pool
+         braintrust/node-pool: "brainstore"
        resources:
          requests:
            cpu: "44"
@@ -179,9 +189,12 @@ For Standard mode clusters, create node pools with local SSDs, then deploy:
                        - brainstore-reader
                        - brainstore-writer
                topologyKey: kubernetes.io/hostname
+     fastreader:
+       nodeSelector:
+         braintrust/node-pool: "brainstore"
      writer:
        nodeSelector:
-         cloud.google.com/gke-nodepool: "brainstore"
+         braintrust/node-pool: "brainstore"
        resources:
          requests:
            cpu: "44"

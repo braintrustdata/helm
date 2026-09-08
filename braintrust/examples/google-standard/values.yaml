@@ -43,7 +43,7 @@ api:
   # Native GCS authentication via Workload Identity. Set to true to use GCS natively instead of S3-compatible access.
   enableGcsAuth: false
   nodeSelector:
-    cloud.google.com/gke-nodepool: "api"
+    braintrust/node-pool: "services"
   resources:
     requests:
       cpu: "4"
@@ -55,6 +55,10 @@ api:
     # For S3-compatible GCS Storage, set the AWS_REGION environment variable to the region of your GCS bucket
     - name: AWS_REGION
       value: "us-central1"
+
+aiGateway:
+  nodeSelector:
+    braintrust/node-pool: "services"
 
 # Brainstore configuration (split into reader and writer)
 brainstore:
@@ -78,7 +82,7 @@ brainstore:
       port: 4000
       portName: http
     nodeSelector:
-         cloud.google.com/gke-nodepool: "brainstore"  # Target your node pool
+         braintrust/node-pool: "brainstore"
     resources:
       requests:
         cpu: "16"
@@ -104,7 +108,12 @@ brainstore:
     volume:
       size: "200Gi"
     extraEnvVars:
-    
+
+  # Brainstore Fast Reader configuration
+  fastreader:
+    nodeSelector:
+      braintrust/node-pool: "brainstore"
+
   # Brainstore Writer configuration
   writer:
     name: "brainstore-writer"
@@ -115,7 +124,7 @@ brainstore:
       port: 4000
       portName: http
     nodeSelector:
-         cloud.google.com/gke-nodepool: "brainstore"
+         braintrust/node-pool: "brainstore"
     resources:
       requests:
         cpu: "32"
@@ -141,4 +150,3 @@ brainstore:
     volume:
       size: "200Gi"  
     extraEnvVars:
-     
