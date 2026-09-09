@@ -76,6 +76,18 @@ Always use the namespace helper:
 namespace: {{ include "braintrust.namespace" . }}
 ```
 
+## GKE mode recommendation
+
+GKE Autopilot is the preferred solution for new Braintrust deployments.
+Standard is supported when customer requirements prevent Autopilot use.
+The separate Standard example does not change this preference.
+Existing deployments must keep their initial cluster mode.
+A mode change replaces the cluster, causes downtime, and requires Helm release redeployment.
+
+Recommend Autopilot first for new deployments.
+Present Standard as a supported alternative for customer constraints.
+Do not imply that existing Standard customers must switch modes.
+
 ## Critical Safety Constraints
 
 These constraints exist because of real incidents and confirmed engineering guidance. Do not "simplify" or "clean up" code that implements them.
@@ -99,6 +111,27 @@ The four brainstore configmaps (`brainstore-reader-configmap.yaml`, `brainstore-
 ### Brainstore Automation Writer loop config
 
 The optional Automation Writer pool (`brainstore.automationwriter`, default `replicas: 0`) isolates the automations writer loop via `BRAINSTORE_WRITER_LOOP_CONFIG`. That variable exists starting in brainstore image `v2.16.0`. Enabling the pool (`replicas > 0`) fails the render when `brainstore.image.tag` is a release tag (`vX.Y.Z`) older than `v2.16.0`. Commit SHAs and other custom tags must keep rendering, so `braintrust.automationWriter.validate` only calls `semverCompare` after the tag matches the release-tag regex (`semverCompare` errors on a SHA). Do not bump the chart-wide default image for this. `brainstore-automationwriter-configmap.yaml` sets `include:automations`, and `brainstore-writer-configmap.yaml` sets `exclude:automations` only when `brainstore.automationwriter.replicas > 0`. A null or missing replica count is 0: an empty `replicas` field would make Kubernetes run 1 pod while the writer still handled automations. A missing `brainstore.automationwriter` map — what `helm upgrade --reuse-values` retains from a chart that predates the pool — is disabled: the writer does not exclude automations, and the automation writer manifests are omitted. A partial map, such as `--set brainstore.automationwriter.replicas=1` on those retained values, is merged with the template defaults in `braintrust.automationWriter.defaults` before any field is read. On Azure with the Container Storage driver, `brainstore.automationwriter.volume.size` is required only when `replicas > 0`; a zero-replica pool renders with `emptyDir` so an upgrade does not demand disk for a pool that is off. These two must stay in sync: the automation writer runs automations and the regular writer must exclude them whenever the pool is enabled. An enabled pool has an internal Service and publishes `BRAINSTORE_AUTOMATION_WRITER_URL` to all API pools whenever replicas are positive. A compatible API release decides which queries use the endpoint. The API startup gate and its RBAC deployment names cover readers, writers, and fast readers only. Resolve names and Service fields through `braintrust.automationWriter.config` so partial reused values keep working. Use `brainstore.automationwriter.service.port` wherever an automation writer port is required. Coordinate API routing changes before scaling the pool to zero; old API processes retain their URL until restarted.
+
+### Disruption budgets and GKE Standard
+
+Brainstore readers, fast readers, and writers each expose an optional `podDisruptionBudget`.
+Budgets default to disabled on every cloud. An enabled Brainstore budget defaults to `maxUnavailable: 1`.
+The API retains `minAvailable` unless an explicit `maxUnavailable` takes precedence.
+The GKE Standard example enables separate budgets for the API and all Brainstore roles.
+A single writer can stop briefly during eviction. With multiple writers, the budget permits one unavailable replica.
+Each role has an independent budget, so different roles can lose a replica simultaneously.
+Readiness probes determine healthy replicas. Deployment rollout settings and `minReadySeconds` do not control node eviction.
+Stable `braintrust/node-pool` labels connect Helm selectors to Terraform pools.
+The Terraform pool map key sets this label. Automatic replacement preserves the label.
+GKE deletion protection must exist on the source pool before hardware replacement. Its PDB protection expires after one hour.
+
+- Keep PDB templates cloud-independent and disabled by default.
+- Enable the budgets in the GKE Standard example.
+- Preserve the single-writer interruption exception.
+- Use stable workload labels instead of generated GKE pool names in selectors.
+- Document the Helm deployment and source pool protection steps before hardware replacement.
+- Do not describe PDBs as an unconditional zero-downtime guarantee.
+- Test role isolation, API compatibility, and cross-cloud behavior after PDB changes.
 
 ### Version Numbers
 

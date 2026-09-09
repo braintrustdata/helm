@@ -18,7 +18,11 @@ metadata:
     {{- toYaml . | nindent 4 }}
   {{- end }}
 spec:
+  {{- if hasKey $api.podDisruptionBudget "maxUnavailable" }}
+  maxUnavailable: {{ $api.podDisruptionBudget.maxUnavailable | toYaml | trim }}
+  {{- else }}
   minAvailable: {{ $api.podDisruptionBudget.minAvailable }}
+  {{- end }}
   selector:
     matchLabels:
       app: {{ $api.name }}

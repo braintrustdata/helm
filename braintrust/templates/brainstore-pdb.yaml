@@ -1,0 +1,25 @@
+{{- $root := . -}}
+{{- $rendered := 0 -}}
+{{- range $role := list "reader" "fastreader" "writer" -}}
+{{- $config := index $root.Values.brainstore $role -}}
+{{- if $config.podDisruptionBudget.enabled }}
+{{- if gt $rendered 0 }}
+---
+{{- end }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ $config.name }}
+  namespace: {{ include "braintrust.namespace" $root }}
+  {{- with (merge (deepCopy $config.labels) $root.Values.global.labels) }}
+  labels:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  maxUnavailable: {{ $config.podDisruptionBudget.maxUnavailable | toYaml | trim }}
+  selector:
+    matchLabels:
+      app: {{ $config.name }}
+{{- $rendered = add1 $rendered -}}
+{{- end }}
+{{- end }}
