@@ -1,10 +1,12 @@
+# GKE Autopilot is preferred for new deployments.
+# Use this supported Standard example when customer requirements prevent Autopilot use.
 # Sample values for GKE Standard deployment
 #
-# GKE Standard requires manual node pool configuration:
-# - Create a dedicated node pool with local NVMe SSDs for Brainstore workloads
-# - Recommended machine types: c4-standard-32 or higher with local SSDs
-# - Configure local SSDs: Use 4x375GB local SSDs (1500GB total) or more
-# - Total local SSD capacity should exceed the volume.size configured below
+# Terraform creates the services and brainstore node pools.
+# Brainstore requires a bundled Local SSD machine type, such as c4a-standard-48-lssd.
+# GKE selects the fixed SSD count from the machine type.
+# Enable PDB protection on existing pools before a hardware replacement.
+# Deploy these PDBs before that replacement.
 
 # Global configs
 global:
@@ -28,6 +30,9 @@ api:
   annotations:
     service:
       networking.gke.io/load-balancer-type: "Internal"
+  podDisruptionBudget:
+    enabled: true
+    maxUnavailable: 1
   replicas: 4
   # Uncomment the following section to use a different image or tag from the version in the Helm release
   #image:
@@ -74,6 +79,9 @@ brainstore:
 
   # Brainstore Reader configuration
   reader:
+    podDisruptionBudget:
+      enabled: true
+      maxUnavailable: 1
     name: "brainstore-reader"
     replicas: 2
     service:
@@ -111,11 +119,18 @@ brainstore:
 
   # Brainstore Fast Reader configuration
   fastreader:
+    podDisruptionBudget:
+      enabled: true
+      maxUnavailable: 1
     nodeSelector:
       braintrust/node-pool: "brainstore"
 
   # Brainstore Writer configuration
+  # One writer can stop briefly during a node drain.
   writer:
+    podDisruptionBudget:
+      enabled: true
+      maxUnavailable: 1
     name: "brainstore-writer"
     replicas: 1
     service:

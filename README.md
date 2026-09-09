@@ -24,3 +24,13 @@ helm upgrade --install \
 Before installing the Braintrust Helm chart, ensure you have run the appropriate braintrust terraform module [Google](https://github.com/braintrustdata/terraform-google-braintrust-data-plane) or [Azure](https://github.com/braintrustdata/terraform-azure-braintrust-data-plane) to deploy the base infrastructure.
 
 See the [Braintrust Helm Chart](./braintrust/README.md) for more details.
+
+## GKE deployment modes
+
+GKE Autopilot is the preferred solution for new Braintrust deployments. GKE Standard is supported when customer requirements prevent Autopilot use.
+
+## GKE Standard node pool changes
+
+The [Standard example](braintrust/examples/google-standard/values.yaml) uses stable workload selectors and enables optional API and Brainstore disruption budgets.
+The chart defaults remain unchanged for other deployments.
+The [disruption budget guidance](braintrust/README.md#optional-disruption-budgets) explains the single-writer exception and the preparation steps for existing GKE pools.

@@ -99,6 +99,8 @@ Kubernetes limits each Secret to 1 MiB. A normal combined CA bundle is typically
 
 ## GKE with Local SSDs
 
+GKE Autopilot is the preferred solution for new Braintrust deployments. GKE Standard is supported when customer requirements prevent Autopilot use.
+
 Braintrust requires local SSDs for maximum disk performance. Configuration varies depending on whether you're using GKE Autopilot or Standard mode.
 
 ### GKE Autopilot
@@ -150,9 +152,13 @@ brainstore:
 
 ### GKE Standard Mode
 
-For Standard mode clusters, create node pools with local SSDs, then deploy:
+The Terraform module creates separate services and Brainstore pools. Brainstore uses a bundled Local SSD machine type without a disk count input.
 
-Use the stable `braintrust/node-pool` role label in each node selector. Terraform node pool replacements can use generated GKE pool names.
+The stable `braintrust/node-pool` label connects Helm selectors to replacement pools with generated GKE names.
+The Terraform map key sets the label. The `services` and `brainstore` keys match the selectors below.
+
+The example enables PDBs for node eviction. Existing pools need deletion protection before a hardware replacement.
+See [Optional disruption budgets](#optional-disruption-budgets) for the preparation sequence and limits.
 
 **Configure the Helm chart:**
    ```yaml
@@ -162,6 +168,9 @@ Use the stable `braintrust/node-pool` role label in each node selector. Terrafor
      mode: "standard"
 
    api:
+     podDisruptionBudget:
+       enabled: true
+       maxUnavailable: 1
      nodeSelector:
        braintrust/node-pool: "services"
 
@@ -171,6 +180,9 @@ Use the stable `braintrust/node-pool` role label in each node selector. Terrafor
 
    brainstore:
      reader:
+       podDisruptionBudget:
+         enabled: true
+         maxUnavailable: 1
        nodeSelector:
          braintrust/node-pool: "brainstore"
        resources:
@@ -190,9 +202,15 @@ Use the stable `braintrust/node-pool` role label in each node selector. Terrafor
                        - brainstore-writer
                topologyKey: kubernetes.io/hostname
      fastreader:
+       podDisruptionBudget:
+         enabled: true
+         maxUnavailable: 1
        nodeSelector:
          braintrust/node-pool: "brainstore"
      writer:
+       podDisruptionBudget:
+         enabled: true
+         maxUnavailable: 1
        nodeSelector:
          braintrust/node-pool: "brainstore"
        resources:
@@ -213,10 +231,13 @@ Use the stable `braintrust/node-pool` role label in each node selector. Terrafor
                topologyKey: kubernetes.io/hostname
    ```
 
-**What happens:**
-- Pods are scheduled on your pre-configured node pools
-- Local SSDs are automatically available via emptyDir volumes
-- Pod anti-affinity ensures readers and writers don't share nodes (each pod gets dedicated node access)
+The configuration has these effects:
+
+- Pods use the stable labels to select eligible nodes.
+- Brainstore uses Local SSD storage through `emptyDir` volumes.
+- Anti-affinity separates readers and writers across nodes. It does not exclude other workloads from those nodes.
+- Separate PDBs limit voluntary evictions for each role.
+- A single writer can stop briefly during a drain.
 
 ## AWS EKS Local Storage
 
@@ -376,10 +397,45 @@ creating replacements. This causes a complete role outage and, with the default
 single writer, pauses background processing until the replacement becomes
 Ready.
 
-These settings pace Deployment-managed rollouts only. The chart does not
-currently create PodDisruptionBudgets for Brainstore, so these controls do not
-limit voluntary disruptions such as node drains or protect against involuntary
-pod or node failures.
+These settings pace Deployment rollouts only. Optional PodDisruptionBudgets protect voluntary evictions such as node drains.
+Neither mechanism protects against node failure.
+
+## Optional disruption budgets
+
+Brainstore readers, fast readers, and writers each support an optional PDB.
+PDBs default to disabled on every cloud. Each enabled role defaults to `maxUnavailable: 1`.
+The budget permits a single writer to stop briefly. Replicated roles retain all but one healthy replica during permitted evictions.
+
+```yaml
+brainstore:
+  reader:
+    podDisruptionBudget:
+      enabled: true
+      maxUnavailable: 1
+  fastreader:
+    podDisruptionBudget:
+      enabled: true
+      maxUnavailable: 1
+  writer:
+    podDisruptionBudget:
+      enabled: true
+      maxUnavailable: 1
+api:
+  podDisruptionBudget:
+    enabled: true
+    maxUnavailable: 1
+```
+
+The API retains its existing `minAvailable` behavior unless `maxUnavailable` is set. An explicit maximum takes precedence over the inherited minimum.
+Each role has an independent budget. Evictions can proceed simultaneously across roles.
+Readiness probes determine healthy replicas for PDBs. Deployment `minReadySeconds` does not delay PDB eviction permission.
+The GKE Standard example enables these budgets. Existing EKS and AKS defaults remain unchanged.
+GKE requires deletion protection on the source pool before a replacement, and its PDB protection expires after one hour.
+
+1. Deploy the Helm budgets before a node pool replacement.
+2. Enable GKE deletion protection on existing pools in a separate Terraform apply before hardware changes.
+3. Verify sufficient replicas and replacement capacity.
+
 
 ## Testing
 
