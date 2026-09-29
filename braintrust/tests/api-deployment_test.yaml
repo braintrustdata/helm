@@ -24,6 +24,25 @@ tests:
       - equal:
           path: spec.template.spec.containers[0].imagePullPolicy
           value: IfNotPresent
+      - equal:
+          path: spec.template.spec.initContainers[0]
+          value:
+            name: wait-for-brainstore
+            image: test/kubectl:v1.0.0
+            imagePullPolicy: IfNotPresent
+            command:
+              - /bin/sh
+              - -ec
+              - |
+                until kubectl rollout status deployment/brainstore-reader --namespace braintrust --timeout=0s; do
+                  sleep 2
+                done
+                until kubectl rollout status deployment/brainstore-fastreader --namespace braintrust --timeout=0s; do
+                  sleep 2
+                done
+                until kubectl rollout status deployment/brainstore-writer --namespace braintrust --timeout=0s; do
+                  sleep 2
+                done
 
   - it: should use correct namespace from helper when createNamespace is false
     template: api-deployment.yaml
@@ -38,6 +57,38 @@ tests:
       - equal:
           path: metadata.namespace
           value: release-namespace
+
+  - it: should gate every workload-isolated API pool on Brainstore rollouts
+    template: api-deployment.yaml
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      api.workloadIsolation.enabled: true
+    release:
+      namespace: braintrust
+    documentSelector:
+      path: metadata.name
+      value: braintrust-api-ingest
+    asserts:
+      - equal:
+          path: spec.template.spec.initContainers[0].name
+          value: wait-for-brainstore
+
+  - it: should gate the background API pool on Brainstore rollouts
+    template: api-deployment.yaml
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      api.workloadIsolation.enabled: true
+    release:
+      namespace: braintrust
+    documentSelector:
+      path: metadata.name
+      value: braintrust-api-background
+    asserts:
+      - equal:
+          path: spec.template.spec.initContainers[0].name
+          value: wait-for-brainstore
 
   - it: should use global namespace when createNamespace is true
     template: api-deployment.yaml

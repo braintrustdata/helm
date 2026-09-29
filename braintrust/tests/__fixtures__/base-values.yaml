@@ -24,6 +24,11 @@ api:
     repository: "test/api"
     tag: "v1.0.0"
     pullPolicy: "IfNotPresent"
+  brainstoreWait:
+    image:
+      repository: "test/kubectl"
+      tag: "v1.0.0"
+      pullPolicy: "IfNotPresent"
   service:
     name: ""
     type: ClusterIP
