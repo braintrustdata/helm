@@ -1,0 +1,43 @@
+{{- $api := .Values.api -}}
+{{- $roleName := printf "%s-brainstore-wait" $api.name -}}
+{{- $resourceLabels := mergeOverwrite (deepCopy .Values.global.labels) (deepCopy $api.labels) -}}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ $roleName }}
+  namespace: {{ include "braintrust.namespace" . }}
+  {{- with $resourceLabels }}
+  labels:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+rules:
+  - apiGroups:
+      - apps
+    resources:
+      - deployments
+    resourceNames:
+      - {{ .Values.brainstore.reader.name }}
+      - {{ .Values.brainstore.fastreader.name }}
+      - {{ .Values.brainstore.writer.name }}
+    verbs:
+      - get
+      - list
+      - watch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ $roleName }}
+  namespace: {{ include "braintrust.namespace" . }}
+  {{- with $resourceLabels }}
+  labels:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ $roleName }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ $api.serviceAccount.name }}
+    namespace: {{ include "braintrust.namespace" . }}

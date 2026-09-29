@@ -93,6 +93,19 @@ spec:
       affinity:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      initContainers:
+        - name: wait-for-brainstore
+          image: "{{ $api.brainstoreWait.image.repository }}:{{ $api.brainstoreWait.image.tag }}"
+          imagePullPolicy: {{ $api.brainstoreWait.image.pullPolicy }}
+          command:
+            - /bin/sh
+            - -ec
+            - |
+              {{- range $brainstoreDeployment := (list $root.Values.brainstore.reader.name $root.Values.brainstore.fastreader.name $root.Values.brainstore.writer.name) }}
+              until kubectl rollout status deployment/{{ $brainstoreDeployment }} --namespace {{ include "braintrust.namespace" $root }} --timeout=0s; do
+                sleep 2
+              done
+              {{- end }}
       containers:
         - name: api
           image: "{{ $api.image.repository }}:{{ $api.image.tag }}"

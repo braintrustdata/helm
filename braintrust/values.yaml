@@ -186,6 +186,13 @@ api:
     repository: public.ecr.aws/braintrust/standalone-api
     tag: v2.14.0
     pullPolicy: IfNotPresent
+  # API containers wait for all Brainstore Deployments to complete their
+  # rollouts. Override this image if your cluster mirrors public registries.
+  brainstoreWait:
+    image:
+      repository: registry.k8s.io/kubectl
+      tag: v1.31.0
+      pullPolicy: IfNotPresent
   service:
     # Optional name for service object. If not specified (empty), the api.name
     # is used.
