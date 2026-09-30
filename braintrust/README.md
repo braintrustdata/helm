@@ -50,53 +50,6 @@ The CSI driver will:
 2. Automatically sync them to the `braintrust-secrets` Kubernetes secret
 3. Keep the secrets in sync as they change in Key Vault
 
-## Experimental: wait for Brainstore before starting new API pods
-
-The chart can hold new API processes until reader, writer, and fastreader have
-ready capacity at a compatible release and incompatible old pods have exited.
-Existing API pods keep serving during a normal rolling upgrade. Enable this
-**experimental feature only after a cluster canary**; it is disabled by default:
-
-```yaml
-api:
-  brainstoreStartupGate:
-    enabled: true
-```
-
-The chart generates the checker's environment variables; customers do not set
-them directly. `minimumVersion` defaults to each API pool's `image.tag`. An API
-`v2.15.0` pod therefore accepts Brainstore `2.15.0` or newer in major version 2,
-including when that older API pod restarts during a later Brainstore upgrade.
-An optional explicit `api.brainstoreStartupGate.minimumVersion` must declare a
-Brainstore floor approved for **all** API pools; an opaque API tag requires it.
-
-The checker uses stable release tags in Deployment and Pod specs for normal
-Deployment rollouts. Opaque Brainstore tags, prereleases, and digest-only images
-remain blocked; stable tags followed by digests are supported. Runtime-reported
-image aliases are not release identifiers. Manual in-place Pod image changes
-are outside this check's contract. Application owners must validate release
-compatibility; tags alone do not prove query behavior.
-
-The checker polls every 15 seconds and requires two successful checks. Each
-attempt waits up to 1,200 seconds, then exits nonzero for Kubernetes to retry.
-`timeoutSeconds` and `pollIntervalSeconds` are optional tuning settings. Private
-registries can mirror the pinned Python helper through the optional `image` setting.
-
-The gate requires `RollingUpdate`, `maxUnavailable: 0`, and nonzero `maxSurge` for
-every API pool. The cluster needs capacity for both API and Brainstore surge pods
-and API-pod network access to the Kubernetes API server. The chart grants the API
-service accounts read access to the three named Brainstore Deployments and Pod
-listing in their namespace; it grants no Kubernetes write or Secret-read access.
-Pod listing exposes Pod specs in that namespace. The Kubernetes API token is
-explicitly mounted only into the init container; default token mounting into the
-API and sidecars is disabled when the gate is enabled. Custom sidecars that need
-Kubernetes API access must explicitly mount a projected token. Cloud workload
-identity uses separate authentication paths, which the canary must also verify.
-
-This checks startup, not reverse rollout order. A Brainstore downgrade can cause
-temporary query errors for running newer APIs. Helm's readiness wait can return
-while old API pods still serve; use rollout status to verify full replacement.
-
 ## Optional: Enterprise certificate authority (CA) bundle for user-code runtimes
 
 Requires Data Plane / API image **v2.9.0** or later.

@@ -105,6 +105,8 @@ api:
   # Experimental: hold new API processes until compatible Brainstore capacity
   # is available. Shared by all API pools. Enable for a canary before promotion.
   # Requires stable release tags (vX.Y.Z); opaque custom tags cannot prove compatibility.
+  # Only the init container mounts a Kubernetes API token when enabled; custom
+  # sidecars needing Kubernetes API access must project their own token.
   brainstoreStartupGate:
     enabled: false
     # Empty derives the floor from each pool's api.image.tag. Kept in each API Pod so
