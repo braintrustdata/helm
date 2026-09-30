@@ -3,6 +3,10 @@
 {{- $root := .root -}}
 {{- $api := .api -}}
 {{- $role := .role -}}
+{{- $startupGate := include "braintrust.brainstoreStartupGate.config" $root | fromYaml -}}
+{{- if $startupGate.enabled -}}
+{{- include "braintrust.brainstoreStartupGate.validateApi" (dict "api" $api) -}}
+{{- end -}}
 {{- $customCA := $api.customCA -}}
 {{- $customCAMountPath := "" -}}
 {{- $customCAFilename := "" -}}
@@ -40,6 +44,9 @@ metadata:
     {{- toYaml . | nindent 4 }}
   {{- end }}
 spec:
+  {{- if $startupGate.enabled }}
+  progressDeadlineSeconds: {{ add (int $startupGate.timeoutSeconds) 300 }}
+  {{- end }}
   {{- if not (dig "autoscaling" "enabled" false $api) }}
   replicas: {{ $api.replicas }}
   {{- end }}
@@ -60,6 +67,9 @@ spec:
         {{- end }}
       annotations:
         checksum/config: {{ include (print $root.Template.BasePath "/api-configmap.yaml") $root | sha256sum }}
+        {{- if $startupGate.enabled }}
+        checksum/brainstore-startup-gate: {{ $root.Files.Get "files/brainstore_startup_gate.py" | sha256sum }}
+        {{- end }}
         {{- if and (eq $root.Values.cloud "google") $api.enableGcsAuth }}
         iam.gke.io/gcp-service-account: {{ required "api.serviceAccount.googleServiceAccount is required when api.enableGcsAuth is true" $api.serviceAccount.googleServiceAccount }}
         {{- end }}
@@ -92,6 +102,47 @@ spec:
       {{- with $api.affinity }}
       affinity:
         {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if $startupGate.enabled }}
+      initContainers:
+        - name: wait-for-brainstore
+          image: {{ $startupGate.image | quote }}
+          imagePullPolicy: IfNotPresent
+          command: ["python3", "-B", "-u", "/opt/brainstore-gate/gate.py"]
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 65532
+            runAsGroup: 65532
+            capabilities:
+              drop: ["ALL"]
+            seccompProfile:
+              type: RuntimeDefault
+          resources:
+            {{- toYaml $startupGate.resources | nindent 12 }}
+          env:
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: BRAINSTORE_MINIMUM_VERSION
+              value: {{ include "braintrust.brainstoreStartupGate.minimumVersion" (dict "gate" $startupGate "api" $api) | quote }}
+            - name: BRAINSTORE_DEPLOYMENTS
+              value: {{ include "braintrust.brainstoreStartupGate.targets" $root | quote }}
+            - name: BRAINSTORE_GATE_TIMEOUT_SECONDS
+              value: {{ $startupGate.timeoutSeconds | quote }}
+            - name: BRAINSTORE_GATE_POLL_SECONDS
+              value: {{ $startupGate.pollIntervalSeconds | quote }}
+            - name: BRAINSTORE_GATE_CONSECUTIVE_SUCCESSES
+              value: {{ $startupGate.consecutiveSuccesses | quote }}
+          volumeMounts:
+            - name: brainstore-gate-code
+              mountPath: /opt/brainstore-gate
+              readOnly: true
+            - name: brainstore-gate-credentials
+              mountPath: /var/run/brainstore-gate
+              readOnly: true
       {{- end }}
       containers:
         - name: api
@@ -206,7 +257,23 @@ spec:
       {{- toYaml . | nindent 8 }}
       {{- end }}
       volumes:
-        {{- if or $api.tmpVolume.enabled (and (eq $root.Values.cloud "azure") $root.Values.azure.enableAzureKeyVaultDriver) $customCA.enabled $api.extraVolumes }}
+        {{- if or $startupGate.enabled $api.tmpVolume.enabled (and (eq $root.Values.cloud "azure") $root.Values.azure.enableAzureKeyVaultDriver) $customCA.enabled $api.extraVolumes }}
+        {{- if $startupGate.enabled }}
+        - name: brainstore-gate-code
+          configMap:
+            name: {{ include "braintrust.brainstoreStartupGate.name" $root }}
+        - name: brainstore-gate-credentials
+          projected:
+            sources:
+              - serviceAccountToken:
+                  path: token
+                  expirationSeconds: 3600
+              - configMap:
+                  name: kube-root-ca.crt
+                  items:
+                    - key: ca.crt
+                      path: ca.crt
+        {{- end }}
         {{- if $api.tmpVolume.enabled }}
         - name: tmp-volume
           emptyDir:

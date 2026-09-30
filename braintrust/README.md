@@ -50,6 +50,51 @@ The CSI driver will:
 2. Automatically sync them to the `braintrust-secrets` Kubernetes secret
 3. Keep the secrets in sync as they change in Key Vault
 
+## Experimental: wait for Brainstore before starting new API pods
+
+The chart can hold new API processes until their Brainstore backends have enough
+ready capacity at a compatible release. Existing API pods keep serving during a
+normal rolling upgrade. Sequencing is contained in the chart; it does not require
+two separate customer Helm upgrades or an API/Brainstore image change to add a
+new health endpoint.
+
+This draft feature is **disabled by default pending a cluster canary**:
+
+```yaml
+api:
+  brainstoreStartupGate:
+    enabled: true
+```
+
+The default minimum Brainstore version is each API pool's `image.tag`. Compatible
+Brainstore releases must have stable `vX.Y.Z` tags, be at least that minimum, and
+remain in the same major version. Application owners must maintain and validate
+that compatibility contract; a version tag is not itself proof of query behavior.
+An API-only version bump therefore waits if Brainstore is still too old. Older
+API pods can restart against compatible newer Brainstore releases.
+
+For a release whose API and Brainstore patch versions intentionally differ, set
+`api.brainstoreStartupGate.minimumVersion` to the Brainstore floor approved for
+**all** enabled API pools. An opaque API tag also requires this explicit floor.
+Opaque Brainstore tags, prerelease tags, and digest-only references cannot be
+interpreted by this gate and remain blocked; stable tags followed by digests are
+supported. Private registries can mirror the pinned Python helper image through
+`api.brainstoreStartupGate.image`.
+
+The gate requires `RollingUpdate`, `maxUnavailable: 0`, and nonzero `maxSurge` for
+every API pool. The cluster needs capacity for both API and Brainstore surge pods
+and API-pod network access to the Kubernetes API server. The chart grants the API
+service accounts read access to the three named Brainstore Deployments and Pod
+listing in their namespace; it grants no Kubernetes write or Secret-read access.
+
+The gate is a startup check. It does not prevent Brainstore from being downgraded
+under already-running newer APIs. Query failures during that rollback window are
+possible. Helm's readiness wait can also return before every old API pod has been
+replaced, so a successful Helm command is not proof of a complete rollout.
+
+See [the design and canary plan](../docs/brainstore-startup-gate.md) for validation
+requirements before enabling this by default.
+
 ## Optional: Enterprise certificate authority (CA) bundle for user-code runtimes
 
 Requires Data Plane / API image **v2.9.0** or later.
