@@ -54,6 +54,23 @@ tests:
           content:
             name: BRAINSTORE_MINIMUM_VERSION
             value: "2.15.0"
+      - contains:
+          path: spec.template.spec.initContainers[0].env
+          content:
+            name: BRAINSTORE_GATE_TIMEOUT_SECONDS
+            value: "1200"
+      - contains:
+          path: spec.template.spec.initContainers[0].env
+          content:
+            name: BRAINSTORE_GATE_POLL_SECONDS
+            value: "15"
+      - equal:
+          path: spec.template.spec.initContainers[0].env[0]
+          value:
+            name: POD_NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
       - equal:
           path: spec.template.spec.initContainers[0].securityContext.runAsNonRoot
           value: true
@@ -77,6 +94,18 @@ tests:
       - equal:
           path: spec.template.spec.initContainers[0].image
           value: registry.example/python:3.13
+      - contains:
+          path: spec.template.spec.initContainers[0].env
+          content:
+            name: BRAINSTORE_MINIMUM_VERSION
+            value: "2.15.0"
+
+  - it: should infer the API floor from a stable tag with a digest
+    template: api-deployment.yaml
+    set:
+      api.brainstoreStartupGate.enabled: true
+      api.image.tag: v2.15.0@sha256:abc
+    asserts:
       - contains:
           path: spec.template.spec.initContainers[0].env
           content:
@@ -209,14 +238,26 @@ tests:
       - failedTemplate:
           errorMessage: api.brainstoreStartupGate timing values must be positive integers
 
-  - it: should reject a single observation
-    template: brainstore-startup-gate-rbac.yaml
+  - it: should pass timing overrides to the checker and extend the progress deadline
+    template: api-deployment.yaml
     set:
       api.brainstoreStartupGate.enabled: true
-      api.brainstoreStartupGate.consecutiveSuccesses: 1
+      api.brainstoreStartupGate.timeoutSeconds: 1800
+      api.brainstoreStartupGate.pollIntervalSeconds: 30
     asserts:
-      - failedTemplate:
-          errorMessage: api.brainstoreStartupGate requires positive timeoutSeconds/pollIntervalSeconds and consecutiveSuccesses >= 2
+      - contains:
+          path: spec.template.spec.initContainers[0].env
+          content:
+            name: BRAINSTORE_GATE_TIMEOUT_SECONDS
+            value: "1800"
+      - contains:
+          path: spec.template.spec.initContainers[0].env
+          content:
+            name: BRAINSTORE_GATE_POLL_SECONDS
+            value: "30"
+      - equal:
+          path: spec.progressDeadlineSeconds
+          value: 2100
 
   - it: should reject an insufficient confirmation budget
     template: brainstore-startup-gate-rbac.yaml
@@ -225,7 +266,7 @@ tests:
       api.brainstoreStartupGate.timeoutSeconds: 15
     asserts:
       - failedTemplate:
-          errorMessage: api.brainstoreStartupGate timeoutSeconds must allow the consecutive observations
+          errorMessage: api.brainstoreStartupGate timeoutSeconds must exceed pollIntervalSeconds for two observations
 
   - it: should reject an API rollout that removes old serving capacity
     template: api-deployment.yaml

@@ -6,22 +6,18 @@
   "image" "python:3.13-alpine@sha256:79e7a9b9ff1cbceff819f856fb374477792a5967759d94df266de7b7b4120e6f"
   "timeoutSeconds" 1200
   "pollIntervalSeconds" 15
-  "consecutiveSuccesses" 2
   "resources" (dict "requests" (dict "cpu" "25m" "memory" "32Mi") "limits" (dict "cpu" "100m" "memory" "128Mi"))
 -}}
 {{- $gate := mergeOverwrite (deepCopy $defaults) (deepCopy (.Values.api.brainstoreStartupGate | default dict)) -}}
 {{- if $gate.enabled -}}
 {{- $_ := required "api.brainstoreStartupGate.image is required" $gate.image -}}
-{{- range $field := list "timeoutSeconds" "pollIntervalSeconds" "consecutiveSuccesses" -}}
+{{- range $field := list "timeoutSeconds" "pollIntervalSeconds" -}}
 {{- if not (regexMatch "^[1-9][0-9]*$" (toString (index $gate $field))) -}}
 {{- fail "api.brainstoreStartupGate timing values must be positive integers" -}}
 {{- end -}}
 {{- end -}}
-{{- if or (le (int $gate.timeoutSeconds) 0) (le (int $gate.pollIntervalSeconds) 0) (lt (int $gate.consecutiveSuccesses) 2) -}}
-{{- fail "api.brainstoreStartupGate requires positive timeoutSeconds/pollIntervalSeconds and consecutiveSuccesses >= 2" -}}
-{{- end -}}
-{{- if ge (mul (int $gate.pollIntervalSeconds) (sub (int $gate.consecutiveSuccesses) 1)) (int $gate.timeoutSeconds) -}}
-{{- fail "api.brainstoreStartupGate timeoutSeconds must allow the consecutive observations" -}}
+{{- if ge (int $gate.pollIntervalSeconds) (int $gate.timeoutSeconds) -}}
+{{- fail "api.brainstoreStartupGate timeoutSeconds must exceed pollIntervalSeconds for two observations" -}}
 {{- end -}}
 {{- end -}}
 {{- toYaml $gate -}}
@@ -31,7 +27,7 @@
 An API-only image bump must not silently accept the still-old Brainstore fleet.
 */}}
 {{- define "braintrust.brainstoreStartupGate.minimumVersion" -}}
-{{- $minimum := .gate.minimumVersion | default .api.image.tag -}}
+{{- $minimum := .gate.minimumVersion | default (first (splitList "@" .api.image.tag)) -}}
 {{- if not (regexMatch "^v?(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$" $minimum) -}}
 {{- fail "api.brainstoreStartupGate requires a stable API release tag or an explicit stable minimumVersion" -}}
 {{- end -}}

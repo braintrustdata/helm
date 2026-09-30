@@ -82,6 +82,11 @@ def check_deployment(deployment, pods, container, minimum):
     rollout: older APIs must be able to restart while a later Brainstore release
     rolls. Incompatible terminating Pods still block, because their connections
     may remain usable until the process exits.
+
+    Deployment rollouts replace Pods, so use each Pod's declared release tag.
+    Container status can report a different alias or only a digest. Neither is
+    a portable release identifier; manual in-place Pod image changes are outside
+    this check's contract.
     """
     metadata = deployment.get("metadata", {})
     spec = deployment.get("spec", {})
@@ -103,9 +108,6 @@ def check_deployment(deployment, pods, container, minimum):
         if not compatible(image, minimum):
             pod_name = pod.get("metadata", {}).get("name", "unknown")
             return f"{name}: incompatible Pod {pod_name} still exists ({image!r})"
-        running = running_container(pod, container)
-        if running is not None and not compatible(running.get("image", ""), minimum):
-            return f"{name}: a running container has not reached the required release"
     ready_count = sum(ready(pod, container) for pod in live)
     if ready_count < desired or status.get("availableReplicas", 0) < desired:
         return f"{name}: waiting for {desired} available compatible Pods ({ready_count} ready)"
@@ -159,8 +161,7 @@ class KubernetesClient:
                 return items
 
 
-def fleet_snapshot(client, targets, minimum, deadline):
-    signature = []
+def check_fleet(client, targets, minimum, deadline):
     for target in targets:
         deployment = client.deployment(target["deployment"], deadline)
         # The chart's Services select app=<deployment name>. Include stray Pods
@@ -168,43 +169,34 @@ def fleet_snapshot(client, targets, minimum, deadline):
         pods = client.pods("app=" + target["deployment"], deadline)
         reason = check_deployment(deployment, pods, target["container"], minimum)
         if reason:
-            return reason, None
-        # Confirm the same desired Deployment revisions, not identical Pod
-        # membership. Compatible Pod churn must not strand an older API during
-        # a later rollout once sufficient compatible capacity is available.
-        signature.append((
-            deployment["metadata"]["uid"], deployment["metadata"]["generation"],
-        ))
-    return None, signature
+            return reason
+    return None
 
 
-def wait_for_fleet(client, targets, minimum, timeout, interval, consecutive,
+def wait_for_fleet(client, targets, minimum, timeout, interval,
                   clock=time.monotonic, sleep=time.sleep, log=print):
     deadline = clock() + timeout
     successes = 0
-    last_signature = None
     last_reason = "no observation yet"
     while clock() < deadline:
         try:
-            reason, signature = fleet_snapshot(client, targets, minimum, deadline)
+            reason = check_fleet(client, targets, minimum, deadline)
         except urllib.error.HTTPError as error:
             # RBAC and Deployments may be applied after the API Pod is created.
-            reason, signature = f"Kubernetes API returned HTTP {error.code}", None
+            reason = f"Kubernetes API returned HTTP {error.code}"
             error.close()
         except (OSError, ValueError, KeyError, TypeError) as error:
-            reason, signature = f"Kubernetes observation failed: {type(error).__name__}", None
+            reason = f"Kubernetes observation failed: {type(error).__name__}"
         if clock() >= deadline:
             break
         if reason is None:
-            successes = successes + 1 if signature == last_signature else 1
-            last_signature = signature
-            if successes >= consecutive:
+            successes += 1
+            if successes == 2:
                 log("Brainstore startup gate complete: compatible capacity is available", flush=True)
                 return
-            last_reason = f"confirming compatible capacity ({successes}/{consecutive})"
+            last_reason = "confirming compatible capacity (1/2)"
         else:
             successes = 0
-            last_signature = None
             last_reason = reason
         log(f"Brainstore startup gate waiting: {last_reason}", flush=True)
         sleep(min(interval, max(0, deadline - clock())))
@@ -216,11 +208,10 @@ def main():
     targets = json.loads(os.environ["BRAINSTORE_DEPLOYMENTS"])
     timeout = int(os.environ["BRAINSTORE_GATE_TIMEOUT_SECONDS"])
     interval = int(os.environ["BRAINSTORE_GATE_POLL_SECONDS"])
-    consecutive = int(os.environ["BRAINSTORE_GATE_CONSECUTIVE_SUCCESSES"])
-    if not targets or timeout <= 0 or interval <= 0 or consecutive < 2:
+    if not targets or timeout <= 0 or interval <= 0 or interval >= timeout:
         raise ValueError("invalid startup gate configuration")
     client = KubernetesClient(os.environ["POD_NAMESPACE"], "/var/run/brainstore-gate")
-    wait_for_fleet(client, targets, minimum, timeout, interval, consecutive)
+    wait_for_fleet(client, targets, minimum, timeout, interval)
 
 
 if __name__ == "__main__":

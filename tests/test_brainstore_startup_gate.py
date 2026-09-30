@@ -124,10 +124,17 @@ class CompatibilityTests(unittest.TestCase):
         wrong["spec"]["containers"][0]["name"] = "sidecar"
         self.assertIn("incompatible", self.check(pods=[wrong]))
 
-    def test_desired_pod_image_does_not_prove_running_container_version(self):
-        current = pod()
-        current["status"]["containerStatuses"][0]["image"] = "registry/brainstore:v2.14.0"
-        self.assertIn("running container", self.check(pods=[current]))
+    def test_runtime_image_aliases_do_not_block_a_compatible_deployment_pod(self):
+        for image in ("registry/brainstore:deadbeef", "registry/brainstore@sha256:abc"):
+            with self.subTest(image=image):
+                current = pod()
+                current["status"]["containerStatuses"][0]["image"] = image
+                self.assertIsNone(self.check(pods=[current]))
+
+    def test_runtime_alias_does_not_override_an_incompatible_pod_spec(self):
+        current = pod("v2.14.0")
+        current["status"]["containerStatuses"][0]["image"] = "registry/brainstore:v2.15.0"
+        self.assertIn("incompatible", self.check(pods=[current]))
 
     def test_pod_ready_without_expected_running_container_is_insufficient(self):
         current = pod()
@@ -150,51 +157,50 @@ class WaitTests(unittest.TestCase):
     def wait(self, observations, timeout=60):
         clock = FakeClock()
         log = Mock()
-        with patch.object(gate, "fleet_snapshot", side_effect=observations) as snapshot:
+        with patch.object(gate, "check_fleet", side_effect=observations) as check:
             gate.wait_for_fleet(Mock(), [{"deployment": "reader", "container": "brainstore-reader"}],
-                                (2, 15, 0), timeout, 15, 2, clock.clock, clock.sleep, log)
-        return clock, log, snapshot
+                                (2, 15, 0), timeout, 15, clock.clock, clock.sleep, log)
+        return clock, log, check
 
-    def test_requires_two_identical_successful_observations(self):
-        clock, _, snapshot = self.wait([(None, ["a"]), (None, ["a"])])
-        self.assertEqual(snapshot.call_count, 2)
+    def test_requires_two_successful_observations(self):
+        clock, _, check = self.wait([None, None])
+        self.assertEqual(check.call_count, 2)
         self.assertEqual(clock.now, 15)
 
-    def test_changed_deployment_revision_restarts_confirmation(self):
-        _, _, snapshot = self.wait([(None, ["a"]), (None, ["b"]), (None, ["b"])])
-        self.assertEqual(snapshot.call_count, 3)
-
     def test_failed_check_resets_confirmation(self):
-        _, _, snapshot = self.wait([(None, ["a"]), ("old pod remains", None),
-                                    (None, ["a"]), (None, ["a"])])
-        self.assertEqual(snapshot.call_count, 4)
+        _, _, check = self.wait([None, "old pod remains", None, None])
+        self.assertEqual(check.call_count, 4)
 
     def test_transient_missing_deployment_and_rbac_are_retried(self):
         errors = [urllib.error.HTTPError("https://api", code, "synthetic", None, None)
                   for code in (404, 403)]
-        _, _, snapshot = self.wait(errors + [(None, ["a"]), (None, ["a"])])
-        self.assertEqual(snapshot.call_count, 4)
+        _, _, check = self.wait(errors + [None, None])
+        self.assertEqual(check.call_count, 4)
 
     def test_timeout_never_releases_api(self):
         with self.assertRaisesRegex(TimeoutError, "old pod remains"):
-            self.wait([("old pod remains", None)] * 3, timeout=30)
+            self.wait(["old pod remains"] * 3, timeout=30)
 
     def test_kubernetes_api_failure_never_releases_api(self):
         with self.assertRaisesRegex(TimeoutError, "HTTP 429"):
             self.wait([urllib.error.HTTPError("https://api", 429, "synthetic", None, None)] * 3, 30)
 
 
-class SnapshotTests(unittest.TestCase):
-    def test_compatible_pod_churn_does_not_reset_an_old_api_confirmation(self):
+class FleetTests(unittest.TestCase):
+    def test_compatible_deployment_and_pod_churn_do_not_delay_an_old_api(self):
         client = Mock()
-        client.deployment.return_value = deployment("v2.16.0")
+        first = deployment("v2.15.0")
+        later = deployment("v2.16.0")
+        later["metadata"]["generation"] = 3
+        later["status"]["observedGeneration"] = 3
+        client.deployment.side_effect = [first, later]
         client.pods.side_effect = [[pod("v2.15.0", "old")], [pod("v2.16.0", "new")]]
         targets = [{"deployment": "reader", "container": "brainstore-reader"}]
-        first = gate.fleet_snapshot(client, targets, (2, 15, 0), 100)
-        second = gate.fleet_snapshot(client, targets, (2, 15, 0), 100)
-        self.assertIsNone(first[0])
-        self.assertIsNone(second[0])
-        self.assertEqual(first[1], second[1])
+        clock = FakeClock()
+        gate.wait_for_fleet(client, targets, (2, 15, 0), 60, 15,
+                            clock.clock, clock.sleep, Mock())
+        self.assertEqual(client.deployment.call_count, 2)
+        self.assertEqual(clock.now, 15)
 
     def test_checks_all_three_roles_and_includes_stray_service_backends(self):
         client = Mock()
@@ -216,9 +222,9 @@ class SnapshotTests(unittest.TestCase):
             pod_sets.append([current])
         client.deployment.side_effect = deployments
         client.pods.side_effect = pod_sets
-        reason, signature = gate.fleet_snapshot(client, targets, (2, 15, 0), 100)
+        reason = gate.check_fleet(client, targets, (2, 15, 0), 100)
         self.assertIsNone(reason)
-        self.assertEqual(len(signature), 3)
+        self.assertEqual(client.deployment.call_count, 3)
         self.assertEqual([call.args[0] for call in client.pods.call_args_list],
                          ["app=custom-reader", "app=custom-writer", "app=custom-fastreader"])
         # A manually labelled Pod can receive Service traffic without belonging
@@ -226,7 +232,7 @@ class SnapshotTests(unittest.TestCase):
         stray = pod("v2.14.0", "stray")
         client.deployment.side_effect = deployments
         client.pods.side_effect = [[pod(), stray]]
-        reason, _ = gate.fleet_snapshot(client, targets, (2, 15, 0), 100)
+        reason = gate.check_fleet(client, targets, (2, 15, 0), 100)
         self.assertIn("stray", reason)
 
 

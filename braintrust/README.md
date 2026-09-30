@@ -52,13 +52,10 @@ The CSI driver will:
 
 ## Experimental: wait for Brainstore before starting new API pods
 
-The chart can hold new API processes until their Brainstore backends have enough
-ready capacity at a compatible release. Existing API pods keep serving during a
-normal rolling upgrade. Sequencing is contained in the chart; it does not require
-two separate customer Helm upgrades or an API/Brainstore image change to add a
-new health endpoint.
-
-This draft feature is **disabled by default pending a cluster canary**:
+The chart can hold new API processes until reader, writer, and fastreader have
+ready capacity at a compatible release and incompatible old pods have exited.
+Existing API pods keep serving during a normal rolling upgrade. Enable this
+**experimental feature only after a cluster canary**; it is disabled by default:
 
 ```yaml
 api:
@@ -66,20 +63,24 @@ api:
     enabled: true
 ```
 
-The default minimum Brainstore version is each API pool's `image.tag`. Compatible
-Brainstore releases must have stable `vX.Y.Z` tags, be at least that minimum, and
-remain in the same major version. Application owners must maintain and validate
-that compatibility contract; a version tag is not itself proof of query behavior.
-An API-only version bump therefore waits if Brainstore is still too old. Older
-API pods can restart against compatible newer Brainstore releases.
+The chart generates the checker's environment variables; customers do not set
+them directly. `minimumVersion` defaults to each API pool's `image.tag`. An API
+`v2.15.0` pod therefore accepts Brainstore `2.15.0` or newer in major version 2,
+including when that older API pod restarts during a later Brainstore upgrade.
+An optional explicit `api.brainstoreStartupGate.minimumVersion` must declare a
+Brainstore floor approved for **all** API pools; an opaque API tag requires it.
 
-For a release whose API and Brainstore patch versions intentionally differ, set
-`api.brainstoreStartupGate.minimumVersion` to the Brainstore floor approved for
-**all** enabled API pools. An opaque API tag also requires this explicit floor.
-Opaque Brainstore tags, prerelease tags, and digest-only references cannot be
-interpreted by this gate and remain blocked; stable tags followed by digests are
-supported. Private registries can mirror the pinned Python helper image through
-`api.brainstoreStartupGate.image`.
+The checker uses stable release tags in Deployment and Pod specs for normal
+Deployment rollouts. Opaque Brainstore tags, prereleases, and digest-only images
+remain blocked; stable tags followed by digests are supported. Runtime-reported
+image aliases are not release identifiers. Manual in-place Pod image changes
+are outside this check's contract. Application owners must validate release
+compatibility; tags alone do not prove query behavior.
+
+The checker polls every 15 seconds and requires two successful checks. Each
+attempt waits up to 1,200 seconds, then exits nonzero for Kubernetes to retry.
+`timeoutSeconds` and `pollIntervalSeconds` are optional tuning settings. Private
+registries can mirror the pinned Python helper through the optional `image` setting.
 
 The gate requires `RollingUpdate`, `maxUnavailable: 0`, and nonzero `maxSurge` for
 every API pool. The cluster needs capacity for both API and Brainstore surge pods
@@ -87,13 +88,9 @@ and API-pod network access to the Kubernetes API server. The chart grants the AP
 service accounts read access to the three named Brainstore Deployments and Pod
 listing in their namespace; it grants no Kubernetes write or Secret-read access.
 
-The gate is a startup check. It does not prevent Brainstore from being downgraded
-under already-running newer APIs. Query failures during that rollback window are
-possible. Helm's readiness wait can also return before every old API pod has been
-replaced, so a successful Helm command is not proof of a complete rollout.
-
-See [the design and canary plan](../docs/brainstore-startup-gate.md) for validation
-requirements before enabling this by default.
+This checks startup, not reverse rollout order. A Brainstore downgrade can cause
+temporary query errors for running newer APIs. Helm's readiness wait can return
+while old API pods still serve; use rollout status to verify full replacement.
 
 ## Optional: Enterprise certificate authority (CA) bundle for user-code runtimes
 

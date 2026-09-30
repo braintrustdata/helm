@@ -134,8 +134,6 @@ spec:
               value: {{ $startupGate.timeoutSeconds | quote }}
             - name: BRAINSTORE_GATE_POLL_SECONDS
               value: {{ $startupGate.pollIntervalSeconds | quote }}
-            - name: BRAINSTORE_GATE_CONSECUTIVE_SUCCESSES
-              value: {{ $startupGate.consecutiveSuccesses | quote }}
           volumeMounts:
             - name: brainstore-gate-code
               mountPath: /opt/brainstore-gate
