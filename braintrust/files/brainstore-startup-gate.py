@@ -41,8 +41,9 @@ def compatible(image, minimum):
         version = image_version(image)
     except ValueError:
         return False
-    # The supported contract is newer Brainstore releases in the same major.
-    # Crossing a major boundary requires a separately designed migration.
+    # This assumes Brainstore preserves compatibility with older APIs within
+    # a major release; version numbers alone cannot establish that contract.
+    # Unknown tags and major-version migrations must not pass this gate.
     return version[0] == minimum[0] and version >= minimum
 
 
@@ -94,12 +95,15 @@ def check_deployment(deployment, pods, container, minimum):
     name = metadata.get("name", "unknown")
     if metadata.get("deletionTimestamp"):
         return f"{name}: deployment is being deleted"
+    # Do not trust availability status from before the latest spec update.
     if status.get("observedGeneration", 0) < metadata.get("generation", 1):
         return f"{name}: controller has not observed the desired generation"
     desired = spec.get("replicas", 1)
     live = [pod for pod in pods if pod.get("status", {}).get("phase") not in TERMINAL_PHASES]
     if desired == 0:
         return f"{name}: waiting for scaled-down Pods to disappear" if live else None
+    # Check desired state too: compatible Pods are insufficient if the
+    # Deployment is about to replace them with an incompatible image.
     image = container_image(spec.get("template", {}).get("spec", {}), container)
     if not compatible(image, minimum):
         return f"{name}: desired image {image!r} is below or outside the required release"
@@ -108,6 +112,8 @@ def check_deployment(deployment, pods, container, minimum):
         if not compatible(image, minimum):
             pod_name = pod.get("metadata", {}).get("name", "unknown")
             return f"{name}: incompatible Pod {pod_name} still exists ({image!r})"
+    # Require both current Pod readiness and Deployment availability; the
+    # latter also accounts for the Deployment's minReadySeconds setting.
     ready_count = sum(ready(pod, container) for pod in live)
     if ready_count < desired or status.get("availableReplicas", 0) < desired:
         return f"{name}: waiting for {desired} available compatible Pods ({ready_count} ready)"
@@ -157,6 +163,7 @@ class KubernetesClient:
     def pods(self, selector, deadline):
         items = []
         continuation = ""
+        # Inspect every matching backend, including those beyond the first page.
         while True:
             query = urllib.parse.urlencode({
                 "labelSelector": selector, "limit": 500, "continue": continuation,
@@ -182,6 +189,7 @@ def check_fleet(client, targets, minimum, deadline):
 
 def wait_for_fleet(client, targets, minimum, timeout, interval,
                   clock=time.monotonic, sleep=time.sleep, log=print):
+    # All roles and API requests share one budget, unaffected by wall-clock changes.
     deadline = clock() + timeout
     successes = 0
     last_reason = "no observation yet"
@@ -197,6 +205,8 @@ def wait_for_fleet(client, targets, minimum, timeout, interval,
             reason = f"Kubernetes observation failed: {type(error).__name__}"
         if clock() >= deadline:
             break
+        # Confirm the entire fleet twice, one polling interval apart. These are
+        # observations, not an atomic snapshot or a lock on subsequent rollouts.
         if reason is None:
             successes += 1
             if successes == 2:
@@ -204,6 +214,7 @@ def wait_for_fleet(client, targets, minimum, timeout, interval,
                 return
             last_reason = "confirming compatible capacity (1/2)"
         else:
+            # An unhealthy role or failed API read resets the confirmation count.
             successes = 0
             last_reason = reason
         log(f"Brainstore startup gate waiting: {last_reason}", flush=True)
@@ -227,4 +238,5 @@ if __name__ == "__main__":
         main()
     except (OSError, ValueError, KeyError, TypeError) as error:
         print(str(error), file=sys.stderr, flush=True)
+        # Fail closed: Kubernetes retries this init container; the API stays stopped.
         sys.exit(1)
