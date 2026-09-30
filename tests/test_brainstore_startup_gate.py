@@ -8,7 +8,7 @@ from unittest.mock import Mock, patch
 import urllib.error
 
 
-SCRIPT = Path(__file__).resolve().parents[1] / "braintrust/files/brainstore_startup_gate.py"
+SCRIPT = Path(__file__).resolve().parents[1] / "braintrust/files/brainstore-startup-gate.py"
 spec = importlib.util.spec_from_file_location("gate", SCRIPT)
 gate = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(gate)
@@ -241,6 +241,23 @@ class ClientTests(unittest.TestCase):
         with patch.dict(os.environ, {"KUBERNETES_SERVICE_HOST": host}), \
              patch.object(gate.ssl, "create_default_context"):
             return gate.KubernetesClient("custom namespace", directory)
+
+    def test_redirects_never_forward_the_bearer_token(self):
+        client = self.client("/synthetic")
+        handler = next(handler for handler in client.opener.handlers
+                       if isinstance(handler, gate.urllib.request.HTTPRedirectHandler))
+        handler.parent = Mock()
+        request = gate.urllib.request.Request(
+            "https://10.0.0.1/api/v1/pods", headers={"Authorization": "Bearer synthetic-token"})
+        for code in (301, 302, 303, 307, 308):
+            for destination in ("https://other.example/pods", "http://other.example/pods"):
+                with self.subTest(code=code, destination=destination), \
+                     self.assertRaises(urllib.error.HTTPError) as error:
+                    handler.http_error_302(request, io.StringIO(""), code, "Redirect",
+                                           {"location": destination})
+                self.assertEqual(error.exception.code, code)
+                error.exception.close()
+        handler.parent.open.assert_not_called()
 
     def test_reloads_rotating_token_and_bounds_request_timeout(self):
         with tempfile.TemporaryDirectory() as directory:

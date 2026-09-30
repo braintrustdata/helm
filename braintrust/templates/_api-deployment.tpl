@@ -68,7 +68,7 @@ spec:
       annotations:
         checksum/config: {{ include (print $root.Template.BasePath "/api-configmap.yaml") $root | sha256sum }}
         {{- if $startupGate.enabled }}
-        checksum/brainstore-startup-gate: {{ $root.Files.Get "files/brainstore_startup_gate.py" | sha256sum }}
+        checksum/brainstore-startup-gate: {{ $root.Files.Get "files/brainstore-startup-gate.py" | sha256sum }}
         {{- end }}
         {{- if and (eq $root.Values.cloud "google") $api.enableGcsAuth }}
         iam.gke.io/gcp-service-account: {{ required "api.serviceAccount.googleServiceAccount is required when api.enableGcsAuth is true" $api.serviceAccount.googleServiceAccount }}
@@ -78,6 +78,10 @@ spec:
         {{- end }}
     spec:
       serviceAccountName: {{ $api.serviceAccount.name }}
+      {{- if $startupGate.enabled }}
+      # Only the init container mounts the projected Kubernetes API credential.
+      automountServiceAccountToken: false
+      {{- end }}
       {{- with $api.podSecurityContext }}
       securityContext:
         {{- toYaml . | nindent 8 }}

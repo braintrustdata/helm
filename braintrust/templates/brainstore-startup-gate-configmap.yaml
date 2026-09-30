@@ -11,5 +11,5 @@ metadata:
   {{- end }}
 data:
   gate.py: |
-    {{- .Files.Get "files/brainstore_startup_gate.py" | nindent 4 }}
+    {{- .Files.Get "files/brainstore-startup-gate.py" | nindent 4 }}
 {{- end }}

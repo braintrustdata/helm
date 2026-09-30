@@ -114,6 +114,12 @@ def check_deployment(deployment, pods, container, minimum):
     return None
 
 
+class NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, request, response, code, message, headers, new_url):
+        # API reads must not forward this Pod's bearer token to another endpoint.
+        raise urllib.error.HTTPError(request.full_url, code, message, headers, response)
+
+
 class KubernetesClient:
     def __init__(self, namespace, credentials, request_timeout=5):
         host = os.environ["KUBERNETES_SERVICE_HOST"]
@@ -127,7 +133,8 @@ class KubernetesClient:
         context = ssl.create_default_context(cafile=str(self.credentials / "ca.crt"))
         # Never send a Kubernetes service-account credential through an HTTP proxy.
         self.opener = urllib.request.build_opener(
-            urllib.request.ProxyHandler({}), urllib.request.HTTPSHandler(context=context)
+            urllib.request.ProxyHandler({}), NoRedirect(),
+            urllib.request.HTTPSHandler(context=context),
         )
 
     def get(self, path, deadline):
@@ -183,7 +190,8 @@ def wait_for_fleet(client, targets, minimum, timeout, interval,
             reason = check_fleet(client, targets, minimum, deadline)
         except urllib.error.HTTPError as error:
             # RBAC and Deployments may be applied after the API Pod is created.
-            reason = f"Kubernetes API returned HTTP {error.code}"
+            path = urllib.parse.urlsplit(error.url).path
+            reason = f"Kubernetes API returned HTTP {error.code} for {path}"
             error.close()
         except (OSError, ValueError, KeyError, TypeError) as error:
             reason = f"Kubernetes observation failed: {type(error).__name__}"

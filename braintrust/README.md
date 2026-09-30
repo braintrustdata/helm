@@ -87,6 +87,11 @@ every API pool. The cluster needs capacity for both API and Brainstore surge pod
 and API-pod network access to the Kubernetes API server. The chart grants the API
 service accounts read access to the three named Brainstore Deployments and Pod
 listing in their namespace; it grants no Kubernetes write or Secret-read access.
+Pod listing exposes Pod specs in that namespace. The Kubernetes API token is
+explicitly mounted only into the init container; default token mounting into the
+API and sidecars is disabled when the gate is enabled. Custom sidecars that need
+Kubernetes API access must explicitly mount a projected token. Cloud workload
+identity uses separate authentication paths, which the canary must also verify.
 
 This checks startup, not reverse rollout order. A Brainstore downgrade can cause
 temporary query errors for running newer APIs. Helm's readiness wait can return
