@@ -291,8 +291,8 @@ let each pool scale independently instead.
 
 ## Brainstore Rollout Controls
 
-Brainstore readers, fast readers, and writers have independently configurable
-Deployment strategies and readiness dwell times. These controls let operators
+Brainstore readers, fast readers, writers, and automation writers have
+independently configurable Deployment strategies and readiness dwell times. These controls let operators
 limit how many replacement pods start together and require replacements to
 remain Ready before an upgrade continues. This can reduce simultaneous cache
 warm-up, object-storage, scheduling, and compaction pressure in cache-heavy or
@@ -346,6 +346,28 @@ are available under each Brainstore role. `progressDeadlineSeconds` must be
 greater than `minReadySeconds`; the chart rejects an invalid pairing. Keep
 enough deadline margin for scheduling, image pulls, startup, and the readiness
 dwell.
+
+### Brainstore Automation Writer pool
+
+The Automation Writer pool (`brainstore.automationwriter`) is an optional,
+dedicated Brainstore writer pool that handles only the automations writer loop.
+When enabled, automation processing is isolated onto its own nodes so it does
+not compete with the regular writer pool.
+
+It is driven entirely by the `BRAINSTORE_WRITER_LOOP_CONFIG` environment
+variable (there is no separate service or URL — the API still sends all writes
+to the regular writer pool, and the writer nodes partition the writer loops
+among themselves):
+
+- Automation writer nodes run `BRAINSTORE_WRITER_LOOP_CONFIG=include:automations`.
+- When `brainstore.automationwriter.replicas > 0`, the regular writer pool is
+  automatically set to `BRAINSTORE_WRITER_LOOP_CONFIG=exclude:automations`.
+- When the pool is disabled (`replicas: 0`, the default), no
+  `BRAINSTORE_WRITER_LOOP_CONFIG` is set and the writer pool handles every
+  writer loop, including automations — so existing deployments are unaffected.
+
+This option is not recommended for most deployments; enable it only with
+guidance from Braintrust support.
 
 A longer dwell reduces rollout pressure but does not prove that a pod's local
 cache is fully warm; monitor workload health until the rollout has converged.

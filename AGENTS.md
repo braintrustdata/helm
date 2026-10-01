@@ -80,7 +80,11 @@ These constraints apply to customers migrating from Data Plane 1.x to 2.0. New d
 
 ### Brainstore ConfigMap Consistency
 
-The three brainstore configmaps (`brainstore-reader-configmap.yaml`, `brainstore-writer-configmap.yaml`, `brainstore-fastreader-configmap.yaml`) must have identical environment variable logic for `BRAINSTORE_RESPONSE_CACHE_URI`, `BRAINSTORE_CODE_BUNDLE_URI`, `BRAINSTORE_ASYNC_SCORING_OBJECTS`, and `BRAINSTORE_LOG_AUTOMATIONS_OBJECTS`. If you modify one, you must update all three.
+The four brainstore configmaps (`brainstore-reader-configmap.yaml`, `brainstore-writer-configmap.yaml`, `brainstore-fastreader-configmap.yaml`, `brainstore-automationwriter-configmap.yaml`) must have identical environment variable logic for `BRAINSTORE_RESPONSE_CACHE_URI`, `BRAINSTORE_CODE_BUNDLE_URI`, `BRAINSTORE_ASYNC_SCORING_OBJECTS`, and `BRAINSTORE_LOG_AUTOMATIONS_OBJECTS`. If you modify one, you must update all four.
+
+### Brainstore Automation Writer loop config
+
+The optional Automation Writer pool (`brainstore.automationwriter`, default `replicas: 0`) isolates the automations writer loop via `BRAINSTORE_WRITER_LOOP_CONFIG`. `brainstore-automationwriter-configmap.yaml` sets `include:automations`, and `brainstore-writer-configmap.yaml` sets `exclude:automations` only when `brainstore.automationwriter.replicas > 0`. These two must stay in sync: the automation writer runs automations and the regular writer must exclude them whenever the pool is enabled. There is no automation-writer Service — nothing routes to the pool by URL; it self-drives its writer loop through Postgres / Redis.
 
 ### Version Numbers
 
