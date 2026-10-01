@@ -214,6 +214,7 @@ api:
       maxUnavailable: 0
   podDisruptionBudget:
     enabled: false
+    # An explicit maxUnavailable overrides this minimum.
     minAvailable: 1
   topologySpread:
     enabled: false
@@ -402,6 +403,9 @@ brainstore:
       deployment: {}
       service: {}
       pod: {}
+    podDisruptionBudget:
+      enabled: false
+      maxUnavailable: 1
     replicas: 2
     # Configure rollout pacing for this Brainstore role. Defaults preserve the
     # rollout behavior from earlier chart versions.
@@ -462,6 +466,9 @@ brainstore:
       deployment: {}
       service: {}
       pod: {}
+    podDisruptionBudget:
+      enabled: false
+      maxUnavailable: 1
     replicas: 2
     minReadySeconds: 0
     progressDeadlineSeconds: 600
@@ -520,6 +527,9 @@ brainstore:
       deployment: {}
       service: {}
       pod: {}
+    podDisruptionBudget:
+      enabled: false
+      maxUnavailable: 1
     replicas: 1
     minReadySeconds: 0
     progressDeadlineSeconds: 600

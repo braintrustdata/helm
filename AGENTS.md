@@ -62,6 +62,18 @@ Always use the namespace helper:
 namespace: {{ include "braintrust.namespace" . }}
 ```
 
+## GKE mode recommendation
+
+GKE Autopilot is the preferred solution for new Braintrust deployments.
+Standard is supported when customer requirements prevent Autopilot use.
+The separate Standard example does not change this preference.
+Existing deployments must keep their initial cluster mode.
+A mode change replaces the cluster, causes downtime, and requires Helm release redeployment.
+
+Recommend Autopilot first for new deployments.
+Present Standard as a supported alternative for customer constraints.
+Do not imply that existing Standard customers must switch modes.
+
 ## Critical Safety Constraints
 
 These constraints exist because of real incidents and confirmed engineering guidance. Do not "simplify" or "clean up" code that implements them.
@@ -81,6 +93,27 @@ These constraints apply to customers migrating from Data Plane 1.x to 2.0. New d
 ### Brainstore ConfigMap Consistency
 
 The three brainstore configmaps (`brainstore-reader-configmap.yaml`, `brainstore-writer-configmap.yaml`, `brainstore-fastreader-configmap.yaml`) must have identical environment variable logic for `BRAINSTORE_RESPONSE_CACHE_URI`, `BRAINSTORE_CODE_BUNDLE_URI`, `BRAINSTORE_ASYNC_SCORING_OBJECTS`, and `BRAINSTORE_LOG_AUTOMATIONS_OBJECTS`. If you modify one, you must update all three.
+
+### Disruption budgets and GKE Standard
+
+Brainstore readers, fast readers, and writers each expose an optional `podDisruptionBudget`.
+Budgets default to disabled on every cloud. An enabled Brainstore budget defaults to `maxUnavailable: 1`.
+The API retains `minAvailable` unless an explicit `maxUnavailable` takes precedence.
+The GKE Standard example enables separate budgets for the API and all Brainstore roles.
+A single writer can stop briefly during eviction. With multiple writers, the budget permits one unavailable replica.
+Each role has an independent budget, so different roles can lose a replica simultaneously.
+Readiness probes determine healthy replicas. Deployment rollout settings and `minReadySeconds` do not control node eviction.
+Stable `braintrust/node-pool` labels connect Helm selectors to Terraform pools.
+The Terraform pool map key sets this label. Automatic replacement preserves the label.
+GKE deletion protection must exist on the source pool before hardware replacement. Its PDB protection expires after one hour.
+
+- Keep PDB templates cloud-independent and disabled by default.
+- Enable the budgets in the GKE Standard example.
+- Preserve the single-writer interruption exception.
+- Use stable workload labels instead of generated GKE pool names in selectors.
+- Document the Helm deployment and source pool protection steps before hardware replacement.
+- Do not describe PDBs as an unconditional zero-downtime guarantee.
+- Test role isolation, API compatibility, and cross-cloud behavior after PDB changes.
 
 ### Version Numbers
 

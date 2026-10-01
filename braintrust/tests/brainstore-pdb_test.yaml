@@ -1,0 +1,138 @@
+suite: Brainstore disruption budgets
+templates:
+  - brainstore-pdb.yaml
+  - api-pdb.yaml
+tests:
+  - it: leaves all PDBs absent by default
+    template: brainstore-pdb.yaml
+    asserts:
+      - hasDocuments:
+          count: 0
+  - it: enables only the selected role and preserves a zero budget
+    template: brainstore-pdb.yaml
+    release:
+      namespace: custom-namespace
+    set:
+      brainstore.writer.name: custom-writer
+      brainstore.writer.podDisruptionBudget.enabled: true
+      brainstore.writer.podDisruptionBudget.maxUnavailable: 0
+      global.namespace: custom-namespace
+    asserts:
+      - hasDocuments:
+          count: 1
+      - equal:
+          path: metadata.namespace
+          value: custom-namespace
+      - equal:
+          path: spec.selector.matchLabels.app
+          value: custom-writer
+      - equal:
+          path: spec.maxUnavailable
+          value: 0
+      - notExists:
+          path: spec.minAvailable
+  - it: keeps labels isolated between roles
+    template: brainstore-pdb.yaml
+    set:
+      global.labels.shared: global
+      brainstore.reader.labels.readerOnly: reader
+      brainstore.writer.labels.writerOnly: writer
+      brainstore.reader.podDisruptionBudget.enabled: true
+      brainstore.writer.podDisruptionBudget.enabled: true
+    asserts:
+      - hasDocuments:
+          count: 2
+      - equal:
+          path: metadata.labels.readerOnly
+          value: reader
+        documentIndex: 0
+      - notExists:
+          path: metadata.labels.writerOnly
+        documentIndex: 0
+      - equal:
+          path: metadata.labels.writerOnly
+          value: writer
+        documentIndex: 1
+      - notExists:
+          path: metadata.labels.readerOnly
+        documentIndex: 1
+      - equal:
+          path: metadata.labels.shared
+          value: global
+        documentIndex: 1
+  - it: enables all roles in the GKE Standard example
+    template: brainstore-pdb.yaml
+    values:
+      - ../examples/google-standard/values.yaml
+    asserts:
+      - hasDocuments:
+          count: 3
+      - equal:
+          path: spec.maxUnavailable
+          value: 1
+        documentIndex: 0
+      - equal:
+          path: spec.maxUnavailable
+          value: 1
+        documentIndex: 1
+      - equal:
+          path: spec.maxUnavailable
+          value: 1
+        documentIndex: 2
+  - it: uses the API maximum budget in the GKE Standard example
+    template: api-pdb.yaml
+    values:
+      - ../examples/google-standard/values.yaml
+    asserts:
+      - equal:
+          path: spec.maxUnavailable
+          value: 1
+      - notExists:
+          path: spec.minAvailable
+  - it: preserves the existing API minimum budget
+    template: api-pdb.yaml
+    set:
+      api.podDisruptionBudget.enabled: true
+      api.podDisruptionBudget.minAvailable: 2
+    asserts:
+      - equal:
+          path: spec.minAvailable
+          value: 2
+      - notExists:
+          path: spec.maxUnavailable
+  - it: supports optional budgets on aws
+    template: brainstore-pdb.yaml
+    set:
+      cloud: aws
+      brainstore.reader.podDisruptionBudget.enabled: true
+      brainstore.reader.podDisruptionBudget.maxUnavailable: "25%"
+    asserts:
+      - hasDocuments:
+          count: 1
+      - equal:
+          path: spec.maxUnavailable
+          value: "25%"
+  - it: supports optional budgets on azure
+    template: brainstore-pdb.yaml
+    set:
+      cloud: azure
+      brainstore.reader.podDisruptionBudget.enabled: true
+      brainstore.reader.podDisruptionBudget.maxUnavailable: "25%"
+    asserts:
+      - hasDocuments:
+          count: 1
+      - equal:
+          path: spec.maxUnavailable
+          value: "25%"
+  - it: supports optional budgets on google
+    template: brainstore-pdb.yaml
+    set:
+      cloud: google
+      brainstore.reader.podDisruptionBudget.enabled: true
+      brainstore.reader.podDisruptionBudget.maxUnavailable: "25%"
+    asserts:
+      - hasDocuments:
+          count: 1
+      - equal:
+          path: spec.maxUnavailable
+          value: "25%"
