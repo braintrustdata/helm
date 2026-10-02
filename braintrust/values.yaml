@@ -108,7 +108,7 @@ api:
   # Only the init container mounts a Kubernetes API token when enabled; custom
   # sidecars needing Kubernetes API access must project their own token.
   brainstoreStartupGate:
-    enabled: false
+    enabled: true
     # Empty derives the floor from each pool's api.image.tag. Kept in each API Pod so
     # older APIs can restart against newer Brainstore releases in the same major.
     minimumVersion: ""
