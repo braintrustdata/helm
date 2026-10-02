@@ -25,6 +25,7 @@ jobs:
 
       - name: Run unit tests
         run: |
+          python3 -m unittest discover -s tests -p 'test_*.py'
           helm unittest braintrust
 
   lint-test:

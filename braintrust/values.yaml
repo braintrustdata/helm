@@ -102,6 +102,26 @@ btqlAuditLogsBestEffortOrgIds: []
 
 api:
   name: "braintrust-api"
+  # Experimental: hold new API processes until compatible Brainstore capacity
+  # is available. Shared by all API pools. Enable for a canary before promotion.
+  # Requires stable release tags (vX.Y.Z); opaque custom tags cannot prove compatibility.
+  # Only the init container mounts a Kubernetes API token when enabled; custom
+  # sidecars needing Kubernetes API access must project their own token.
+  brainstoreStartupGate:
+    enabled: true
+    # Empty derives the floor from each pool's api.image.tag. Kept in each API Pod so
+    # older APIs can restart against newer Brainstore releases in the same major.
+    minimumVersion: ""
+    image: "python:3.13-alpine@sha256:79e7a9b9ff1cbceff819f856fb374477792a5967759d94df266de7b7b4120e6f"
+    timeoutSeconds: 1200
+    pollIntervalSeconds: 15
+    resources:
+      requests:
+        cpu: "25m"
+        memory: "32Mi"
+      limits:
+        cpu: "100m"
+        memory: "128Mi"
   labels: {}
   podLabels: {}
   annotations:
