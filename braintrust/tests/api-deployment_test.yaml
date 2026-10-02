@@ -141,9 +141,10 @@ tests:
     release:
       namespace: "braintrust"
     asserts:
-      - equal:
+      - notContains:
           path: spec.template.spec.volumes
-          value: []
+          content:
+            name: secrets-store-inline
 
   - it: should include extraEnvVars when provided
     template: api-deployment.yaml
@@ -246,9 +247,10 @@ tests:
     release:
       namespace: "braintrust"
     asserts:
-      - equal:
+      - notContains:
           path: spec.template.spec.volumes
-          value: []
+          content:
+            name: custom-ca-bundle
       - isNull:
           path: spec.template.spec.containers[0].volumeMounts
       - notContains:

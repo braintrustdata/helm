@@ -1,7 +1,7 @@
-{{/* Shared, opt-in configuration. Keep defaults for helm upgrade --reuse-values. */}}
+{{/* Shared configuration. Keep defaults for helm upgrade --reuse-values. */}}
 {{- define "braintrust.brainstoreStartupGate.config" -}}
 {{- $defaults := dict
-  "enabled" false
+  "enabled" true
   "minimumVersion" ""
   "image" "python:3.13-alpine@sha256:79e7a9b9ff1cbceff819f856fb374477792a5967759d94df266de7b7b4120e6f"
   "timeoutSeconds" 1200
