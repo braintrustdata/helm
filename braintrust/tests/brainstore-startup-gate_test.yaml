@@ -8,8 +8,22 @@ templates:
   - brainstore-reader-deployment.yaml
   - brainstore-reader-configmap.yaml
 tests:
-  - it: should leave API startup unchanged by default
+  - it: should gate API startup by default
     template: api-deployment.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.initContainers[0].name
+          value: wait-for-brainstore
+      - isNotNull:
+          path: spec.template.metadata.annotations["checksum/brainstore-startup-gate"]
+      - equal:
+          path: spec.template.spec.automountServiceAccountToken
+          value: false
+
+  - it: should leave API startup unchanged when explicitly disabled
+    template: api-deployment.yaml
+    set:
+      api.brainstoreStartupGate.enabled: false
     asserts:
       - isNull:
           path: spec.template.spec.initContainers
@@ -20,23 +34,28 @@ tests:
 
   - it: should not create gate resources when disabled
     template: brainstore-startup-gate-rbac.yaml
+    set:
+      api.brainstoreStartupGate.enabled: false
     asserts:
       - hasDocuments:
           count: 0
 
   - it: should not create the helper ConfigMap when disabled
     template: brainstore-startup-gate-configmap.yaml
+    set:
+      api.brainstoreStartupGate.enabled: false
     asserts:
       - hasDocuments:
           count: 0
 
-  - it: should preserve reused values that do not include the new setting
+  - it: should gate reused values that do not include the new setting
     template: api-deployment.yaml
     set:
       api.brainstoreStartupGate: null
     asserts:
-      - isNull:
-          path: spec.template.spec.initContainers
+      - equal:
+          path: spec.template.spec.initContainers[0].name
+          value: wait-for-brainstore
 
   - it: should keep the release floor in the API Pod environment
     template: api-deployment.yaml
