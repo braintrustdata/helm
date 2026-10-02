@@ -371,7 +371,7 @@ aiGateway:
   extraContainers: []
   extraVolumes: []
 
-# Brainstore configuration (split into reader/fastreader/writer)
+# Brainstore configuration (split into reader/fastreader/writer/automationwriter)
 brainstore:
   # Shared configuration
   labels: {}
@@ -553,6 +553,75 @@ brainstore:
       type: ClusterIP
       port: 4000
       portName: http
+    resources:
+      requests:
+        cpu: "32"
+        memory: "64Gi"
+      limits:
+        cpu: "32"
+        memory: "64Gi"
+    cacheDir: "/mnt/tmp/brainstore"
+    objectStoreCacheMemoryLimit: "1Gi"
+    objectStoreCacheFileSize: "1000Gi"
+    verbose: true
+    # Optional: Volume configuration for cache storage
+    # When not set, uses default emptyDir: {} (backward compatible)
+    volume:
+      # Storage size for ephemeral storage requests
+      # Used with GKE Autopilot local SSDs and Azure Container Storage CSI
+      size: ""
+      # Optional emptyDir size limit for CEL policy compliance
+      sizeLimit: ""
+    ephemeralStorage:
+      # Total pod-local storage budget for ephemeral-storage requests.
+      # Size this for cache emptyDir, optional /tmp emptyDir, and writable layer/log overhead.
+      # On GKE Autopilot, volume.size is still used as the fallback request when this is unset.
+      request: ""
+      # Optional total pod-local storage limit.
+      limit: ""
+    tmpVolume:
+      enabled: false
+      sizeLimit: ""
+    extraEnvVars: []
+    # Example:
+    # - name: MY_ENV_VAR
+    #   value: "my-value"
+    # - name: ANOTHER_VAR
+    #   value: "another-value"
+    nodeSelector: {}
+    tolerations: []
+    affinity: {}
+    extraContainers: []
+    extraVolumes: []
+
+  # Brainstore Automation Writer configuration
+  # An optional, dedicated Brainstore writer pool that handles only the
+  # automations writer loop (BRAINSTORE_WRITER_LOOP_CONFIG=include:automations).
+  # When enabled (replicas > 0), the regular writer pool is automatically
+  # configured to exclude automations. Disabled by default (replicas: 0) so
+  # existing deployments are unaffected. This option is not recommended for most
+  # deployments; enable it only with guidance from Braintrust support.
+  automationwriter:
+    name: "brainstore-automationwriter"
+    labels: {}
+    podLabels: {}
+    annotations:
+      configmap: {}
+      deployment: {}
+      pod: {}
+    replicas: 0
+    minReadySeconds: 0
+    progressDeadlineSeconds: 600
+    strategy:
+      type: RollingUpdate
+      rollingUpdate:
+        maxSurge: 100%
+        maxUnavailable: 0
+    # No Service is created for this pool: nothing addresses the automation
+    # writer by URL. It self-drives the automations writer loop via Postgres /
+    # Redis, so no load balancer or inbound routing is required.
+    # Only the container port and BRAINSTORE_PORT use this value.
+    port: 4000
     resources:
       requests:
         cpu: "32"

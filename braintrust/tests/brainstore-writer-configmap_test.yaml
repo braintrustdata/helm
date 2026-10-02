@@ -172,6 +172,27 @@ tests:
           path: data.BRAINSTORE_CONTROL_PLANE_TELEMETRY
           value: "status,metrics"
 
+  - it: should not set writer loop config when the automation writer pool is disabled
+    values:
+      - __fixtures__/base-values.yaml
+    release:
+      namespace: "braintrust"
+    asserts:
+      - isNull:
+          path: data.BRAINSTORE_WRITER_LOOP_CONFIG
+
+  - it: should exclude automations when the automation writer pool is enabled
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      brainstore.automationwriter.replicas: 1
+    release:
+      namespace: "braintrust"
+    asserts:
+      - equal:
+          path: data.BRAINSTORE_WRITER_LOOP_CONFIG
+          value: "exclude:automations"
+
   - it: should merge global and writer labels
     values:
       - __fixtures__/base-values.yaml
