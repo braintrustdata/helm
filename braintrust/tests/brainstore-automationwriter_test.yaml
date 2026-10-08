@@ -57,6 +57,23 @@ tests:
           path: spec.replicas
           value: 2
 
+  - it: should render the automation writer pool when the brainstore image tag is a commit SHA
+    template: brainstore-automationwriter-deployment.yaml
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      brainstore.automationwriter.replicas: 1
+      brainstore.image.tag: 0f3a9c2b7e1d4a5f6b8c9d0e1f2a3b4c5d6e7f80
+    release:
+      namespace: "braintrust"
+    asserts:
+      - equal:
+          path: spec.replicas
+          value: 1
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: test/brainstore:0f3a9c2b7e1d4a5f6b8c9d0e1f2a3b4c5d6e7f80
+
   - it: should render custom Brainstore Automation Writer rollout controls
     template: brainstore-automationwriter-deployment.yaml
     values:

@@ -2,6 +2,20 @@
 
 This document provides guidelines for AI agents reviewing or modifying this Helm chart repository.
 
+## Plan the Full Input Matrix First
+
+Before implementing a new feature, validation, or gate, list every input shape the chart already supports for each value it reads. Plan how each one behaves, and add a test for each, before the change ships. A guard written only for the common case can block a configuration that already works. For example, a `semverCompare` image floor broke every deployment that pins Brainstore by commit SHA.
+
+Cover at least:
+
+- **Image tags**: release tags (`vX.Y.Z` and `X.Y.Z`), commit SHAs (full and short, including all-digit short SHAs), pre-release tags (`-rc.N`), and other custom tags. Sprig `semverCompare` errors on anything that is not semver. Only call it after the tag matches the release-tag regex in `_brainstore-startup-gate.tpl`.
+- **Cloud providers**: `aws`, `google`, `azure`, plus the examples under `braintrust/examples/` and `braintrust/ci/`.
+- **Enabled and disabled paths**: the feature on, the feature off, and the transitions between them in both directions.
+- **Upgrades**: `helm upgrade --reuse-values` from the previous chart version, which has missing maps, and partial `--set` overrides on top of those values.
+- **Empty values**: null, missing, empty string, and `0`, especially for replica counts, where an empty field means 1 pod.
+
+Write the matrix and the intended behavior for each row in the PR description. Add a helm-unittest case for every row that renders differently. Treat an input shape that was never checked as a release blocker. Do not discover it after release.
+
 ## Testing Requirements
 
 ### Running Tests
@@ -84,7 +98,7 @@ The four brainstore configmaps (`brainstore-reader-configmap.yaml`, `brainstore-
 
 ### Brainstore Automation Writer loop config
 
-The optional Automation Writer pool (`brainstore.automationwriter`, default `replicas: 0`) isolates the automations writer loop via `BRAINSTORE_WRITER_LOOP_CONFIG`. That variable exists starting in brainstore image `v2.16.0`. Enabling the pool (`replicas > 0`) fails the render unless `brainstore.image.tag` is `v2.16.0` or newer; do not bump the chart-wide default image for this. `brainstore-automationwriter-configmap.yaml` sets `include:automations`, and `brainstore-writer-configmap.yaml` sets `exclude:automations` only when `brainstore.automationwriter.replicas > 0`. A null or missing replica count is 0: an empty `replicas` field would make Kubernetes run 1 pod while the writer still handled automations. A missing `brainstore.automationwriter` map — what `helm upgrade --reuse-values` retains from a chart that predates the pool — is disabled: the writer does not exclude automations, and the automation writer manifests are omitted. A partial map, such as `--set brainstore.automationwriter.replicas=1` on those retained values, is merged with the template defaults in `braintrust.automationWriter.defaults` before any field is read. On Azure with the Container Storage driver, `brainstore.automationwriter.volume.size` is required only when `replicas > 0`; a zero-replica pool renders with `emptyDir` so an upgrade does not demand disk for a pool that is off. These two must stay in sync: the automation writer runs automations and the regular writer must exclude them whenever the pool is enabled. There is no automation-writer Service — nothing routes to the pool by URL; it self-drives its writer loop through Postgres / Redis.
+The optional Automation Writer pool (`brainstore.automationwriter`, default `replicas: 0`) isolates the automations writer loop via `BRAINSTORE_WRITER_LOOP_CONFIG`. That variable exists starting in brainstore image `v2.16.0`. Enabling the pool (`replicas > 0`) fails the render when `brainstore.image.tag` is a release tag (`vX.Y.Z`) older than `v2.16.0`. Commit SHAs and other custom tags must keep rendering, so `braintrust.automationWriter.validate` only calls `semverCompare` after the tag matches the release-tag regex (`semverCompare` errors on a SHA). Do not bump the chart-wide default image for this. `brainstore-automationwriter-configmap.yaml` sets `include:automations`, and `brainstore-writer-configmap.yaml` sets `exclude:automations` only when `brainstore.automationwriter.replicas > 0`. A null or missing replica count is 0: an empty `replicas` field would make Kubernetes run 1 pod while the writer still handled automations. A missing `brainstore.automationwriter` map — what `helm upgrade --reuse-values` retains from a chart that predates the pool — is disabled: the writer does not exclude automations, and the automation writer manifests are omitted. A partial map, such as `--set brainstore.automationwriter.replicas=1` on those retained values, is merged with the template defaults in `braintrust.automationWriter.defaults` before any field is read. On Azure with the Container Storage driver, `brainstore.automationwriter.volume.size` is required only when `replicas > 0`; a zero-replica pool renders with `emptyDir` so an upgrade does not demand disk for a pool that is off. These two must stay in sync: the automation writer runs automations and the regular writer must exclude them whenever the pool is enabled. There is no automation-writer Service — nothing routes to the pool by URL; it self-drives its writer loop through Postgres / Redis.
 
 ### Version Numbers
 
@@ -102,6 +116,7 @@ When reviewing PRs, verify:
 - [ ] New templates follow existing patterns
 - [ ] Tests are added for new functionality
 - [ ] Cloud-specific code is properly conditioned
+- [ ] The PR lists the full input matrix (image tag formats, clouds, enabled/disabled, `--reuse-values` upgrades, null/missing values), and tests cover each row
 
 ## File Structure
 

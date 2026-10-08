@@ -398,9 +398,10 @@ those new writer pods are Ready. Turning the pool on briefly runs automations
 on both pools until the regular writers roll.
 
 The pool requires Brainstore `v2.16.0` or newer. That is the first image that
-honors `BRAINSTORE_WRITER_LOOP_CONFIG`. The chart's default image is older.
-Setting `replicas` above 0 fails the render until `brainstore.image.tag` is
-`v2.16.0` or newer.
+honors `BRAINSTORE_WRITER_LOOP_CONFIG`. When `brainstore.image.tag` is a release
+tag (`vX.Y.Z`), setting `replicas` above 0 fails the render unless the tag is
+`v2.16.0` or newer. Commit SHAs and other custom tags carry no version, so the
+chart does not check them; make sure such an image includes `v2.16.0`.
 
 `helm upgrade --reuse-values` does not add this pool's default values. If the
 installed release has no `brainstore.automationwriter` map, the pool stays off.
