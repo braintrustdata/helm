@@ -227,6 +227,44 @@ tests:
       - failedTemplate:
           errorMessage: "brainstore.automationwriter requires brainstore image v2.16.0 or newer. brainstore.image.tag is \"v2.14.0\", which does not implement BRAINSTORE_WRITER_LOOP_CONFIG."
 
+  - it: should reject an automation writer pool on a brainstore 2.15 release without the v prefix
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      brainstore.automationwriter.replicas: 1
+      brainstore.image.tag: 2.15.3
+    release:
+      namespace: "braintrust"
+    asserts:
+      - failedTemplate:
+          errorMessage: "brainstore.automationwriter requires brainstore image v2.16.0 or newer. brainstore.image.tag is \"2.15.3\", which does not implement BRAINSTORE_WRITER_LOOP_CONFIG."
+
+  - it: should exclude automations when the brainstore image tag is a commit SHA
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      brainstore.automationwriter.replicas: 1
+      brainstore.image.tag: 0f3a9c2b7e1d4a5f6b8c9d0e1f2a3b4c5d6e7f80
+    release:
+      namespace: "braintrust"
+    asserts:
+      - equal:
+          path: data.BRAINSTORE_WRITER_LOOP_CONFIG
+          value: "exclude:automations"
+
+  - it: should exclude automations when the brainstore image tag is a short commit SHA
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      brainstore.automationwriter.replicas: 1
+      brainstore.image.tag: abc1234
+    release:
+      namespace: "braintrust"
+    asserts:
+      - equal:
+          path: data.BRAINSTORE_WRITER_LOOP_CONFIG
+          value: "exclude:automations"
+
   - it: should exclude automations when reused values enable the pool with only replicas
     values:
       - __fixtures__/base-values.yaml

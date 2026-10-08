@@ -265,13 +265,17 @@ A null replica count is 0. An empty replicas field would make Kubernetes run 1 p
 {{/*
 BRAINSTORE_WRITER_LOOP_CONFIG is ignored before brainstore v2.16.0. Enabling
 the pool on an older image adds writers that still run every writer loop.
+Only stable release tags (vX.Y.Z) are checked. Commit SHAs and other custom
+tags carry no version, so the operator is responsible for compatibility.
 */}}
 {{- define "braintrust.automationWriter.validate" -}}
 {{- $replicas := int (include "braintrust.automationWriter.replicas" .) -}}
 {{- if gt $replicas 0 -}}
 {{- $tag := .Values.brainstore.image.tag | toString -}}
+{{- if regexMatch "^v?(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$" $tag -}}
 {{- if not (semverCompare ">=2.16.0" $tag) -}}
 {{- fail (printf "brainstore.automationwriter requires brainstore image v2.16.0 or newer. brainstore.image.tag is %q, which does not implement BRAINSTORE_WRITER_LOOP_CONFIG." $tag) -}}
+{{- end -}}
 {{- end -}}
 {{- end -}}
 {{- end -}}
