@@ -96,7 +96,6 @@ brainstore:
         memory: "32Gi"
     cacheDir: "/mnt/tmp/brainstore"
     objectStoreCacheMemoryLimit: "1Gi"
-    objectStoreCacheFileSize: "900Gi"
     verbose: true
     volume:
       size: "1000Gi"
@@ -120,7 +119,6 @@ brainstore:
         memory: "32Gi"
     cacheDir: "/mnt/tmp/brainstore"
     objectStoreCacheMemoryLimit: "1Gi"
-    objectStoreCacheFileSize: "900Gi"
     verbose: true
     volume:
       size: "1000Gi"
@@ -144,7 +142,6 @@ brainstore:
         memory: "64Gi"
     cacheDir: "/mnt/tmp/brainstore"
     objectStoreCacheMemoryLimit: "1Gi"
-    objectStoreCacheFileSize: "900Gi"
     verbose: true
     volume:
       size: "1000Gi"

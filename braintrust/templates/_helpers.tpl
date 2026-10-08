@@ -188,3 +188,81 @@ and normal writable-layer/log overhead.
 {{- end -}}
 {{- toYaml $resources -}}
 {{- end -}}
+
+{{/*
+Convert a Kubernetes quantity such as "900Gi" or "1T" to bytes.
+*/}}
+{{- define "braintrust.quantityToBytes" -}}
+{{- $quantity := toString .quantity -}}
+{{- $match := regexFindAll "^([0-9]+)(Ki|Mi|Gi|Ti|Pi|k|K|M|G|T|P)?$" $quantity -1 -}}
+{{- if not $match -}}
+{{- fail (printf "%s must be a whole-number Kubernetes quantity such as 900Gi (got %q)" .path $quantity) -}}
+{{- end -}}
+{{- $number := regexFind "^[0-9]+" $quantity | int64 -}}
+{{- $suffix := trimPrefix (toString $number) $quantity -}}
+{{- $multipliers := dict
+  "" 1
+  "Ki" 1024 "Mi" 1048576 "Gi" 1073741824 "Ti" 1099511627776 "Pi" 1125899906842624
+  "k" 1000 "K" 1000 "M" 1000000 "G" 1000000000 "T" 1000000000000 "P" 1000000000000000
+-}}
+{{- mul $number (index $multipliers $suffix) -}}
+{{- end -}}
+
+{{/*
+Render the Brainstore container command.
+
+When objectStoreCacheFileSize is set, Brainstore starts directly and reads the
+size from its ConfigMap. Otherwise the container sets
+BRAINSTORE_OBJECT_STORE_CACHE_FILE_SIZE at startup to
+objectStoreCacheFileSizePercent of the cache volume, the same way the AWS
+Terraform module sizes the cache from the instance's local disk. The cache
+volume size is the size of the filesystem mounted at cacheDir, capped by
+volume.sizeLimit and volume.size when they are set.
+
+Template-level percent defaults keep `helm upgrade --reuse-values` working
+from chart versions that predate objectStoreCacheFileSizePercent.
+*/}}
+{{- define "braintrust.brainstoreCommand" -}}
+{{- $config := .config -}}
+{{- if $config.objectStoreCacheFileSize -}}
+command: ["brainstore"]
+args: ["web"]
+{{- else -}}
+{{- $percent := $config.objectStoreCacheFileSizePercent | default .defaultPercent -}}
+{{- if not (regexMatch "^[0-9]+$" (toString $percent)) -}}
+{{- fail (printf "%s.objectStoreCacheFileSizePercent must be a whole number between 1 and 100" .path) -}}
+{{- end -}}
+{{- if or (lt (int $percent) 1) (gt (int $percent) 100) -}}
+{{- fail (printf "%s.objectStoreCacheFileSizePercent must be a whole number between 1 and 100" .path) -}}
+{{- end -}}
+{{- $limitBytes := 0 -}}
+{{- range $field := list "sizeLimit" "size" -}}
+{{- $quantity := index ($config.volume | default dict) $field -}}
+{{- if $quantity -}}
+{{- $bytes := include "braintrust.quantityToBytes" (dict "quantity" $quantity "path" (printf "%s.volume.%s" $.path $field)) | int64 -}}
+{{- if or (eq $limitBytes 0) (lt $bytes $limitBytes) -}}
+{{- $limitBytes = $bytes -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
+command: ["/bin/sh", "-c"]
+args:
+  - |
+    set -eu
+    percent={{ $percent }}
+    limit_bytes={{ $limitBytes }}
+    set -- $(stat -f -c '%b %S' "$BRAINSTORE_CACHE_DIR")
+    volume_bytes=$(( $1 * $2 ))
+    if [ "$limit_bytes" -gt 0 ] && [ "$limit_bytes" -lt "$volume_bytes" ]; then
+      volume_bytes=$limit_bytes
+    fi
+    size_gib=$(( volume_bytes / 100 * percent / 1073741824 ))
+    if [ "$size_gib" -lt 1 ]; then
+      echo "Brainstore cache volume at $BRAINSTORE_CACHE_DIR is too small ($volume_bytes bytes); set objectStoreCacheFileSize" >&2
+      exit 1
+    fi
+    export BRAINSTORE_OBJECT_STORE_CACHE_FILE_SIZE="${size_gib}Gi"
+    echo "Using ${size_gib}Gi object store cache (${percent}% of $volume_bytes bytes at $BRAINSTORE_CACHE_DIR)"
+    exec brainstore web
+{{- end -}}
+{{- end -}}

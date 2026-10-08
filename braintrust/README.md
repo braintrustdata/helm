@@ -289,6 +289,31 @@ Pools use fixed replica counts by default (`api.replicas` and
 `api.workloadIsolation.<pool>.replicas`). On GKE, enable `api.autoscaling` to
 let each pool scale independently instead.
 
+## Brainstore Cache Sizing
+
+By default, each Brainstore pod sizes its object store cache when it starts,
+as a percentage of its cache volume. Readers and fast readers use 90%. Writers
+use 75% because they need more free disk. This matches how the AWS Terraform
+module sizes the cache from the instance's local disk.
+
+The cache volume size is the size of the filesystem mounted at `cacheDir`,
+capped by `volume.sizeLimit` and `volume.size` when they are set. With a plain
+`emptyDir`, that filesystem is the node's disk, so give Brainstore pods
+dedicated nodes (see the anti-affinity examples above) or set `volume.size`.
+
+```yaml
+brainstore:
+  writer:
+    # Change the percentage
+    objectStoreCacheFileSizePercent: 70
+  reader:
+    # Or set a fixed size, which disables the percentage
+    objectStoreCacheFileSize: "800Gi"
+```
+
+The pod logs the size it picked at startup. If the computed size is under
+1Gi, the pod exits with an error asking you to set `objectStoreCacheFileSize`.
+
 ## Brainstore Rollout Controls
 
 Brainstore readers, fast readers, and writers have independently configurable

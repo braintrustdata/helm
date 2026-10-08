@@ -18,7 +18,9 @@ data:
   BRAINSTORE_PORT: {{ .Values.brainstore.fastreader.service.port | quote }}
   BRAINSTORE_CACHE_DIR: {{ .Values.brainstore.fastreader.cacheDir | quote }}
   BRAINSTORE_OBJECT_STORE_CACHE_MEMORY_LIMIT: {{ .Values.brainstore.fastreader.objectStoreCacheMemoryLimit | quote }}
+  {{- if .Values.brainstore.fastreader.objectStoreCacheFileSize }}
   BRAINSTORE_OBJECT_STORE_CACHE_FILE_SIZE: {{ .Values.brainstore.fastreader.objectStoreCacheFileSize | quote }}
+  {{- end }}
   {{- if eq .Values.cloud "azure" }}
   # See here for reference:
   # https://docs.rs/object_store/latest/object_store/azure/struct.MicrosoftAzureBuilder.html

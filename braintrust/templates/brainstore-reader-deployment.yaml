@@ -80,8 +80,11 @@ spec:
           securityContext:
             {{- toYaml . | nindent 12 }}
           {{- end }}
-          command: ["brainstore"]
-          args: ["web"]
+          {{- include "braintrust.brainstoreCommand" (dict
+            "path" "brainstore.reader"
+            "config" .Values.brainstore.reader
+            "defaultPercent" 90
+          ) | nindent 10 }}
           ports:
             - containerPort: {{ .Values.brainstore.reader.service.port }}
           resources:
