@@ -20,6 +20,18 @@ tests:
           path: data.BRAINSTORE_PORT
           value: "4000"
 
+  - it: should configure the web server to listen on a custom automation writer port
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      brainstore.automationwriter.port: 4100
+    release:
+      namespace: "braintrust"
+    asserts:
+      - equal:
+          path: data.BRAINSTORE_WEB_PORT
+          value: "4100"
+
   - it: should include the automations writer loop config
     values:
       - __fixtures__/base-values.yaml
@@ -42,6 +54,9 @@ tests:
           value: brainstore-automationwriter
       - equal:
           path: data.BRAINSTORE_PORT
+          value: "4000"
+      - equal:
+          path: data.BRAINSTORE_WEB_PORT
           value: "4000"
       - equal:
           path: data.BRAINSTORE_WRITER_LOOP_CONFIG
