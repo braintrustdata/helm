@@ -1,0 +1,5 @@
+# Simulate values retained by `helm upgrade --reuse-values` from a chart release
+# that predates brainstore.automationwriter. An explicit null removes the new
+# chart default during Helm value coalescing.
+brainstore:
+  automationwriter: null

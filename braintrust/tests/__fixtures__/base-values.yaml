@@ -158,3 +158,30 @@ brainstore:
     nodeSelector: {}
     tolerations: []
     affinity: {}
+  automationwriter:
+    name: "brainstore-automationwriter"
+    labels: {}
+    podLabels: {}
+    annotations:
+      configmap: {}
+      deployment: {}
+      pod: {}
+    replicas: 0
+    port: 4000
+    resources:
+      requests:
+        cpu: "8"
+        memory: "16Gi"
+      limits:
+        cpu: "16"
+        memory: "32Gi"
+    cacheDir: "/mnt/tmp/brainstore"
+    objectStoreCacheMemoryLimit: "1Gi"
+    objectStoreCacheFileSize: "50Gi"
+    verbose: true
+    volume:
+      size: "200Gi"
+    extraEnvVars: []
+    nodeSelector: {}
+    tolerations: []
+    affinity: {}

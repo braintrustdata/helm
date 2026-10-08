@@ -1,0 +1,219 @@
+{{/*
+Omit this Deployment when brainstore.automationwriter is absent. helm upgrade
+--reuse-values from a chart that predates the pool does not merge the new
+default map, and absence means the pool stays disabled.
+*/}}
+{{- if .Values.brainstore.automationwriter }}
+{{- $aw := include "braintrust.automationWriter.config" . | fromYaml -}}
+{{- $rollout := include "braintrust.deploymentRollout.config" (dict "config" $aw) | fromYaml -}}
+{{- include "braintrust.deploymentRollout.validate" (dict "path" "brainstore.automationwriter" "config" $rollout) }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $aw.name }}
+  namespace: {{ include "braintrust.namespace" . }}
+  {{- with (merge (deepCopy $aw.labels) .Values.global.labels) }}
+  labels:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with $aw.annotations.deployment }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  replicas: {{ $aw.replicas }}
+  minReadySeconds: {{ $rollout.minReadySeconds }}
+  progressDeadlineSeconds: {{ $rollout.progressDeadlineSeconds }}
+  strategy:
+    type: {{ $rollout.strategy.type }}
+    {{- if eq $rollout.strategy.type "RollingUpdate" }}
+    rollingUpdate:
+      {{- toYaml $rollout.strategy.rollingUpdate | nindent 6 }}
+    {{- end }}
+  selector:
+    matchLabels:
+      app: {{ $aw.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ $aw.name }}
+        {{- if eq .Values.cloud "azure" }}
+        azure.workload.identity/use: "true"
+        {{- end }}
+        {{- if eq .Values.cloud "google" }}
+        gke-workload-identity/use: "true"
+        {{- end }}
+        {{- with (merge (deepCopy $aw.podLabels) $aw.labels .Values.global.labels) }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/brainstore-automationwriter-configmap.yaml") . | sha256sum }}
+        {{- if eq .Values.cloud "google" }}
+        iam.gke.io/gcp-service-account: {{ required "brainstore.serviceAccount.googleServiceAccount is required when cloud is google" .Values.brainstore.serviceAccount.googleServiceAccount }}
+        {{- end }}
+        {{- with $aw.annotations.pod }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      serviceAccountName: {{ .Values.brainstore.serviceAccount.name }}
+      {{- with $aw.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if or $aw.nodeSelector (and (eq .Values.cloud "google") (eq .Values.google.mode "autopilot")) }}
+      nodeSelector:
+        {{- with $aw.nodeSelector }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- if and (eq .Values.cloud "google") (eq .Values.google.mode "autopilot") }}
+        cloud.google.com/machine-family: {{ .Values.google.autopilotMachineFamily | default "c4" }}
+        cloud.google.com/gke-ephemeral-storage-local-ssd: "true"
+        cloud.google.com/compute-class: "Performance"
+        {{- end }}
+      {{- end }}
+      {{- with $aw.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $aw.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: brainstore-automationwriter
+          image: "{{ .Values.brainstore.image.repository }}:{{ .Values.brainstore.image.tag }}"
+          imagePullPolicy: {{ .Values.brainstore.image.pullPolicy }}
+          {{- with $aw.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          command: ["brainstore"]
+          args: ["web"]
+          ports:
+            - containerPort: {{ $aw.port }}
+          resources:
+            {{- include "braintrust.brainstoreResources" (dict
+              "root" .
+              "resources" $aw.resources
+              "volumeSize" $aw.volume.size
+              "ephemeralStorage" $aw.ephemeralStorage
+            ) | nindent 12 }}
+          {{- with .Values.brainstore.livenessProbe }}
+          livenessProbe:
+            {{- $probe := deepCopy . }}
+            {{- if $probe.httpGet }}
+            {{- $_ := set $probe.httpGet "port" $aw.port }}
+            {{- end }}
+            {{- toYaml $probe | nindent 12 }}
+          {{- end }}
+          {{- with .Values.brainstore.readinessProbe }}
+          readinessProbe:
+            {{- $probe := deepCopy . }}
+            {{- if $probe.httpGet }}
+            {{- $_ := set $probe.httpGet "port" $aw.port }}
+            {{- end }}
+            {{- toYaml $probe | nindent 12 }}
+          {{- end }}
+          envFrom:
+            - configMapRef:
+                name: {{ $aw.name }}
+          env:
+            - name: BRAINSTORE_METADATA_URI
+              valueFrom:
+                secretKeyRef:
+                  name: braintrust-secrets
+                  key: PG_URL
+            - name: BRAINSTORE_WAL_URI
+              valueFrom:
+                secretKeyRef:
+                  name: braintrust-secrets
+                  key: PG_URL
+            - name: BRAINSTORE_REDIS_URI
+              valueFrom:
+                secretKeyRef:
+                  name: braintrust-secrets
+                  key: REDIS_URL
+            - name: BRAINSTORE_XACT_MANAGER_URI
+              valueFrom:
+                secretKeyRef:
+                  name: braintrust-secrets
+                  key: REDIS_URL
+            - name: BRAINSTORE_AI_PROXY_URL
+              value: {{ include "braintrust.apiAiProxyInternalUrl" . | quote }}
+            {{- if eq .Values.brainstore.locksBackend "redis" }}
+            - name: BRAINSTORE_LOCKS_URI
+              valueFrom:
+                secretKeyRef:
+                  name: braintrust-secrets
+                  key: REDIS_URL
+            {{- end }}
+            - name: BRAINSTORE_LICENSE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: braintrust-secrets
+                  key: BRAINSTORE_LICENSE_KEY
+            - name: FUNCTION_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: braintrust-secrets
+                  key: FUNCTION_SECRET_KEY
+            {{- if $aw.extraEnvVars }}
+            {{- toYaml $aw.extraEnvVars | nindent 12 }}
+            {{- end }}
+          volumeMounts:
+            - name: cache-volume
+              mountPath: {{ $aw.cacheDir }}
+            {{- if $aw.tmpVolume.enabled }}
+            - name: tmp-volume
+              mountPath: /tmp
+            {{- end }}
+            {{- if and (eq .Values.cloud "azure") .Values.azure.enableAzureKeyVaultDriver }}
+            - name: secrets-store-inline
+              mountPath: "/mnt/secrets-store"
+              readOnly: true
+            {{- end }}
+      {{- with $aw.extraContainers }}
+      {{- toYaml . | nindent 8 }}
+      {{- end }}
+      volumes:
+        - name: cache-volume
+          {{- /* Azure local disk is required only once this pool has replicas. A disabled pool must render without a size. */}}
+          {{- if and (eq .Values.cloud "azure") .Values.azure.enableAzureContainerStorageDriver (gt (int ($aw.replicas | default 0)) 0) }}
+          ephemeral:
+            volumeClaimTemplate:
+              spec:
+                volumeMode: Filesystem
+                accessModes: ["ReadWriteOnce"]
+                storageClassName: local
+                resources:
+                  requests:
+                    storage: {{ required "brainstore.automationwriter.volume.size must be set" (dig "volume" "size" "" $aw) | quote }}
+          {{- else }}
+          emptyDir:
+            {{- if $aw.volume.sizeLimit }}
+            sizeLimit: {{ $aw.volume.sizeLimit | quote }}
+            {{- else }}
+            {}
+            {{- end }}
+          {{- end }}
+        {{- if $aw.tmpVolume.enabled }}
+        - name: tmp-volume
+          emptyDir:
+            {{- if $aw.tmpVolume.sizeLimit }}
+            sizeLimit: {{ $aw.tmpVolume.sizeLimit | quote }}
+            {{- else }}
+            {}
+            {{- end }}
+        {{- end }}
+        {{- if and (eq .Values.cloud "azure") .Values.azure.enableAzureKeyVaultDriver }}
+        - name: secrets-store-inline
+          csi:
+            driver: secrets-store.csi.k8s.io
+            readOnly: true
+            volumeAttributes:
+              secretProviderClass: {{ .Values.azure.keyVaultName }}
+        {{- end }}
+        {{- with $aw.extraVolumes }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+{{- end }}

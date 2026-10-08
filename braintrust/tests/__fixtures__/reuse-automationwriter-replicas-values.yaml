@@ -1,0 +1,30 @@
+# Simulate `helm upgrade --reuse-values --set brainstore.automationwriter.replicas=1`
+# from a chart that predates the pool. Explicit nulls remove the new chart
+# defaults during Helm value coalescing, leaving replicas as the only field.
+brainstore:
+  image:
+    tag: v2.16.0
+  automationwriter:
+    name: null
+    labels: null
+    podLabels: null
+    annotations: null
+    replicas: 1
+    minReadySeconds: null
+    progressDeadlineSeconds: null
+    strategy: null
+    port: null
+    resources: null
+    cacheDir: null
+    objectStoreCacheMemoryLimit: null
+    objectStoreCacheFileSize: null
+    verbose: null
+    volume: null
+    ephemeralStorage: null
+    tmpVolume: null
+    extraEnvVars: null
+    nodeSelector: null
+    tolerations: null
+    affinity: null
+    extraContainers: null
+    extraVolumes: null

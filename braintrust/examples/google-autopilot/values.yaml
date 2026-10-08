@@ -149,3 +149,25 @@ brainstore:
     volume:
       size: "1000Gi"
     extraEnvVars:
+
+  # Brainstore Automation Writer configuration
+  # Optional, dedicated automations writer pool. No Service is created for it.
+  # Disabled by default (replicas: 0); scale up to opt in.
+  automationwriter:
+    name: "brainstore-automationwriter"
+    replicas: 0
+    port: 4000
+    resources:
+      requests:
+        cpu: "32"
+        memory: "64Gi"
+      limits:
+        cpu: "32"
+        memory: "64Gi"
+    cacheDir: "/mnt/tmp/brainstore"
+    objectStoreCacheMemoryLimit: "1Gi"
+    objectStoreCacheFileSize: "900Gi"
+    verbose: true
+    volume:
+      size: "1000Gi"
+    extraEnvVars:

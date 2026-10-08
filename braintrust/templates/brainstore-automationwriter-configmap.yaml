@@ -1,24 +1,32 @@
+{{/*
+Omit this ConfigMap when brainstore.automationwriter is absent. helm upgrade
+--reuse-values from a chart that predates the pool does not merge the new
+default map, and absence means the pool stays disabled.
+*/}}
+{{- if .Values.brainstore.automationwriter }}
+{{- $aw := include "braintrust.automationWriter.config" . | fromYaml -}}
 ---
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ .Values.brainstore.writer.name }}
+  name: {{ $aw.name }}
   namespace: {{ include "braintrust.namespace" . }}
-  {{- with (merge (deepCopy .Values.brainstore.writer.labels) .Values.global.labels) }}
+  {{- with (merge (deepCopy $aw.labels) .Values.global.labels) }}
   labels:
     {{- toYaml . | nindent 4 }}
   {{- end }}
-  {{- with .Values.brainstore.writer.annotations.configmap }}
+  {{- with $aw.annotations.configmap }}
   annotations:
     {{- toYaml . | nindent 4 }}
   {{- end }}
 data:
   BRAINSTORE_READER_ONLY_MODE: "false"
-  BRAINSTORE_VERBOSE: {{ (or (eq (toString .Values.brainstore.writer.verbose) "true") (eq (toString .Values.brainstore.writer.verbose) "1")) | ternary "1" "0" | quote }}
-  BRAINSTORE_PORT: {{ .Values.brainstore.writer.service.port | quote }}
-  BRAINSTORE_CACHE_DIR: {{ .Values.brainstore.writer.cacheDir | quote }}
-  BRAINSTORE_OBJECT_STORE_CACHE_MEMORY_LIMIT: {{ .Values.brainstore.writer.objectStoreCacheMemoryLimit | quote }}
-  BRAINSTORE_OBJECT_STORE_CACHE_FILE_SIZE: {{ .Values.brainstore.writer.objectStoreCacheFileSize | quote }}
+  BRAINSTORE_VERBOSE: {{ (or (eq (toString $aw.verbose) "true") (eq (toString $aw.verbose) "1")) | ternary "1" "0" | quote }}
+  BRAINSTORE_PORT: {{ $aw.port | quote }}
+  BRAINSTORE_WEB_PORT: {{ $aw.port | quote }}
+  BRAINSTORE_CACHE_DIR: {{ $aw.cacheDir | quote }}
+  BRAINSTORE_OBJECT_STORE_CACHE_MEMORY_LIMIT: {{ $aw.objectStoreCacheMemoryLimit | quote }}
+  BRAINSTORE_OBJECT_STORE_CACHE_FILE_SIZE: {{ $aw.objectStoreCacheFileSize | quote }}
   {{- if eq .Values.cloud "azure" }}
   # See here for reference:
   # https://docs.rs/object_store/latest/object_store/azure/struct.MicrosoftAzureBuilder.html
@@ -65,10 +73,8 @@ data:
   BRAINSTORE_ASYNC_SCORING_OBJECTS: {{ .Values.skipPgForBrainstoreObjects | quote }}
   BRAINSTORE_LOG_AUTOMATIONS_OBJECTS: {{ .Values.skipPgForBrainstoreObjects | quote }}
   {{- end }}
-  {{- /* A chart upgraded with --reuse-values has no automationwriter map. Absence means the pool stays disabled. */}}
-  {{- include "braintrust.automationWriter.validate" . }}
-  {{- if gt (int (include "braintrust.automationWriter.replicas" .)) 0 }}
-  # A dedicated automation writer pool is enabled; this writer pool runs every
-  # writer loop except automations (which the automation writer pool handles).
-  BRAINSTORE_WRITER_LOOP_CONFIG: "exclude:automations"
-  {{- end }}
+  # Dedicated automation writer pool: run only the automations writer loop.
+  # The regular writer pool is configured to exclude automations whenever this
+  # pool is enabled (see brainstore-writer-configmap.yaml).
+  BRAINSTORE_WRITER_LOOP_CONFIG: "include:automations"
+{{- end }}

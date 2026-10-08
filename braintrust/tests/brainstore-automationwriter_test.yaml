@@ -1,0 +1,328 @@
+suite: test Brainstore Automation Writer deployment template
+templates:
+  - brainstore-automationwriter-deployment.yaml
+  - brainstore-automationwriter-configmap.yaml
+tests:
+  - it: should render Brainstore Automation Writer deployment with default values
+    template: brainstore-automationwriter-deployment.yaml
+    values:
+      - __fixtures__/base-values.yaml
+    release:
+      namespace: "braintrust"
+    asserts:
+      - isKind:
+          of: Deployment
+      - equal:
+          path: metadata.name
+          value: brainstore-automationwriter
+      - equal:
+          path: spec.replicas
+          value: 0
+      - equal:
+          path: spec.minReadySeconds
+          value: 0
+      - equal:
+          path: spec.progressDeadlineSeconds
+          value: 600
+      - equal:
+          path: spec.strategy.type
+          value: RollingUpdate
+      - equal:
+          path: spec.strategy.rollingUpdate.maxSurge
+          value: 100%
+      - equal:
+          path: spec.strategy.rollingUpdate.maxUnavailable
+          value: 0
+      - equal:
+          path: spec.template.spec.containers[0].name
+          value: brainstore-automationwriter
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: test/brainstore:v1.0.0
+      - equal:
+          path: spec.template.spec.containers[0].envFrom[0].configMapRef.name
+          value: brainstore-automationwriter
+
+  - it: should scale to the configured replica count when enabled
+    template: brainstore-automationwriter-deployment.yaml
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      brainstore.automationwriter.replicas: 2
+      brainstore.image.tag: v2.16.0
+    release:
+      namespace: "braintrust"
+    asserts:
+      - equal:
+          path: spec.replicas
+          value: 2
+
+  - it: should render custom Brainstore Automation Writer rollout controls
+    template: brainstore-automationwriter-deployment.yaml
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      brainstore.automationwriter.minReadySeconds: 120
+      brainstore.automationwriter.progressDeadlineSeconds: 900
+      brainstore.automationwriter.strategy.rollingUpdate.maxSurge: 2
+      brainstore.automationwriter.strategy.rollingUpdate.maxUnavailable: 1
+    release:
+      namespace: "braintrust"
+    asserts:
+      - equal:
+          path: spec.minReadySeconds
+          value: 120
+      - equal:
+          path: spec.progressDeadlineSeconds
+          value: 900
+      - equal:
+          path: spec.strategy.rollingUpdate.maxSurge
+          value: 2
+      - equal:
+          path: spec.strategy.rollingUpdate.maxUnavailable
+          value: 1
+
+  - it: should preserve legacy rollout defaults when reused values omit rollout controls
+    template: brainstore-automationwriter-deployment.yaml
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/pre-rollout-values.yaml
+    release:
+      namespace: "braintrust"
+    asserts:
+      - equal:
+          path: spec.minReadySeconds
+          value: 0
+      - equal:
+          path: spec.progressDeadlineSeconds
+          value: 600
+      - equal:
+          path: spec.strategy.type
+          value: RollingUpdate
+      - equal:
+          path: spec.strategy.rollingUpdate.maxSurge
+          value: 100%
+      - equal:
+          path: spec.strategy.rollingUpdate.maxUnavailable
+          value: 0
+
+  - it: should reject a progress deadline that does not exceed the readiness dwell
+    template: brainstore-automationwriter-deployment.yaml
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      brainstore.automationwriter.minReadySeconds: 600
+      brainstore.automationwriter.progressDeadlineSeconds: 600
+    release:
+      namespace: "braintrust"
+    asserts:
+      - failedTemplate:
+          errorMessage: "brainstore.automationwriter.progressDeadlineSeconds (600) must be greater than brainstore.automationwriter.minReadySeconds (600)"
+
+  - it: should include extraEnvVars when provided
+    template: brainstore-automationwriter-deployment.yaml
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      brainstore.automationwriter.extraEnvVars:
+        - name: CUSTOM_VAR
+          value: "custom-value"
+    release:
+      namespace: "braintrust"
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: CUSTOM_VAR
+            value: "custom-value"
+
+  - it: should use explicit ephemeral-storage request for AWS
+    template: brainstore-automationwriter-deployment.yaml
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/aws-values.yaml
+    set:
+      brainstore.automationwriter.ephemeralStorage.request: "101Gi"
+    release:
+      namespace: "braintrust"
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].resources.requests["ephemeral-storage"]
+          value: "101Gi"
+
+  - it: should not inject ephemeral-storage request for Azure
+    template: brainstore-automationwriter-deployment.yaml
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/azure-values.yaml
+    release:
+      namespace: "braintrust"
+    asserts:
+      - isNull:
+          path: spec.template.spec.containers[0].resources.requests["ephemeral-storage"]
+
+  - it: should point health probes at the automation writer port
+    template: brainstore-automationwriter-deployment.yaml
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      brainstore.automationwriter.port: 4100
+      brainstore.livenessProbe:
+        httpGet:
+          path: /
+          port: 4000
+        initialDelaySeconds: 60
+        periodSeconds: 10
+      brainstore.readinessProbe:
+        httpGet:
+          path: /
+          port: 4000
+        initialDelaySeconds: 30
+        periodSeconds: 5
+    release:
+      namespace: "braintrust"
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].ports[0].containerPort
+          value: 4100
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.httpGet.port
+          value: 4100
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.httpGet.path
+          value: /
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.initialDelaySeconds
+          value: 60
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.periodSeconds
+          value: 10
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.httpGet.port
+          value: 4100
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.httpGet.path
+          value: /
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.initialDelaySeconds
+          value: 30
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.periodSeconds
+          value: 5
+
+  - it: should mount tmp volume only when enabled
+    template: brainstore-automationwriter-deployment.yaml
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      brainstore.automationwriter.tmpVolume.enabled: true
+      brainstore.automationwriter.tmpVolume.sizeLimit: "1Gi"
+    release:
+      namespace: "braintrust"
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: tmp-volume
+            mountPath: /tmp
+      - equal:
+          path: spec.template.spec.volumes[1].emptyDir.sizeLimit
+          value: "1Gi"
+
+  - it: should not require an Azure disk size while the automation writer pool is disabled
+    template: brainstore-automationwriter-deployment.yaml
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/azure-values.yaml
+    set:
+      brainstore.automationwriter.replicas: 0
+      brainstore.automationwriter.volume.size: ""
+    release:
+      namespace: "braintrust"
+    asserts:
+      - equal:
+          path: spec.replicas
+          value: 0
+      - isNotNull:
+          path: spec.template.spec.volumes[0].emptyDir
+      - isNull:
+          path: spec.template.spec.volumes[0].ephemeral
+
+  - it: should require an Azure disk size when the automation writer pool is enabled
+    template: brainstore-automationwriter-deployment.yaml
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/azure-values.yaml
+    set:
+      brainstore.automationwriter.replicas: 1
+      brainstore.image.tag: v2.16.0
+      brainstore.automationwriter.volume.size: ""
+    release:
+      namespace: "braintrust"
+    asserts:
+      - failedTemplate:
+          errorMessage: "brainstore.automationwriter.volume.size must be set"
+
+  - it: should use Azure Container Storage when the automation writer pool is enabled
+    template: brainstore-automationwriter-deployment.yaml
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/azure-values.yaml
+    set:
+      brainstore.automationwriter.replicas: 1
+      brainstore.image.tag: v2.16.0
+      brainstore.automationwriter.volume.size: "200Gi"
+    release:
+      namespace: "braintrust"
+    asserts:
+      - equal:
+          path: spec.template.spec.volumes[0].ephemeral.volumeClaimTemplate.spec.storageClassName
+          value: local
+      - equal:
+          path: spec.template.spec.volumes[0].ephemeral.volumeClaimTemplate.spec.resources.requests.storage
+          value: "200Gi"
+
+  - it: should render a null replica count as zero
+    template: brainstore-automationwriter-deployment.yaml
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      brainstore.automationwriter.replicas: null
+    release:
+      namespace: "braintrust"
+    asserts:
+      - equal:
+          path: spec.replicas
+          value: 0
+
+  - it: should render pool defaults when reused values enable the pool with only replicas
+    template: brainstore-automationwriter-deployment.yaml
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/reuse-automationwriter-replicas-values.yaml
+    release:
+      namespace: "braintrust"
+    asserts:
+      - equal:
+          path: metadata.name
+          value: brainstore-automationwriter
+      - equal:
+          path: spec.replicas
+          value: 1
+      - equal:
+          path: spec.template.spec.containers[0].ports[0].containerPort
+          value: 4000
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: test/brainstore:v2.16.0
+
+  - it: should omit the automation writer when reused values have no automation writer config
+    template: brainstore-automationwriter-deployment.yaml
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/pre-automationwriter-values.yaml
+    release:
+      namespace: "braintrust"
+    asserts:
+      - hasDocuments:
+          count: 0
