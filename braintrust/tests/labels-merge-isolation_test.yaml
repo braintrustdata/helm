@@ -1,7 +1,9 @@
 suite: test label merge isolation (deepCopy fix)
 templates:
   - api-deployment.yaml
+  - loop-runtime-deployment.yaml
   - api-configmap.yaml
+  - loop-runtime-configmap.yaml
   - brainstore-reader-deployment.yaml
   - brainstore-reader-configmap.yaml
   - brainstore-writer-deployment.yaml
@@ -382,3 +384,59 @@ tests:
       - equal:
           path: metadata.labels["fastreader-only"]
           value: fastreader-value
+
+  - it: should isolate Loop Runtime deployment and pod labels
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/loop-runtime-values.yaml
+    set:
+      global.labels.shared: "global-loop"
+      global.labels.environment: "production"
+      loopRuntime.labels.component: "loop-runtime"
+      loopRuntime.labels.loop-specific: "loop-only"
+      loopRuntime.podLabels.pod-specific: "pod-only"
+      api.labels.api-specific: "api-only"
+      brainstore.reader.labels.reader-specific: "reader-only"
+      brainstore.writer.labels.writer-specific: "writer-only"
+      brainstore.fastreader.labels.fastreader-specific: "fastreader-only"
+    release:
+      namespace: "braintrust"
+    template: loop-runtime-deployment.yaml
+    asserts:
+      - equal:
+          path: metadata.labels.shared
+          value: global-loop
+      - equal:
+          path: metadata.labels.environment
+          value: production
+      - equal:
+          path: metadata.labels.component
+          value: loop-runtime
+      - equal:
+          path: metadata.labels["loop-specific"]
+          value: loop-only
+      - isNull:
+          path: metadata.labels["api-specific"]
+      - isNull:
+          path: metadata.labels["reader-specific"]
+      - isNull:
+          path: metadata.labels["writer-specific"]
+      - isNull:
+          path: metadata.labels["fastreader-specific"]
+      - equal:
+          path: spec.template.metadata.labels.shared
+          value: global-loop
+      - equal:
+          path: spec.template.metadata.labels["loop-specific"]
+          value: loop-only
+      - equal:
+          path: spec.template.metadata.labels["pod-specific"]
+          value: pod-only
+      - isNull:
+          path: spec.template.metadata.labels["api-specific"]
+      - isNull:
+          path: spec.template.metadata.labels["reader-specific"]
+      - isNull:
+          path: spec.template.metadata.labels["writer-specific"]
+      - isNull:
+          path: spec.template.metadata.labels["fastreader-specific"]

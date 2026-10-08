@@ -1,6 +1,7 @@
 suite: test label merge isolation for configmaps (deepCopy fix)
 templates:
   - api-configmap.yaml
+  - loop-runtime-configmap.yaml
   - brainstore-reader-configmap.yaml
   - brainstore-writer-configmap.yaml
   - brainstore-fastreader-configmap.yaml
@@ -109,3 +110,33 @@ tests:
           path: metadata.labels["reader-specific"]
       - isNull:
           path: metadata.labels["writer-specific"]
+
+  - it: should give Loop Runtime configmap only global and runtime-specific labels
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/loop-runtime-values.yaml
+    set:
+      global.labels.shared: "global-cm"
+      loopRuntime.labels.loop-specific: "loop-cm"
+      api.labels.api-specific: "api-cm"
+      brainstore.reader.labels.reader-specific: "reader-cm"
+      brainstore.writer.labels.writer-specific: "writer-cm"
+      brainstore.fastreader.labels.fastreader-specific: "fastreader-cm"
+    release:
+      namespace: "braintrust"
+    template: loop-runtime-configmap.yaml
+    asserts:
+      - equal:
+          path: metadata.labels.shared
+          value: global-cm
+      - equal:
+          path: metadata.labels["loop-specific"]
+          value: loop-cm
+      - isNull:
+          path: metadata.labels["api-specific"]
+      - isNull:
+          path: metadata.labels["reader-specific"]
+      - isNull:
+          path: metadata.labels["writer-specific"]
+      - isNull:
+          path: metadata.labels["fastreader-specific"]
