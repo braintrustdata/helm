@@ -181,6 +181,16 @@ tests:
       - isNull:
           path: data.BRAINSTORE_WRITER_LOOP_CONFIG
 
+  - it: should keep automations on the writer when reused values omit the automation writer
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/pre-automationwriter-values.yaml
+    release:
+      namespace: "braintrust"
+    asserts:
+      - isNull:
+          path: data.BRAINSTORE_WRITER_LOOP_CONFIG
+
   - it: should exclude automations when the automation writer pool is enabled
     values:
       - __fixtures__/base-values.yaml

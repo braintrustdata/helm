@@ -30,6 +30,16 @@ tests:
           path: data.BRAINSTORE_WRITER_LOOP_CONFIG
           value: "include:automations"
 
+  - it: should omit the configmap when reused values have no automation writer config
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/pre-automationwriter-values.yaml
+    release:
+      namespace: "braintrust"
+    asserts:
+      - hasDocuments:
+          count: 0
+
   - it: should include configmap annotations when provided
     values:
       - __fixtures__/base-values.yaml

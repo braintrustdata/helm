@@ -373,7 +373,9 @@ brainstore:
   # WARNING: If you have an existing deployment, DO NOT change this setting.
   # Changing the locks backend on an existing deployment could cause data corruption at this time.
   locksBackend: "redis"
-  # Health check probes (applies to both reader and writer)
+  # Health check probes for reader, fastreader, and writer.
+  # The automation writer keeps these timings and paths, but rewrites httpGet.port
+  # to brainstore.automationwriter.port so the probe matches BRAINSTORE_PORT.
   livenessProbe:
     httpGet:
       path: /
@@ -597,6 +599,7 @@ brainstore:
       rollingUpdate:
         maxSurge: 100%
         maxUnavailable: 0
+    # Listen port for BRAINSTORE_PORT, the container port, and health probes.
     port: 4000
     resources:
       requests:

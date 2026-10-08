@@ -65,7 +65,8 @@ data:
   BRAINSTORE_ASYNC_SCORING_OBJECTS: {{ .Values.skipPgForBrainstoreObjects | quote }}
   BRAINSTORE_LOG_AUTOMATIONS_OBJECTS: {{ .Values.skipPgForBrainstoreObjects | quote }}
   {{- end }}
-  {{- if gt (int .Values.brainstore.automationwriter.replicas) 0 }}
+  {{- /* A chart upgraded with --reuse-values has no automationwriter map. Absence means the pool stays disabled. */}}
+  {{- if gt (int (dig "automationwriter" "replicas" 0 .Values.brainstore)) 0 }}
   # A dedicated automation writer pool is enabled; this writer pool runs every
   # writer loop except automations (which the automation writer pool handles).
   BRAINSTORE_WRITER_LOOP_CONFIG: "exclude:automations"

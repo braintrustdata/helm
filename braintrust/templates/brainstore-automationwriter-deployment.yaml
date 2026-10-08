@@ -1,3 +1,9 @@
+{{/*
+Omit this Deployment when brainstore.automationwriter is absent. helm upgrade
+--reuse-values from a chart that predates the pool does not merge the new
+default map, and absence means the pool stays disabled.
+*/}}
+{{- if .Values.brainstore.automationwriter }}
 {{- $rollout := include "braintrust.deploymentRollout.config" (dict "config" .Values.brainstore.automationwriter) | fromYaml -}}
 {{- include "braintrust.deploymentRollout.validate" (dict "path" "brainstore.automationwriter" "config" $rollout) }}
 apiVersion: apps/v1
@@ -93,11 +99,19 @@ spec:
             ) | nindent 12 }}
           {{- with .Values.brainstore.livenessProbe }}
           livenessProbe:
-            {{- toYaml . | nindent 12 }}
+            {{- $probe := deepCopy . }}
+            {{- if $probe.httpGet }}
+            {{- $_ := set $probe.httpGet "port" $.Values.brainstore.automationwriter.port }}
+            {{- end }}
+            {{- toYaml $probe | nindent 12 }}
           {{- end }}
           {{- with .Values.brainstore.readinessProbe }}
           readinessProbe:
-            {{- toYaml . | nindent 12 }}
+            {{- $probe := deepCopy . }}
+            {{- if $probe.httpGet }}
+            {{- $_ := set $probe.httpGet "port" $.Values.brainstore.automationwriter.port }}
+            {{- end }}
+            {{- toYaml $probe | nindent 12 }}
           {{- end }}
           envFrom:
             - configMapRef:
@@ -162,7 +176,8 @@ spec:
       {{- end }}
       volumes:
         - name: cache-volume
-          {{- if and (eq .Values.cloud "azure") .Values.azure.enableAzureContainerStorageDriver }}
+          {{- /* Azure local disk is required only once this pool has replicas. A disabled pool must render without a size. */}}
+          {{- if and (eq .Values.cloud "azure") .Values.azure.enableAzureContainerStorageDriver (gt (int (.Values.brainstore.automationwriter.replicas | default 0)) 0) }}
           ephemeral:
             volumeClaimTemplate:
               spec:
@@ -171,7 +186,7 @@ spec:
                 storageClassName: local
                 resources:
                   requests:
-                    storage: {{ required "brainstore.automationwriter.volume.size must be set" .Values.brainstore.automationwriter.volume.size | quote }}
+                    storage: {{ required "brainstore.automationwriter.volume.size must be set" (dig "volume" "size" "" .Values.brainstore.automationwriter) | quote }}
           {{- else }}
           emptyDir:
             {{- if .Values.brainstore.automationwriter.volume.sizeLimit }}
@@ -200,3 +215,4 @@ spec:
         {{- with .Values.brainstore.automationwriter.extraVolumes }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
+{{- end }}

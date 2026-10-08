@@ -160,6 +160,55 @@ tests:
       - isNull:
           path: spec.template.spec.containers[0].resources.requests["ephemeral-storage"]
 
+  - it: should point health probes at the automation writer port
+    template: brainstore-automationwriter-deployment.yaml
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      brainstore.automationwriter.port: 4100
+      brainstore.livenessProbe:
+        httpGet:
+          path: /
+          port: 4000
+        initialDelaySeconds: 60
+        periodSeconds: 10
+      brainstore.readinessProbe:
+        httpGet:
+          path: /
+          port: 4000
+        initialDelaySeconds: 30
+        periodSeconds: 5
+    release:
+      namespace: "braintrust"
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].ports[0].containerPort
+          value: 4100
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.httpGet.port
+          value: 4100
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.httpGet.path
+          value: /
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.initialDelaySeconds
+          value: 60
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.periodSeconds
+          value: 10
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.httpGet.port
+          value: 4100
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.httpGet.path
+          value: /
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.initialDelaySeconds
+          value: 30
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.periodSeconds
+          value: 5
+
   - it: should mount tmp volume only when enabled
     template: brainstore-automationwriter-deployment.yaml
     values:
@@ -178,3 +227,65 @@ tests:
       - equal:
           path: spec.template.spec.volumes[1].emptyDir.sizeLimit
           value: "1Gi"
+
+  - it: should not require an Azure disk size while the automation writer pool is disabled
+    template: brainstore-automationwriter-deployment.yaml
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/azure-values.yaml
+    set:
+      brainstore.automationwriter.replicas: 0
+      brainstore.automationwriter.volume.size: ""
+    release:
+      namespace: "braintrust"
+    asserts:
+      - equal:
+          path: spec.replicas
+          value: 0
+      - isNotNull:
+          path: spec.template.spec.volumes[0].emptyDir
+      - isNull:
+          path: spec.template.spec.volumes[0].ephemeral
+
+  - it: should require an Azure disk size when the automation writer pool is enabled
+    template: brainstore-automationwriter-deployment.yaml
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/azure-values.yaml
+    set:
+      brainstore.automationwriter.replicas: 1
+      brainstore.automationwriter.volume.size: ""
+    release:
+      namespace: "braintrust"
+    asserts:
+      - failedTemplate:
+          errorMessage: "brainstore.automationwriter.volume.size must be set"
+
+  - it: should use Azure Container Storage when the automation writer pool is enabled
+    template: brainstore-automationwriter-deployment.yaml
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/azure-values.yaml
+    set:
+      brainstore.automationwriter.replicas: 1
+      brainstore.automationwriter.volume.size: "200Gi"
+    release:
+      namespace: "braintrust"
+    asserts:
+      - equal:
+          path: spec.template.spec.volumes[0].ephemeral.volumeClaimTemplate.spec.storageClassName
+          value: local
+      - equal:
+          path: spec.template.spec.volumes[0].ephemeral.volumeClaimTemplate.spec.resources.requests.storage
+          value: "200Gi"
+
+  - it: should omit the automation writer when reused values have no automation writer config
+    template: brainstore-automationwriter-deployment.yaml
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/pre-automationwriter-values.yaml
+    release:
+      namespace: "braintrust"
+    asserts:
+      - hasDocuments:
+          count: 0
