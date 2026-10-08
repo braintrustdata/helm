@@ -297,9 +297,22 @@ use 75% because they need more free disk. This matches how the AWS Terraform
 module sizes the cache from the instance's local disk.
 
 The cache volume size is the size of the filesystem mounted at `cacheDir`,
-capped by `volume.sizeLimit` and `volume.size` when they are set. With a plain
-`emptyDir`, that filesystem is the node's disk, so give Brainstore pods
-dedicated nodes (see the anti-affinity examples above) or set `volume.size`.
+capped by the smallest of `volume.sizeLimit`, `volume.size`,
+`ephemeralStorage.request` and `ephemeralStorage.limit` that is set. This works
+the same way on every cloud:
+
+| Platform | Cache volume | What sets the size |
+| --- | --- | --- |
+| GKE Autopilot | `emptyDir` on the node's local SSD | `volume.size` (also the ephemeral-storage request) or `ephemeralStorage.request` |
+| GKE Standard | `emptyDir` on the node pool's disk | The node disk, capped by any size set above |
+| EKS (managed nodes, Karpenter, Auto Mode) | `emptyDir` on the node's kubelet disk | `ephemeralStorage.request` (see [AWS EKS Local Storage](#aws-eks-local-storage)) |
+| AKS with Azure Container Storage | Ephemeral volume of `volume.size` | `volume.size` |
+| AKS without Azure Container Storage | `emptyDir` on the node's disk | The node disk, capped by any size set above |
+
+An `emptyDir` lives on a node disk that container images, logs and other pods
+also use. When no size is set, the percentage applies to that whole disk, so
+either give Brainstore pods dedicated nodes (see the anti-affinity examples
+above) or set one of the sizes above.
 
 ```yaml
 brainstore:

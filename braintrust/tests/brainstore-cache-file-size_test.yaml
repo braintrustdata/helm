@@ -184,3 +184,60 @@ tests:
     asserts:
       - failedTemplate:
           errorMessage: "brainstore.writer.volume.size must be a whole-number Kubernetes quantity such as 900Gi (got \"1.5Ti\")"
+
+  - it: should cap the cache volume at ephemeralStorage.request
+    template: brainstore-writer-deployment.yaml
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      cloud: aws
+      brainstore.writer.objectStoreCacheFileSize: ""
+      brainstore.writer.volume.size: ""
+      brainstore.writer.ephemeralStorage.request: "1700Gi"
+    asserts:
+      - matchRegex:
+          path: spec.template.spec.containers[0].args[0]
+          pattern: "(?m)^limit_bytes=1825361100800$"
+
+  - it: should cap the cache volume at ephemeralStorage.limit when it is the smallest
+    template: brainstore-writer-deployment.yaml
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      cloud: aws
+      brainstore.writer.objectStoreCacheFileSize: ""
+      brainstore.writer.volume.size: ""
+      brainstore.writer.ephemeralStorage.request: "1700Gi"
+      brainstore.writer.ephemeralStorage.limit: "1500Gi"
+    asserts:
+      - matchRegex:
+          path: spec.template.spec.containers[0].args[0]
+          pattern: "(?m)^limit_bytes=1610612736000$"
+
+  - it: should reject an ephemeral storage size it cannot parse
+    template: brainstore-writer-deployment.yaml
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      brainstore.writer.objectStoreCacheFileSize: ""
+      brainstore.writer.ephemeralStorage.request: "lots"
+    asserts:
+      - failedTemplate:
+          errorMessage: "brainstore.writer.ephemeralStorage.request must be a whole-number Kubernetes quantity such as 900Gi (got \"lots\")"
+
+  - it: should size the cache on Azure Container Storage volumes
+    template: brainstore-writer-deployment.yaml
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      cloud: azure
+      azure.enableAzureContainerStorageDriver: true
+      brainstore.writer.objectStoreCacheFileSize: ""
+      brainstore.writer.volume.size: "200Gi"
+    asserts:
+      - matchRegex:
+          path: spec.template.spec.containers[0].args[0]
+          pattern: "(?m)^limit_bytes=214748364800$"
+      - equal:
+          path: spec.template.spec.volumes[0].ephemeral.volumeClaimTemplate.spec.resources.requests.storage
+          value: "200Gi"

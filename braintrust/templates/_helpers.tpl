@@ -216,8 +216,10 @@ size from its ConfigMap. Otherwise the container sets
 BRAINSTORE_OBJECT_STORE_CACHE_FILE_SIZE at startup to
 objectStoreCacheFileSizePercent of the cache volume, the same way the AWS
 Terraform module sizes the cache from the instance's local disk. The cache
-volume size is the size of the filesystem mounted at cacheDir, capped by
-volume.sizeLimit and volume.size when they are set.
+volume size is the size of the filesystem mounted at cacheDir, capped by the
+smallest of volume.sizeLimit, volume.size, ephemeralStorage.request and
+ephemeralStorage.limit that is set. The cap matters when the cache is an
+emptyDir on a node disk shared with images, logs and other pods.
 
 Template-level percent defaults keep `helm upgrade --reuse-values` working
 from chart versions that predate objectStoreCacheFileSizePercent.
@@ -236,10 +238,11 @@ args: ["web"]
 {{- fail (printf "%s.objectStoreCacheFileSizePercent must be a whole number between 1 and 100" .path) -}}
 {{- end -}}
 {{- $limitBytes := 0 -}}
-{{- range $field := list "sizeLimit" "size" -}}
-{{- $quantity := index ($config.volume | default dict) $field -}}
+{{- range $field := list "volume.sizeLimit" "volume.size" "ephemeralStorage.request" "ephemeralStorage.limit" -}}
+{{- $parts := splitList "." $field -}}
+{{- $quantity := index ((index $config (first $parts)) | default dict) (last $parts) -}}
 {{- if $quantity -}}
-{{- $bytes := include "braintrust.quantityToBytes" (dict "quantity" $quantity "path" (printf "%s.volume.%s" $.path $field)) | int64 -}}
+{{- $bytes := include "braintrust.quantityToBytes" (dict "quantity" $quantity "path" (printf "%s.%s" $.path $field)) | int64 -}}
 {{- if or (eq $limitBytes 0) (lt $bytes $limitBytes) -}}
 {{- $limitBytes = $bytes -}}
 {{- end -}}

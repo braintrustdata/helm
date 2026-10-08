@@ -448,7 +448,8 @@ brainstore:
     objectStoreCacheMemoryLimit: "1Gi"
     # Optional. Fixed object store cache size (e.g. "500Gi"). When empty, the cache is
     # sized at pod startup to objectStoreCacheFileSizePercent of the cache volume
-    # (the filesystem at cacheDir, capped by volume.sizeLimit and volume.size).
+    # (the filesystem at cacheDir, capped by the smallest of volume.sizeLimit, volume.size,
+    # ephemeralStorage.request and ephemeralStorage.limit that is set).
     objectStoreCacheFileSize: ""
     objectStoreCacheFileSizePercent: 90
     verbose: true
@@ -510,7 +511,8 @@ brainstore:
     objectStoreCacheMemoryLimit: "1Gi"
     # Optional. Fixed object store cache size (e.g. "500Gi"). When empty, the cache is
     # sized at pod startup to objectStoreCacheFileSizePercent of the cache volume
-    # (the filesystem at cacheDir, capped by volume.sizeLimit and volume.size).
+    # (the filesystem at cacheDir, capped by the smallest of volume.sizeLimit, volume.size,
+    # ephemeralStorage.request and ephemeralStorage.limit that is set).
     objectStoreCacheFileSize: ""
     objectStoreCacheFileSizePercent: 90
     verbose: true
@@ -572,7 +574,8 @@ brainstore:
     objectStoreCacheMemoryLimit: "1Gi"
     # Optional. Fixed object store cache size (e.g. "500Gi"). When empty, the cache is
     # sized at pod startup to objectStoreCacheFileSizePercent of the cache volume
-    # (the filesystem at cacheDir, capped by volume.sizeLimit and volume.size).
+    # (the filesystem at cacheDir, capped by the smallest of volume.sizeLimit, volume.size,
+    # ephemeralStorage.request and ephemeralStorage.limit that is set).
     objectStoreCacheFileSize: ""
     objectStoreCacheFileSizePercent: 75
     verbose: true
