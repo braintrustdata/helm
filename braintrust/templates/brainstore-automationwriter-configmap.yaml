@@ -4,27 +4,28 @@ Omit this ConfigMap when brainstore.automationwriter is absent. helm upgrade
 default map, and absence means the pool stays disabled.
 */}}
 {{- if .Values.brainstore.automationwriter }}
+{{- $aw := include "braintrust.automationWriter.config" . | fromYaml -}}
 ---
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ .Values.brainstore.automationwriter.name }}
+  name: {{ $aw.name }}
   namespace: {{ include "braintrust.namespace" . }}
-  {{- with (merge (deepCopy .Values.brainstore.automationwriter.labels) .Values.global.labels) }}
+  {{- with (merge (deepCopy $aw.labels) .Values.global.labels) }}
   labels:
     {{- toYaml . | nindent 4 }}
   {{- end }}
-  {{- with .Values.brainstore.automationwriter.annotations.configmap }}
+  {{- with $aw.annotations.configmap }}
   annotations:
     {{- toYaml . | nindent 4 }}
   {{- end }}
 data:
   BRAINSTORE_READER_ONLY_MODE: "false"
-  BRAINSTORE_VERBOSE: {{ (or (eq (toString .Values.brainstore.automationwriter.verbose) "true") (eq (toString .Values.brainstore.automationwriter.verbose) "1")) | ternary "1" "0" | quote }}
-  BRAINSTORE_PORT: {{ .Values.brainstore.automationwriter.port | quote }}
-  BRAINSTORE_CACHE_DIR: {{ .Values.brainstore.automationwriter.cacheDir | quote }}
-  BRAINSTORE_OBJECT_STORE_CACHE_MEMORY_LIMIT: {{ .Values.brainstore.automationwriter.objectStoreCacheMemoryLimit | quote }}
-  BRAINSTORE_OBJECT_STORE_CACHE_FILE_SIZE: {{ .Values.brainstore.automationwriter.objectStoreCacheFileSize | quote }}
+  BRAINSTORE_VERBOSE: {{ (or (eq (toString $aw.verbose) "true") (eq (toString $aw.verbose) "1")) | ternary "1" "0" | quote }}
+  BRAINSTORE_PORT: {{ $aw.port | quote }}
+  BRAINSTORE_CACHE_DIR: {{ $aw.cacheDir | quote }}
+  BRAINSTORE_OBJECT_STORE_CACHE_MEMORY_LIMIT: {{ $aw.objectStoreCacheMemoryLimit | quote }}
+  BRAINSTORE_OBJECT_STORE_CACHE_FILE_SIZE: {{ $aw.objectStoreCacheFileSize | quote }}
   {{- if eq .Values.cloud "azure" }}
   # See here for reference:
   # https://docs.rs/object_store/latest/object_store/azure/struct.MicrosoftAzureBuilder.html

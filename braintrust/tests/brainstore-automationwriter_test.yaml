@@ -49,6 +49,7 @@ tests:
       - __fixtures__/base-values.yaml
     set:
       brainstore.automationwriter.replicas: 2
+      brainstore.image.tag: v2.16.0
     release:
       namespace: "braintrust"
     asserts:
@@ -254,6 +255,7 @@ tests:
       - __fixtures__/azure-values.yaml
     set:
       brainstore.automationwriter.replicas: 1
+      brainstore.image.tag: v2.16.0
       brainstore.automationwriter.volume.size: ""
     release:
       namespace: "braintrust"
@@ -268,6 +270,7 @@ tests:
       - __fixtures__/azure-values.yaml
     set:
       brainstore.automationwriter.replicas: 1
+      brainstore.image.tag: v2.16.0
       brainstore.automationwriter.volume.size: "200Gi"
     release:
       namespace: "braintrust"
@@ -278,6 +281,40 @@ tests:
       - equal:
           path: spec.template.spec.volumes[0].ephemeral.volumeClaimTemplate.spec.resources.requests.storage
           value: "200Gi"
+
+  - it: should render a null replica count as zero
+    template: brainstore-automationwriter-deployment.yaml
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      brainstore.automationwriter.replicas: null
+    release:
+      namespace: "braintrust"
+    asserts:
+      - equal:
+          path: spec.replicas
+          value: 0
+
+  - it: should render pool defaults when reused values enable the pool with only replicas
+    template: brainstore-automationwriter-deployment.yaml
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/reuse-automationwriter-replicas-values.yaml
+    release:
+      namespace: "braintrust"
+    asserts:
+      - equal:
+          path: metadata.name
+          value: brainstore-automationwriter
+      - equal:
+          path: spec.replicas
+          value: 1
+      - equal:
+          path: spec.template.spec.containers[0].ports[0].containerPort
+          value: 4000
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: test/brainstore:v2.16.0
 
   - it: should omit the automation writer when reused values have no automation writer config
     template: brainstore-automationwriter-deployment.yaml

@@ -30,6 +30,23 @@ tests:
           path: data.BRAINSTORE_WRITER_LOOP_CONFIG
           value: "include:automations"
 
+  - it: should fill pool defaults when reused values enable the pool with only replicas
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/reuse-automationwriter-replicas-values.yaml
+    release:
+      namespace: "braintrust"
+    asserts:
+      - equal:
+          path: metadata.name
+          value: brainstore-automationwriter
+      - equal:
+          path: data.BRAINSTORE_PORT
+          value: "4000"
+      - equal:
+          path: data.BRAINSTORE_WRITER_LOOP_CONFIG
+          value: "include:automations"
+
   - it: should omit the configmap when reused values have no automation writer config
     values:
       - __fixtures__/base-values.yaml

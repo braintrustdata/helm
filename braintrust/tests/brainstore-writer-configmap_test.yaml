@@ -196,6 +196,41 @@ tests:
       - __fixtures__/base-values.yaml
     set:
       brainstore.automationwriter.replicas: 1
+      brainstore.image.tag: v2.16.0
+    release:
+      namespace: "braintrust"
+    asserts:
+      - equal:
+          path: data.BRAINSTORE_WRITER_LOOP_CONFIG
+          value: "exclude:automations"
+
+  - it: should keep automations on the writer when the automation writer replica count is null
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      brainstore.automationwriter.replicas: null
+    release:
+      namespace: "braintrust"
+    asserts:
+      - isNull:
+          path: data.BRAINSTORE_WRITER_LOOP_CONFIG
+
+  - it: should reject an automation writer pool on a brainstore image older than v2.16.0
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      brainstore.automationwriter.replicas: 1
+      brainstore.image.tag: v2.14.0
+    release:
+      namespace: "braintrust"
+    asserts:
+      - failedTemplate:
+          errorMessage: "brainstore.automationwriter requires brainstore image v2.16.0 or newer. brainstore.image.tag is \"v2.14.0\", which does not implement BRAINSTORE_WRITER_LOOP_CONFIG."
+
+  - it: should exclude automations when reused values enable the pool with only replicas
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/reuse-automationwriter-replicas-values.yaml
     release:
       namespace: "braintrust"
     asserts:

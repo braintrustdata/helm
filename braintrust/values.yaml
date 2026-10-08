@@ -579,6 +579,10 @@ brainstore:
   # Brainstore Automation Writer configuration
   # An optional, dedicated Brainstore writer pool that handles only the
   # automations writer loop (BRAINSTORE_WRITER_LOOP_CONFIG=include:automations).
+  # Requires brainstore image v2.16.0 or newer. Older images ignore that
+  # variable, so the chart rejects replicas > 0 unless brainstore.image.tag
+  # is at least v2.16.0. The chart default image is older; set the tag before
+  # enabling the pool.
   # When enabled (replicas > 0), the regular writer pool is automatically
   # configured to exclude automations. Disabled by default (replicas: 0) so
   # existing deployments are unaffected. This option is not recommended for most

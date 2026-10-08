@@ -347,27 +347,6 @@ greater than `minReadySeconds`; the chart rejects an invalid pairing. Keep
 enough deadline margin for scheduling, image pulls, startup, and the readiness
 dwell.
 
-### Brainstore Automation Writer pool
-
-The Automation Writer pool (`brainstore.automationwriter`) is an optional,
-dedicated Brainstore writer pool that handles only the automations writer loop.
-When enabled, automation processing is isolated onto its own nodes so it does
-not compete with the regular writer pool.
-
-It is driven entirely by the `BRAINSTORE_WRITER_LOOP_CONFIG` environment
-variable (there is no separate service or URL, and the writer nodes partition
-the writer loops among themselves):
-
-- Automation writer nodes run `BRAINSTORE_WRITER_LOOP_CONFIG=include:automations`.
-- When `brainstore.automationwriter.replicas > 0`, the regular writer pool is
-  automatically set to `BRAINSTORE_WRITER_LOOP_CONFIG=exclude:automations`.
-- When the pool is disabled (`replicas: 0`, the default), no
-  `BRAINSTORE_WRITER_LOOP_CONFIG` is set and the writer pool handles every
-  writer loop, including automations — so existing deployments are unaffected.
-
-This option is not recommended for most deployments; enable it only with
-guidance from Braintrust support.
-
 A longer dwell reduces rollout pressure but does not prove that a pod's local
 cache is fully warm; monitor workload health until the rollout has converged.
 `maxUnavailable: 0` also requires enough cluster capacity for the configured
@@ -388,6 +367,49 @@ These settings pace Deployment-managed rollouts only. The chart does not
 currently create PodDisruptionBudgets for Brainstore, so these controls do not
 limit voluntary disruptions such as node drains or protect against involuntary
 pod or node failures.
+
+## Brainstore Automation Writer pool
+
+The Automation Writer pool (`brainstore.automationwriter`) is an optional,
+dedicated Brainstore writer pool that handles only the automations writer loop.
+When enabled, automation processing is isolated onto its own nodes so it does
+not compete with the regular writer pool.
+
+It is driven entirely by the `BRAINSTORE_WRITER_LOOP_CONFIG` environment
+variable (there is no separate service or URL, and the writer nodes partition
+the writer loops among themselves):
+
+- Automation writer nodes run `BRAINSTORE_WRITER_LOOP_CONFIG=include:automations`.
+- When `brainstore.automationwriter.replicas > 0`, the regular writer pool is
+  automatically set to `BRAINSTORE_WRITER_LOOP_CONFIG=exclude:automations`.
+- When the pool is disabled (`replicas: 0`, the default), no
+  `BRAINSTORE_WRITER_LOOP_CONFIG` is set and the writer pool handles every
+  writer loop, including automations — so existing deployments are unaffected.
+- A null or missing `replicas` renders as 0. An empty replica count would
+  otherwise make Kubernetes run 1 pod, so both pools would process automations.
+
+The include/exclude split follows `brainstore.automationwriter.replicas` in the
+Helm values. `kubectl scale` or an autoscaler changes the live pod count only;
+it does not move automations between pools.
+
+Turning the pool off removes its pods immediately. The regular writers keep
+`exclude:automations` until their rollout finishes, so automations pause until
+those new writer pods are Ready. Turning the pool on briefly runs automations
+on both pools until the regular writers roll.
+
+The pool requires Brainstore `v2.16.0` or newer. That is the first image that
+honors `BRAINSTORE_WRITER_LOOP_CONFIG`. The chart's default image is older.
+Setting `replicas` above 0 fails the render until `brainstore.image.tag` is
+`v2.16.0` or newer.
+
+`helm upgrade --reuse-values` does not add this pool's default values. If the
+installed release has no `brainstore.automationwriter` map, the pool stays off.
+`--set brainstore.automationwriter.replicas=1` on that upgrade still renders:
+missing pool fields are filled from the chart defaults. Set
+`brainstore.image.tag` to `v2.16.0` or newer in the same upgrade.
+
+This option is not recommended for most deployments; enable it only with
+guidance from Braintrust support.
 
 ## Testing
 
