@@ -88,7 +88,6 @@ brainstore:
         memory: "32Gi"
     cacheDir: "/mnt/tmp/brainstore"
     objectStoreCacheMemoryLimit: "1Gi"
-    objectStoreCacheFileSize: "900Gi"
     verbose: true
     securityContext:
       readOnlyRootFilesystem: true
@@ -121,7 +120,6 @@ brainstore:
         memory: "32Gi"
     cacheDir: "/mnt/tmp/brainstore"
     objectStoreCacheMemoryLimit: "1Gi"
-    objectStoreCacheFileSize: "900Gi"
     verbose: true
     securityContext:
       readOnlyRootFilesystem: true
@@ -154,7 +152,6 @@ brainstore:
         memory: "64Gi"
     cacheDir: "/mnt/tmp/brainstore"
     objectStoreCacheMemoryLimit: "1Gi"
-    objectStoreCacheFileSize: "900Gi"
     verbose: true
     securityContext:
       readOnlyRootFilesystem: true

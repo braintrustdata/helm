@@ -289,6 +289,44 @@ Pools use fixed replica counts by default (`api.replicas` and
 `api.workloadIsolation.<pool>.replicas`). On GKE, enable `api.autoscaling` to
 let each pool scale independently instead.
 
+## Brainstore Cache Sizing
+
+By default, each Brainstore pod sizes its object store cache when it starts,
+as a percentage of its cache volume. Readers and fast readers use 90%. Writers
+use 75% because they need more free disk. This matches how the AWS Terraform
+module sizes the cache from the instance's local disk.
+
+The cache volume size is the size of the filesystem mounted at `cacheDir`,
+capped by the smallest of `volume.sizeLimit`, `volume.size`,
+`ephemeralStorage.request` and `ephemeralStorage.limit` that is set. This works
+the same way on every cloud:
+
+| Platform | Cache volume | What sets the size |
+| --- | --- | --- |
+| GKE Autopilot | `emptyDir` on the node's local SSD | `volume.size` (also the ephemeral-storage request) or `ephemeralStorage.request` |
+| GKE Standard | `emptyDir` on the node pool's disk | The node disk, capped by any size set above |
+| EKS (managed nodes, Karpenter, Auto Mode) | `emptyDir` on the node's kubelet disk | `ephemeralStorage.request` (see [AWS EKS Local Storage](#aws-eks-local-storage)) |
+| AKS with Azure Container Storage | Ephemeral volume of `volume.size` | `volume.size` |
+| AKS without Azure Container Storage | `emptyDir` on the node's disk | The node disk, capped by any size set above |
+
+An `emptyDir` lives on a node disk that container images, logs and other pods
+also use. When no size is set, the percentage applies to that whole disk, so
+either give Brainstore pods dedicated nodes (see the anti-affinity examples
+above) or set one of the sizes above.
+
+```yaml
+brainstore:
+  writer:
+    # Change the percentage
+    objectStoreCacheFileSizePercent: 70
+  reader:
+    # Or set a fixed size, which disables the percentage
+    objectStoreCacheFileSize: "800Gi"
+```
+
+The pod logs the size it picked at startup. If the computed size is under
+1Gi, the pod exits with an error asking you to set `objectStoreCacheFileSize`.
+
 ## Brainstore Rollout Controls
 
 Brainstore readers, fast readers, and writers have independently configurable

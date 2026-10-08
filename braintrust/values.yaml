@@ -446,7 +446,12 @@ brainstore:
         memory: "32Gi"
     cacheDir: "/mnt/tmp/brainstore"
     objectStoreCacheMemoryLimit: "1Gi"
-    objectStoreCacheFileSize: "1000Gi"
+    # Optional. Fixed object store cache size (e.g. "500Gi"). When empty, the cache is
+    # sized at pod startup to objectStoreCacheFileSizePercent of the cache volume
+    # (the filesystem at cacheDir, capped by the smallest of volume.sizeLimit, volume.size,
+    # ephemeralStorage.request and ephemeralStorage.limit that is set).
+    objectStoreCacheFileSize: ""
+    objectStoreCacheFileSizePercent: 90
     verbose: true
     # Optional: Volume configuration for cache storage
     # When not set, uses default emptyDir: {} (backward compatible)
@@ -504,7 +509,12 @@ brainstore:
         memory: "32Gi"
     cacheDir: "/mnt/tmp/brainstore"
     objectStoreCacheMemoryLimit: "1Gi"
-    objectStoreCacheFileSize: "1000Gi"
+    # Optional. Fixed object store cache size (e.g. "500Gi"). When empty, the cache is
+    # sized at pod startup to objectStoreCacheFileSizePercent of the cache volume
+    # (the filesystem at cacheDir, capped by the smallest of volume.sizeLimit, volume.size,
+    # ephemeralStorage.request and ephemeralStorage.limit that is set).
+    objectStoreCacheFileSize: ""
+    objectStoreCacheFileSizePercent: 90
     verbose: true
     # Optional: Volume configuration for cache storage
     # When not set, uses default emptyDir: {} (backward compatible)
@@ -562,7 +572,12 @@ brainstore:
         memory: "64Gi"
     cacheDir: "/mnt/tmp/brainstore"
     objectStoreCacheMemoryLimit: "1Gi"
-    objectStoreCacheFileSize: "1000Gi"
+    # Optional. Fixed object store cache size (e.g. "500Gi"). When empty, the cache is
+    # sized at pod startup to objectStoreCacheFileSizePercent of the cache volume
+    # (the filesystem at cacheDir, capped by the smallest of volume.sizeLimit, volume.size,
+    # ephemeralStorage.request and ephemeralStorage.limit that is set).
+    objectStoreCacheFileSize: ""
+    objectStoreCacheFileSizePercent: 75
     verbose: true
     # Optional: Volume configuration for cache storage
     # When not set, uses default emptyDir: {} (backward compatible)

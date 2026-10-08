@@ -99,7 +99,6 @@ brainstore:
                topologyKey: kubernetes.io/hostname
     cacheDir: "/mnt/tmp/brainstore"
     objectStoreCacheMemoryLimit: "1Gi"
-    objectStoreCacheFileSize: "1000Gi"
     verbose: true
     volume:
       size: "200Gi"
@@ -136,7 +135,6 @@ brainstore:
             topologyKey: kubernetes.io/hostname    
     cacheDir: "/mnt/tmp/brainstore"
     objectStoreCacheMemoryLimit: "1Gi"
-    objectStoreCacheFileSize: "1000Gi"
     verbose: true
     volume:
       size: "200Gi"  

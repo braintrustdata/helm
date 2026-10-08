@@ -1,0 +1,243 @@
+suite: test Brainstore object store cache file size
+templates:
+  - brainstore-reader-deployment.yaml
+  - brainstore-reader-configmap.yaml
+  - brainstore-fastreader-deployment.yaml
+  - brainstore-fastreader-configmap.yaml
+  - brainstore-writer-deployment.yaml
+  - brainstore-writer-configmap.yaml
+release:
+  namespace: "braintrust"
+tests:
+  - it: should start Brainstore directly when the writer cache size is set
+    template: brainstore-writer-deployment.yaml
+    values:
+      - __fixtures__/base-values.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].command
+          value: ["brainstore"]
+      - equal:
+          path: spec.template.spec.containers[0].args
+          value: ["web"]
+
+  - it: should keep the writer cache size in the configmap when it is set
+    template: brainstore-writer-configmap.yaml
+    values:
+      - __fixtures__/base-values.yaml
+    asserts:
+      - equal:
+          path: data.BRAINSTORE_OBJECT_STORE_CACHE_FILE_SIZE
+          value: "50Gi"
+
+  - it: should size the writer cache to 75% of the volume by default
+    template: brainstore-writer-deployment.yaml
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      brainstore.writer.objectStoreCacheFileSize: ""
+      brainstore.writer.objectStoreCacheFileSizePercent: 75
+      brainstore.writer.volume.size: ""
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].command
+          value: ["/bin/sh", "-c"]
+      - matchRegex:
+          path: spec.template.spec.containers[0].args[0]
+          pattern: "(?m)^percent=75$"
+      - matchRegex:
+          path: spec.template.spec.containers[0].args[0]
+          pattern: "(?m)^limit_bytes=0$"
+      - matchRegex:
+          path: spec.template.spec.containers[0].args[0]
+          pattern: "(?m)^exec brainstore web$"
+
+  - it: should omit the writer cache size from the configmap when it is computed
+    template: brainstore-writer-configmap.yaml
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      brainstore.writer.objectStoreCacheFileSize: ""
+    asserts:
+      - notExists:
+          path: data.BRAINSTORE_OBJECT_STORE_CACHE_FILE_SIZE
+
+  - it: should default the writer percent to 75 when values predate the percent setting
+    template: brainstore-writer-deployment.yaml
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      brainstore.writer.objectStoreCacheFileSize: ""
+    asserts:
+      - matchRegex:
+          path: spec.template.spec.containers[0].args[0]
+          pattern: "(?m)^percent=75$"
+
+  - it: should default the reader percent to 90 when values predate the percent setting
+    template: brainstore-reader-deployment.yaml
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      brainstore.reader.objectStoreCacheFileSize: ""
+    asserts:
+      - matchRegex:
+          path: spec.template.spec.containers[0].args[0]
+          pattern: "(?m)^percent=90$"
+
+  - it: should default the fast reader percent to 90 when values predate the percent setting
+    template: brainstore-fastreader-deployment.yaml
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      brainstore.fastreader.objectStoreCacheFileSize: ""
+    asserts:
+      - matchRegex:
+          path: spec.template.spec.containers[0].args[0]
+          pattern: "(?m)^percent=90$"
+
+  - it: should omit the reader cache size from the configmap when it is computed
+    template: brainstore-reader-configmap.yaml
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      brainstore.reader.objectStoreCacheFileSize: ""
+    asserts:
+      - notExists:
+          path: data.BRAINSTORE_OBJECT_STORE_CACHE_FILE_SIZE
+
+  - it: should omit the fast reader cache size from the configmap when it is computed
+    template: brainstore-fastreader-configmap.yaml
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      brainstore.fastreader.objectStoreCacheFileSize: ""
+    asserts:
+      - notExists:
+          path: data.BRAINSTORE_OBJECT_STORE_CACHE_FILE_SIZE
+
+  - it: should cap the cache volume at volume.size
+    template: brainstore-writer-deployment.yaml
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      brainstore.writer.objectStoreCacheFileSize: ""
+      brainstore.writer.volume.size: "200Gi"
+    asserts:
+      - matchRegex:
+          path: spec.template.spec.containers[0].args[0]
+          pattern: "(?m)^limit_bytes=214748364800$"
+
+  - it: should cap the cache volume at the smaller of volume.size and volume.sizeLimit
+    template: brainstore-writer-deployment.yaml
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      brainstore.writer.objectStoreCacheFileSize: ""
+      brainstore.writer.volume.size: "1000Gi"
+      brainstore.writer.volume.sizeLimit: "900G"
+    asserts:
+      - matchRegex:
+          path: spec.template.spec.containers[0].args[0]
+          pattern: "(?m)^limit_bytes=900000000000$"
+
+  - it: should use a custom percent
+    template: brainstore-reader-deployment.yaml
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      brainstore.reader.objectStoreCacheFileSize: ""
+      brainstore.reader.objectStoreCacheFileSizePercent: 60
+    asserts:
+      - matchRegex:
+          path: spec.template.spec.containers[0].args[0]
+          pattern: "(?m)^percent=60$"
+
+  - it: should reject a percent above 100
+    template: brainstore-writer-deployment.yaml
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      brainstore.writer.objectStoreCacheFileSize: ""
+      brainstore.writer.objectStoreCacheFileSizePercent: 101
+    asserts:
+      - failedTemplate:
+          errorMessage: "brainstore.writer.objectStoreCacheFileSizePercent must be a whole number between 1 and 100"
+
+  - it: should reject a non-numeric percent
+    template: brainstore-writer-deployment.yaml
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      brainstore.writer.objectStoreCacheFileSize: ""
+      brainstore.writer.objectStoreCacheFileSizePercent: "75%"
+    asserts:
+      - failedTemplate:
+          errorMessage: "brainstore.writer.objectStoreCacheFileSizePercent must be a whole number between 1 and 100"
+
+  - it: should reject a volume size it cannot parse
+    template: brainstore-writer-deployment.yaml
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      brainstore.writer.objectStoreCacheFileSize: ""
+      brainstore.writer.volume.size: "1.5Ti"
+    asserts:
+      - failedTemplate:
+          errorMessage: "brainstore.writer.volume.size must be a whole-number Kubernetes quantity such as 900Gi (got \"1.5Ti\")"
+
+  - it: should cap the cache volume at ephemeralStorage.request
+    template: brainstore-writer-deployment.yaml
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      cloud: aws
+      brainstore.writer.objectStoreCacheFileSize: ""
+      brainstore.writer.volume.size: ""
+      brainstore.writer.ephemeralStorage.request: "1700Gi"
+    asserts:
+      - matchRegex:
+          path: spec.template.spec.containers[0].args[0]
+          pattern: "(?m)^limit_bytes=1825361100800$"
+
+  - it: should cap the cache volume at ephemeralStorage.limit when it is the smallest
+    template: brainstore-writer-deployment.yaml
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      cloud: aws
+      brainstore.writer.objectStoreCacheFileSize: ""
+      brainstore.writer.volume.size: ""
+      brainstore.writer.ephemeralStorage.request: "1700Gi"
+      brainstore.writer.ephemeralStorage.limit: "1500Gi"
+    asserts:
+      - matchRegex:
+          path: spec.template.spec.containers[0].args[0]
+          pattern: "(?m)^limit_bytes=1610612736000$"
+
+  - it: should reject an ephemeral storage size it cannot parse
+    template: brainstore-writer-deployment.yaml
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      brainstore.writer.objectStoreCacheFileSize: ""
+      brainstore.writer.ephemeralStorage.request: "lots"
+    asserts:
+      - failedTemplate:
+          errorMessage: "brainstore.writer.ephemeralStorage.request must be a whole-number Kubernetes quantity such as 900Gi (got \"lots\")"
+
+  - it: should size the cache on Azure Container Storage volumes
+    template: brainstore-writer-deployment.yaml
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      cloud: azure
+      azure.enableAzureContainerStorageDriver: true
+      brainstore.writer.objectStoreCacheFileSize: ""
+      brainstore.writer.volume.size: "200Gi"
+    asserts:
+      - matchRegex:
+          path: spec.template.spec.containers[0].args[0]
+          pattern: "(?m)^limit_bytes=214748364800$"
+      - equal:
+          path: spec.template.spec.volumes[0].ephemeral.volumeClaimTemplate.spec.resources.requests.storage
+          value: "200Gi"
