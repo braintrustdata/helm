@@ -1,0 +1,25 @@
+{{- if gt (int (include "braintrust.automationWriter.replicas" .)) 0 }}
+{{- $aw := include "braintrust.automationWriter.config" . | fromYaml -}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $aw.service.name | default $aw.name }}
+  namespace: {{ include "braintrust.namespace" . }}
+  {{- with (merge (deepCopy $aw.labels) .Values.global.labels) }}
+  labels:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with $aw.annotations.service }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  selector:
+    app: {{ $aw.name }}
+  ports:
+    - name: {{ $aw.service.portName }}
+      protocol: TCP
+      port: {{ $aw.service.port }}
+      targetPort: {{ $aw.port }}
+  type: {{ $aw.service.type }}
+{{- end }}

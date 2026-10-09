@@ -44,6 +44,10 @@ An API-only image bump must not silently accept the still-old Brainstore fleet.
 {{- $config := index $.Values.brainstore $role -}}
 {{- $targets = append $targets (dict "deployment" $config.name "container" (printf "brainstore-%s" $role)) -}}
 {{- end -}}
+{{- if gt (int (include "braintrust.automationWriter.replicas" .)) 0 -}}
+{{- $aw := include "braintrust.automationWriter.config" . | fromYaml -}}
+{{- $targets = append $targets (dict "deployment" $aw.name "container" "brainstore-automationwriter") -}}
+{{- end -}}
 {{- toJson $targets -}}
 {{- end -}}
 
