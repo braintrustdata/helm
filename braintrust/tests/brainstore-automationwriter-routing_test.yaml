@@ -66,6 +66,20 @@ tests:
       brainstore.automationwriter.routeQueries: false
     asserts: *fallback
 
+  - it: should preserve writer fallback with an empty routing setting
+    template: api-configmap.yaml
+    set:
+      <<: *enabled
+      brainstore.automationwriter.routeQueries: ""
+    asserts: *fallback
+
+  - it: should preserve writer fallback with a zero routing setting
+    template: api-configmap.yaml
+    set:
+      <<: *enabled
+      brainstore.automationwriter.routeQueries: 0
+    asserts: *fallback
+
   - it: should use the custom service port and actual release namespace
     template: api-configmap.yaml
     release:
