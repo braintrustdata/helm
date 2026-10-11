@@ -202,12 +202,12 @@ class FleetTests(unittest.TestCase):
         self.assertEqual(client.deployment.call_count, 2)
         self.assertEqual(clock.now, 15)
 
-    def test_checks_all_three_roles_and_includes_stray_service_backends(self):
+    def test_checks_all_four_roles_and_includes_stray_service_backends(self):
         client = Mock()
         targets = []
         deployments = []
         pod_sets = []
-        for role in ("reader", "writer", "fastreader"):
+        for role in ("reader", "writer", "fastreader", "automationwriter"):
             name = "custom-" + role
             container = "brainstore-" + role
             targets.append({"deployment": name, "container": container})
@@ -224,9 +224,17 @@ class FleetTests(unittest.TestCase):
         client.pods.side_effect = pod_sets
         reason = gate.check_fleet(client, targets, (2, 15, 0), 100)
         self.assertIsNone(reason)
-        self.assertEqual(client.deployment.call_count, 3)
+        self.assertEqual(client.deployment.call_count, 4)
         self.assertEqual([call.args[0] for call in client.pods.call_args_list],
-                         ["app=custom-reader", "app=custom-writer", "app=custom-fastreader"])
+                         ["app=custom-reader", "app=custom-writer", "app=custom-fastreader",
+                          "app=custom-automationwriter"])
+        # Ready readers and writers cannot release an API while its automation
+        # query backend is still starting.
+        pod_sets[-1][0]["status"]["containerStatuses"][0]["ready"] = False
+        client.deployment.side_effect = deployments
+        client.pods.side_effect = pod_sets
+        reason = gate.check_fleet(client, targets, (2, 15, 0), 100)
+        self.assertIn("custom-automationwriter: waiting", reason)
         # A manually labelled Pod can receive Service traffic without belonging
         # to a ReplicaSet, so it must not be filtered out by owner references.
         stray = pod("v2.14.0", "stray")

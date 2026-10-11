@@ -1,0 +1,166 @@
+suite: test Brainstore Automation Writer service
+templates:
+  - brainstore-automationwriter-service.yaml
+tests:
+  - it: should omit the service when the pool is disabled
+    asserts: &absent
+      - hasDocuments:
+          count: 0
+
+  - it: should omit the service with a missing pool from reused values
+    values:
+      - __fixtures__/pre-automationwriter-values.yaml
+    asserts: *absent
+
+  - it: should omit the service with null replicas
+    set:
+      brainstore.automationwriter.replicas: null
+    asserts: *absent
+
+  - it: should omit the service with empty replicas
+    set:
+      brainstore.automationwriter.replicas: ""
+    asserts: *absent
+
+  - it: should expose only the enabled automation writer pods
+    set: &enabled
+      brainstore.automationwriter.replicas: 1
+    asserts:
+      - isKind:
+          of: Service
+      - equal:
+          path: metadata.name
+          value: brainstore-automationwriter
+      - equal:
+          path: spec
+          value:
+            selector:
+              app: brainstore-automationwriter
+            ports:
+              - name: http
+                protocol: TCP
+                port: 4000
+                targetPort: 4000
+            type: ClusterIP
+
+  - it: should resolve service defaults on a partial reused pool
+    values:
+      - __fixtures__/reuse-automationwriter-replicas-values.yaml
+    asserts:
+      - equal:
+          path: metadata.name
+          value: brainstore-automationwriter
+      - equal:
+          path: spec.ports[0].targetPort
+          value: 4000
+
+  - it: should resolve missing service and annotation maps
+    set:
+      <<: *enabled
+      brainstore.automationwriter.service: null
+      brainstore.automationwriter.annotations: null
+    asserts:
+      - equal:
+          path: metadata.name
+          value: brainstore-automationwriter
+      - equal:
+          path: spec.ports[0].port
+          value: 4000
+
+  - it: should distinguish the service port from the existing listen port
+    release:
+      namespace: release-namespace
+    set:
+      <<: *enabled
+      global.createNamespace: false
+      global.namespace: different-namespace
+      brainstore.automationwriter.name: custom-pool
+      brainstore.automationwriter.port: 4100
+      brainstore.automationwriter.service.name: custom-service
+      brainstore.automationwriter.service.port: 4200
+      brainstore.automationwriter.service.portName: queries
+      brainstore.automationwriter.annotations.service:
+        custom-annotation: custom-value
+    asserts:
+      - equal:
+          path: metadata.name
+          value: custom-service
+      - equal:
+          path: metadata.namespace
+          value: release-namespace
+      - equal:
+          path: metadata.annotations.custom-annotation
+          value: custom-value
+      - equal:
+          path: spec.selector.app
+          value: custom-pool
+      - equal:
+          path: spec.ports[0]
+          value:
+            name: queries
+            protocol: TCP
+            port: 4200
+            targetPort: 4100
+
+  - it: should use the pool name and created namespace with an empty service name
+    set:
+      <<: *enabled
+      global.createNamespace: true
+      global.namespace: created-namespace
+      brainstore.automationwriter.name: custom-pool
+      brainstore.automationwriter.service.name: ""
+    asserts:
+      - equal:
+          path: metadata.name
+          value: custom-pool
+      - equal:
+          path: metadata.namespace
+          value: created-namespace
+
+  - it: should render with a release without v image tag
+    set:
+      <<: *enabled
+      brainstore.image.tag: "2.16.0"
+    asserts:
+      - hasDocuments:
+          count: 1
+
+  - it: should render with a full commit SHA image tag
+    set:
+      <<: *enabled
+      brainstore.image.tag: "0123456789abcdef0123456789abcdef0123456789"
+    asserts:
+      - hasDocuments:
+          count: 1
+
+  - it: should render with a short commit SHA image tag
+    set:
+      <<: *enabled
+      brainstore.image.tag: "deadbeef"
+    asserts:
+      - hasDocuments:
+          count: 1
+
+  - it: should render with a all-digit short commit SHA image tag
+    set:
+      <<: *enabled
+      brainstore.image.tag: "1234567"
+    asserts:
+      - hasDocuments:
+          count: 1
+
+  - it: should render with a pre-release image tag
+    set:
+      <<: *enabled
+      brainstore.image.tag: "v2.18.0-rc.1"
+    asserts:
+      - hasDocuments:
+          count: 1
+
+  - it: should render with a custom image tag
+    set:
+      <<: *enabled
+      brainstore.image.tag: "automation-routing-canary"
+    asserts:
+      - hasDocuments:
+          count: 1

@@ -10,6 +10,7 @@ brainstore:
     podLabels: null
     annotations: null
     replicas: 1
+    service: null
     minReadySeconds: null
     progressDeadlineSeconds: null
     strategy: null

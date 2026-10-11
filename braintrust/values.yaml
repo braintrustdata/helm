@@ -604,8 +604,10 @@ brainstore:
   # release tag (vX.Y.Z) older than v2.16.0. Commit SHAs and other custom tags
   # are not checked; make sure such an image includes v2.16.0.
   # When enabled (replicas > 0), the regular writer pool is automatically
-  # configured to exclude automations. Disabled by default (replicas: 0) so
-  # existing deployments are unaffected. This option is not recommended for most
+  # configured to exclude automations, and the API receives this pool's query
+  # endpoint. A compatible API release decides which queries use the endpoint.
+  # Disabled by default (replicas: 0), preserving existing deployments.
+  # This option is not recommended for most
   # deployments; enable it only with guidance from Braintrust support.
   automationwriter:
     name: "brainstore-automationwriter"
@@ -614,6 +616,7 @@ brainstore:
     annotations:
       configmap: {}
       deployment: {}
+      service: {}
       pod: {}
     replicas: 0
     minReadySeconds: 0
@@ -625,6 +628,11 @@ brainstore:
         maxUnavailable: 0
     # Listen port for BRAINSTORE_PORT, the container port, and health probes.
     port: 4000
+    service:
+      name: ""
+      type: ClusterIP
+      port: 4000
+      portName: http
     resources:
       requests:
         cpu: "32"

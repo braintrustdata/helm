@@ -151,7 +151,7 @@ brainstore:
     extraEnvVars:
 
   # Brainstore Automation Writer configuration
-  # Optional, dedicated automations writer pool. No Service is created for it.
+  # Optional, dedicated automations writer pool with an internal Service when enabled.
   # Disabled by default (replicas: 0); scale up to opt in.
   automationwriter:
     name: "brainstore-automationwriter"
