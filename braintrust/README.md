@@ -390,14 +390,13 @@ existing `brainstore.automationwriter.port`. The API receives
 `BRAINSTORE_AUTOMATION_WRITER_URL` whenever the pool has replicas. A compatible
 API release decides which queries use this endpoint. With no replicas, the URL
 is omitted and the API falls back to the regular writers.
-The API startup gate includes every enabled automation writer pool and waits
-for compatible, available pods before starting new API processes.
+The API startup gate covers readers, writers, and fast readers.
 
 The include/exclude split follows `brainstore.automationwriter.replicas` in the
 Helm values. `kubectl scale` or an autoscaler changes the live pod count only;
 it does not move automations between pools.
 
-If the startup gate is disabled, ensure the pool and Service are ready before
+Ensure the pool and Service are ready before
 deploying an API release that uses the endpoint. Coordinate API routing changes
 before scaling the pool to zero: running API processes retain their endpoint
 until restarted. The regular writers keep `exclude:automations` until their

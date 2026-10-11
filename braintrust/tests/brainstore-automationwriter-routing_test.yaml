@@ -1,4 +1,4 @@
-suite: test automation query routing and startup readiness
+suite: test automation query endpoint and API startup targets
 templates:
   - api-configmap.yaml
   - api-deployment.yaml
@@ -87,28 +87,37 @@ tests:
           path: data.BRAINSTORE_AUTOMATION_WRITER_URL
           value: http://custom-pool.created-namespace:4000
 
-  - it: should wait for enabled automation writers before API startup
+  - it: should preserve existing API startup targets with automation writers enabled
     template: api-deployment.yaml
     set:
       <<: *enabled
       brainstore.automationwriter.name: custom-pool
-    asserts: &gated
+    asserts: &startup-targets
       - contains:
           path: spec.template.spec.initContainers[0].env
           content:
             name: BRAINSTORE_DEPLOYMENTS
-            value: '[{"container":"brainstore-reader","deployment":"brainstore-reader"},{"container":"brainstore-writer","deployment":"brainstore-writer"},{"container":"brainstore-fastreader","deployment":"brainstore-fastreader"},{"container":"brainstore-automationwriter","deployment":"custom-pool"}]'
+            value: '[{"container":"brainstore-reader","deployment":"brainstore-reader"},{"container":"brainstore-writer","deployment":"brainstore-writer"},{"container":"brainstore-fastreader","deployment":"brainstore-fastreader"}]'
 
-  - it: should gate the background API pool against automation writers
+  - it: should preserve background API startup targets with automation writers enabled
     template: api-deployment.yaml
     documentIndex: 2
     set:
       <<: *enabled
       api.workloadIsolation.enabled: true
       brainstore.automationwriter.name: custom-pool
-    asserts: *gated
+    asserts: *startup-targets
 
-  - it: should grant reads for the same custom automation deployment
+  - it: should preserve ingest API startup targets with automation writers enabled
+    template: api-deployment.yaml
+    documentIndex: 1
+    set:
+      <<: *enabled
+      api.workloadIsolation.enabled: true
+      brainstore.automationwriter.name: custom-pool
+    asserts: *startup-targets
+
+  - it: should preserve gate permissions with a custom automation deployment enabled
     template: brainstore-startup-gate-rbac.yaml
     documentIndex: 0
     set:
@@ -117,9 +126,9 @@ tests:
     asserts:
       - equal:
           path: rules[0].resourceNames
-          value: [brainstore-reader, brainstore-writer, brainstore-fastreader, custom-pool]
+          value: [brainstore-reader, brainstore-writer, brainstore-fastreader]
 
-  - it: should resolve gate targets from a partial reused pool
+  - it: should preserve gate permissions with a partial reused pool enabled
     template: brainstore-startup-gate-rbac.yaml
     documentIndex: 0
     values:
@@ -127,28 +136,23 @@ tests:
     asserts:
       - equal:
           path: rules[0].resourceNames
-          value: [brainstore-reader, brainstore-writer, brainstore-fastreader, brainstore-automationwriter]
+          value: [brainstore-reader, brainstore-writer, brainstore-fastreader]
 
   - it: should omit disabled automation writers from gate targets
     template: api-deployment.yaml
-    asserts: &ungated-pool
-      - contains:
-          path: spec.template.spec.initContainers[0].env
-          content:
-            name: BRAINSTORE_DEPLOYMENTS
-            value: '[{"container":"brainstore-reader","deployment":"brainstore-reader"},{"container":"brainstore-writer","deployment":"brainstore-writer"},{"container":"brainstore-fastreader","deployment":"brainstore-fastreader"}]'
+    asserts: *startup-targets
 
   - it: should omit a missing reused pool from gate targets
     template: api-deployment.yaml
     values:
       - __fixtures__/pre-automationwriter-values.yaml
-    asserts: *ungated-pool
+    asserts: *startup-targets
 
   - it: should omit null replicas from gate targets
     template: api-deployment.yaml
     set:
       brainstore.automationwriter.replicas: null
-    asserts: *ungated-pool
+    asserts: *startup-targets
 
   - it: should omit empty replicas from gate permissions
     template: brainstore-startup-gate-rbac.yaml
