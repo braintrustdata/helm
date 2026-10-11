@@ -206,7 +206,6 @@ annotations:
   service: {}
   pod: {}
 replicas: 0
-routeQueries: true
 minReadySeconds: 0
 progressDeadlineSeconds: 600
 strategy:

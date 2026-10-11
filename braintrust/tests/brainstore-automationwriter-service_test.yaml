@@ -43,14 +43,6 @@ tests:
                 targetPort: 4000
             type: ClusterIP
 
-  - it: should keep the service when query routing is staged off
-    set:
-      <<: *enabled
-      brainstore.automationwriter.routeQueries: false
-    asserts:
-      - hasDocuments:
-          count: 1
-
   - it: should resolve service defaults on a partial reused pool
     values:
       - __fixtures__/reuse-automationwriter-replicas-values.yaml

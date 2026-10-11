@@ -30,7 +30,7 @@ tests:
       brainstore.automationwriter.replicas: ""
     asserts: *fallback
 
-  - it: should activate routing for an enabled pool by default
+  - it: should publish the endpoint whenever the pool is enabled
     template: api-configmap.yaml
     release:
       namespace: braintrust
@@ -41,7 +41,7 @@ tests:
           path: data.BRAINSTORE_AUTOMATION_WRITER_URL
           value: http://brainstore-automationwriter.braintrust:4000
 
-  - it: should resolve routing defaults on a partial reused pool
+  - it: should publish the endpoint from a partial reused pool
     template: api-configmap.yaml
     release:
       namespace: braintrust
@@ -49,36 +49,14 @@ tests:
       - __fixtures__/reuse-automationwriter-replicas-values.yaml
     asserts: *routed
 
-  - it: should resolve null new routing and service settings to defaults
+  - it: should resolve null service settings to defaults
     template: api-configmap.yaml
     release:
       namespace: braintrust
     set:
       <<: *enabled
-      brainstore.automationwriter.routeQueries: null
       brainstore.automationwriter.service: null
     asserts: *routed
-
-  - it: should allow staging and rollback while the pool still has replicas
-    template: api-configmap.yaml
-    set:
-      <<: *enabled
-      brainstore.automationwriter.routeQueries: false
-    asserts: *fallback
-
-  - it: should preserve writer fallback with an empty routing setting
-    template: api-configmap.yaml
-    set:
-      <<: *enabled
-      brainstore.automationwriter.routeQueries: ""
-    asserts: *fallback
-
-  - it: should preserve writer fallback with a zero routing setting
-    template: api-configmap.yaml
-    set:
-      <<: *enabled
-      brainstore.automationwriter.routeQueries: 0
-    asserts: *fallback
 
   - it: should use the custom service port and actual release namespace
     template: api-configmap.yaml
@@ -109,12 +87,11 @@ tests:
           path: data.BRAINSTORE_AUTOMATION_WRITER_URL
           value: http://custom-pool.created-namespace:4000
 
-  - it: should wait for enabled automation writers even before routing activation
+  - it: should wait for enabled automation writers before API startup
     template: api-deployment.yaml
     set:
       <<: *enabled
       brainstore.automationwriter.name: custom-pool
-      brainstore.automationwriter.routeQueries: false
     asserts: &gated
       - contains:
           path: spec.template.spec.initContainers[0].env

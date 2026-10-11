@@ -387,29 +387,23 @@ The writer nodes partition the loops through `BRAINSTORE_WRITER_LOOP_CONFIG`:
 With replicas above zero, the chart creates an internal Service. Its port is
 `brainstore.automationwriter.service.port` (default 4000), forwarding to the
 existing `brainstore.automationwriter.port`. The API receives
-`BRAINSTORE_AUTOMATION_WRITER_URL` when `routeQueries` is true (the default).
-When routing is disabled or the pool has no replicas, the URL is omitted and
-the API falls back to the regular writers. Query routing requires a compatible
-API release with automation-writer query routing support.
-The API startup gate includes every enabled automation writer pool, including
-when query routing is disabled, and waits for compatible, available pods.
+`BRAINSTORE_AUTOMATION_WRITER_URL` whenever the pool has replicas. A compatible
+API release decides which queries use this endpoint. With no replicas, the URL
+is omitted and the API falls back to the regular writers.
+The API startup gate includes every enabled automation writer pool and waits
+for compatible, available pods before starting new API processes.
 
 The include/exclude split follows `brainstore.automationwriter.replicas` in the
 Helm values. `kubectl scale` or an autoscaler changes the live pod count only;
 it does not move automations between pools.
 
-For an existing deployment, set `replicas` above zero with `routeQueries: false`
-to stage the pool, then set `routeQueries: true` after its pods and Service are
-ready. With the startup gate enabled, new API processes wait for the pool; if
-the gate is disabled, always stage it before activating routing.
-
-To turn the pool off, first set `routeQueries: false` and wait for all API pools
-to finish rolling back to regular-writer routing. Then set `replicas: 0`.
-Setting replicas to zero in the same update as disabling routing can break
-queries from old API pods that still have the automation writer URL. The
-regular writers keep `exclude:automations` until their rollout finishes, so
-automations pause until those new writer pods are Ready. Turning the pool on
-briefly runs automations on both pools until the regular writers roll.
+If the startup gate is disabled, ensure the pool and Service are ready before
+deploying an API release that uses the endpoint. Coordinate API routing changes
+before scaling the pool to zero: running API processes retain their endpoint
+until restarted. The regular writers keep `exclude:automations` until their
+rollout finishes, so automations pause until those new writer pods are Ready.
+Turning the pool on briefly runs automations on both pools until the regular
+writers roll.
 
 The pool requires Brainstore `v2.16.0` or newer. That is the first image that
 honors `BRAINSTORE_WRITER_LOOP_CONFIG`. When `brainstore.image.tag` is a release

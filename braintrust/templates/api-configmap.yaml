@@ -82,9 +82,7 @@ data:
   BRAINSTORE_WRITER_URL: "http://{{ .Values.brainstore.writer.service.name | default .Values.brainstore.writer.name }}.{{ .Values.global.namespace }}:{{ .Values.brainstore.writer.service.port }}"
   {{- if gt (int (include "braintrust.automationWriter.replicas" .)) 0 }}
   {{- $aw := include "braintrust.automationWriter.config" . | fromYaml }}
-  {{- if $aw.routeQueries }}
   BRAINSTORE_AUTOMATION_WRITER_URL: "http://{{ $aw.service.name | default $aw.name }}.{{ include "braintrust.namespace" . }}:{{ $aw.service.port }}"
-  {{- end }}
   {{- end }}
   BRAINSTORE_BACKFILL_DISABLE_HISTORICAL: {{ .Values.api.backfillDisableHistorical | quote }}
   BRAINSTORE_BACKFILL_DISABLE_NONHISTORICAL: {{ .Values.api.backfillDisableNonhistorical | quote }}

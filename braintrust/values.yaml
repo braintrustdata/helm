@@ -604,9 +604,8 @@ brainstore:
   # release tag (vX.Y.Z) older than v2.16.0. Commit SHAs and other custom tags
   # are not checked; make sure such an image includes v2.16.0.
   # When enabled (replicas > 0), the regular writer pool is automatically
-  # configured to exclude automations, and the API routes automation-triggered
-  # queries to this pool when routeQueries is true. Query routing requires a
-  # compatible API release with automation-writer query routing support.
+  # configured to exclude automations, and the API receives this pool's query
+  # endpoint. A compatible API release decides which queries use the endpoint.
   # Disabled by default (replicas: 0), preserving existing deployments.
   # This option is not recommended for most
   # deployments; enable it only with guidance from Braintrust support.
@@ -620,9 +619,6 @@ brainstore:
       service: {}
       pod: {}
     replicas: 0
-    # Set false to stage ready pods before activating query routing, or to roll
-    # APIs back to regular writers before scaling this pool to zero.
-    routeQueries: true
     minReadySeconds: 0
     progressDeadlineSeconds: 600
     strategy:

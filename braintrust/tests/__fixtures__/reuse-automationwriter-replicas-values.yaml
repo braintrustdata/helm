@@ -10,7 +10,6 @@ brainstore:
     podLabels: null
     annotations: null
     replicas: 1
-    routeQueries: null
     service: null
     minReadySeconds: null
     progressDeadlineSeconds: null
