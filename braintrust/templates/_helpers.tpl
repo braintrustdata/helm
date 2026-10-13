@@ -213,7 +213,6 @@ strategy:
   rollingUpdate:
     maxSurge: "100%"
     maxUnavailable: 0
-port: 4000
 service:
   name: ""
   type: ClusterIP

@@ -183,7 +183,7 @@ tests:
     values:
       - __fixtures__/base-values.yaml
     set:
-      brainstore.automationwriter.port: 4100
+      brainstore.automationwriter.service.port: 4100
       brainstore.livenessProbe:
         httpGet:
           path: /

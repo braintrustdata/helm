@@ -384,9 +384,9 @@ The writer nodes partition the loops through `BRAINSTORE_WRITER_LOOP_CONFIG`:
 - A null or missing `replicas` renders as 0. An empty replica count would
   otherwise make Kubernetes run 1 pod, so both pools would process automations.
 
-With replicas above zero, the chart creates an internal Service. Its port is
-`brainstore.automationwriter.service.port` (default 4000), forwarding to the
-existing `brainstore.automationwriter.port`. The API receives
+With replicas above zero, the chart creates an internal Service.
+`brainstore.automationwriter.service.port` (default 4000) controls the listener, container port, probes, Service port, and API URL.
+The API receives
 `BRAINSTORE_AUTOMATION_WRITER_URL` whenever the pool has replicas. A compatible
 API release decides which queries use this endpoint. With no replicas, the URL
 is omitted and the API falls back to the regular writers.

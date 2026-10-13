@@ -20,6 +20,6 @@ spec:
     - name: {{ $aw.service.portName }}
       protocol: TCP
       port: {{ $aw.service.port }}
-      targetPort: {{ $aw.port }}
+      targetPort: {{ $aw.service.port }}
   type: {{ $aw.service.type }}
 {{- end }}

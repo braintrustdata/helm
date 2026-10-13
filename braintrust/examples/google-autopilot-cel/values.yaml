@@ -176,7 +176,11 @@ brainstore:
   automationwriter:
     name: "brainstore-automationwriter"
     replicas: 0
-    port: 4000
+    service:
+      name: ""
+      type: ClusterIP
+      port: 4000
+      portName: http
     resources:
       requests:
         cpu: "32"

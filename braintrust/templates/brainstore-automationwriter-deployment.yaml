@@ -90,7 +90,7 @@ spec:
           command: ["brainstore"]
           args: ["web"]
           ports:
-            - containerPort: {{ $aw.port }}
+            - containerPort: {{ $aw.service.port }}
           resources:
             {{- include "braintrust.brainstoreResources" (dict
               "root" .
@@ -102,7 +102,7 @@ spec:
           livenessProbe:
             {{- $probe := deepCopy . }}
             {{- if $probe.httpGet }}
-            {{- $_ := set $probe.httpGet "port" $aw.port }}
+            {{- $_ := set $probe.httpGet "port" $aw.service.port }}
             {{- end }}
             {{- toYaml $probe | nindent 12 }}
           {{- end }}
@@ -110,7 +110,7 @@ spec:
           readinessProbe:
             {{- $probe := deepCopy . }}
             {{- if $probe.httpGet }}
-            {{- $_ := set $probe.httpGet "port" $aw.port }}
+            {{- $_ := set $probe.httpGet "port" $aw.service.port }}
             {{- end }}
             {{- toYaml $probe | nindent 12 }}
           {{- end }}

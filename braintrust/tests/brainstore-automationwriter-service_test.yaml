@@ -67,7 +67,7 @@ tests:
           path: spec.ports[0].port
           value: 4000
 
-  - it: should distinguish the service port from the existing listen port
+  - it: uses the same port for the service and listener
     release:
       namespace: release-namespace
     set:
@@ -75,7 +75,6 @@ tests:
       global.createNamespace: false
       global.namespace: different-namespace
       brainstore.automationwriter.name: custom-pool
-      brainstore.automationwriter.port: 4100
       brainstore.automationwriter.service.name: custom-service
       brainstore.automationwriter.service.port: 4200
       brainstore.automationwriter.service.portName: queries
@@ -100,7 +99,7 @@ tests:
             name: queries
             protocol: TCP
             port: 4200
-            targetPort: 4100
+            targetPort: 4200
 
   - it: should use the pool name and created namespace with an empty service name
     set:

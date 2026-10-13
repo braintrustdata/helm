@@ -67,7 +67,6 @@ tests:
       global.createNamespace: false
       global.namespace: different-namespace
       brainstore.automationwriter.name: custom-pool
-      brainstore.automationwriter.port: 4100
       brainstore.automationwriter.service.name: custom-service
       brainstore.automationwriter.service.port: 4200
     asserts:
