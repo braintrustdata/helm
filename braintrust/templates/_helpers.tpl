@@ -203,6 +203,7 @@ podLabels: {}
 annotations:
   configmap: {}
   deployment: {}
+  service: {}
   pod: {}
 replicas: 0
 minReadySeconds: 0
@@ -212,7 +213,11 @@ strategy:
   rollingUpdate:
     maxSurge: "100%"
     maxUnavailable: 0
-port: 4000
+service:
+  name: ""
+  type: ClusterIP
+  port: 4000
+  portName: http
 resources:
   requests:
     cpu: "32"
