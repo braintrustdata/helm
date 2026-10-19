@@ -1,0 +1,115 @@
+suite: API container CPU metrics
+templates:
+  - api-configmap.yaml
+  - api-deployment.yaml
+tests:
+  - it: enables CPU collection on aws
+    template: api-configmap.yaml
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      cloud: aws
+    asserts:
+      - equal:
+          path: data.ENABLE_CONTAINER_CPU_METRICS
+          value: "true"
+  - it: enables CPU collection on google
+    template: api-configmap.yaml
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      cloud: google
+    asserts:
+      - equal:
+          path: data.ENABLE_CONTAINER_CPU_METRICS
+          value: "true"
+  - it: enables CPU collection on azure
+    template: api-configmap.yaml
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      cloud: azure
+    asserts:
+      - equal:
+          path: data.ENABLE_CONTAINER_CPU_METRICS
+          value: "true"
+  - it: shares CPU configuration with the default pool with isolation false
+    template: api-deployment.yaml
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      api.workloadIsolation.enabled: false
+    documentIndex: 0
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].envFrom
+          content:
+            configMapRef:
+              name: braintrust-api
+  - it: shares CPU configuration with the default pool with isolation true
+    template: api-deployment.yaml
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      api.workloadIsolation.enabled: true
+    documentIndex: 0
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].envFrom
+          content:
+            configMapRef:
+              name: braintrust-api
+  - it: shares CPU configuration with the ingest pool with isolation true
+    template: api-deployment.yaml
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      api.workloadIsolation.enabled: true
+    documentIndex: 1
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].envFrom
+          content:
+            configMapRef:
+              name: braintrust-api
+  - it: shares CPU configuration with the background pool with isolation true
+    template: api-deployment.yaml
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      api.workloadIsolation.enabled: true
+    documentIndex: 2
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].envFrom
+          content:
+            configMapRef:
+              name: braintrust-api
+  - it: allows explicitly setting CPU collection to false
+    template: api-deployment.yaml
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      api.extraEnvVars:
+        - name: ENABLE_CONTAINER_CPU_METRICS
+          value: "false"
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: ENABLE_CONTAINER_CPU_METRICS
+            value: "false"
+  - it: allows explicitly setting CPU collection to true
+    template: api-deployment.yaml
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      api.extraEnvVars:
+        - name: ENABLE_CONTAINER_CPU_METRICS
+          value: "true"
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: ENABLE_CONTAINER_CPU_METRICS
+            value: "true"

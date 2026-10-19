@@ -86,6 +86,7 @@ data:
   {{- end }}
   BRAINSTORE_BACKFILL_DISABLE_HISTORICAL: {{ .Values.api.backfillDisableHistorical | quote }}
   BRAINSTORE_BACKFILL_DISABLE_NONHISTORICAL: {{ .Values.api.backfillDisableNonhistorical | quote }}
+  ENABLE_CONTAINER_CPU_METRICS: "true"
   CONTROL_PLANE_TELEMETRY: {{ .Values.global.controlPlaneTelemetry | quote }}
   BRAINSTORE_INSERT_ROW_REFS: "true"
   # Logs v2 table. Requires pg_partman extension (default enabled in our TF modules)
