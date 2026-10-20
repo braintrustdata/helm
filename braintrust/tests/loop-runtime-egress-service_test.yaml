@@ -1,0 +1,94 @@
+suite: test Loop Runtime egress gateway Service template
+templates:
+  - loop-runtime-egress-service.yaml
+tests:
+  - it: should not render when Loop Runtime is disabled
+    values:
+      - __fixtures__/base-values.yaml
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should not render when the egress gateway is disabled
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/google-values.yaml
+      - __fixtures__/loop-runtime-google-values.yaml
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should not render when reused values have no loopRuntime map
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/google-values.yaml
+      - __fixtures__/pre-loop-runtime-values.yaml
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should expose the egress gateway through a ClusterIP Service by default
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/loop-runtime-values.yaml
+    set:
+      loopRuntime.sandbox.egressGateway.enabled: true
+      loopRuntime.sandbox.egressGateway.url: http://egress.vpce.internal:4002
+    release:
+      namespace: braintrust
+    asserts:
+      - isKind:
+          of: Service
+      - equal:
+          path: metadata.name
+          value: braintrust-loop-runtime-egress
+      - equal:
+          path: spec.selector.app
+          value: braintrust-loop-runtime
+      - equal:
+          path: spec.ports[0]
+          value:
+            name: egress
+            protocol: TCP
+            port: 4002
+            targetPort: egress
+      - equal:
+          path: spec.type
+          value: ClusterIP
+      - isNull:
+          path: spec.loadBalancerSourceRanges
+      - isNull:
+          path: metadata.annotations
+
+  - it: should expose the egress gateway through a GKE internal load balancer
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/google-values.yaml
+      - __fixtures__/loop-runtime-google-values.yaml
+    set:
+      loopRuntime.service.name: loop
+      loopRuntime.labels.loop-specific: loop-egress
+      loopRuntime.sandbox.egressGateway.enabled: true
+      loopRuntime.sandbox.egressGateway.url: http://10.10.0.20:4002
+      loopRuntime.sandbox.egressGateway.service.type: LoadBalancer
+      loopRuntime.sandbox.egressGateway.service.annotations:
+        networking.gke.io/load-balancer-type: Internal
+      loopRuntime.sandbox.egressGateway.service.loadBalancerSourceRanges:
+        - 10.64.64.0/24
+    asserts:
+      - equal:
+          path: metadata.name
+          value: loop-egress
+      - equal:
+          path: metadata.labels["loop-specific"]
+          value: loop-egress
+      - equal:
+          path: spec.type
+          value: LoadBalancer
+      - equal:
+          path: metadata.annotations["networking.gke.io/load-balancer-type"]
+          value: Internal
+      - equal:
+          path: spec.loadBalancerSourceRanges
+          value:
+            - 10.64.64.0/24

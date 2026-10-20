@@ -89,3 +89,140 @@ tests:
       - equal:
           path: spec.template.spec.containers[0].readinessProbe.httpGet.port
           value: metrics
+
+  - it: should not use GKE workload identity on AWS
+    template: loop-runtime-deployment.yaml
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/loop-runtime-values.yaml
+    asserts:
+      - isNull:
+          path: spec.template.metadata.labels["gke-workload-identity/use"]
+      - isNull:
+          path: spec.template.metadata.annotations["iam.gke.io/gcp-service-account"]
+      - lengthEqual:
+          path: spec.template.spec.volumes
+          count: 2
+      - lengthEqual:
+          path: spec.template.spec.containers[0].ports
+          count: 1
+
+  - it: should use GKE workload identity and mount Sandbox Service client TLS on Google
+    template: loop-runtime-deployment.yaml
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/google-values.yaml
+      - __fixtures__/loop-runtime-google-values.yaml
+    asserts:
+      - equal:
+          path: spec.template.metadata.labels["gke-workload-identity/use"]
+          value: "true"
+      - equal:
+          path: spec.template.metadata.annotations["iam.gke.io/gcp-service-account"]
+          value: braintrust-loop@test-project.iam.gserviceaccount.com
+      - equal:
+          path: spec.template.spec.serviceAccountName
+          value: braintrust-loop-runtime
+      - isNull:
+          path: spec.template.spec.nodeSelector
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: sandbox-service-tls
+            mountPath: /etc/sandbox-tls
+            readOnly: true
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: sandbox-service-tls
+            secret:
+              secretName: sandbox-client-tls
+              items:
+                - key: client.pem
+                  path: client.pem
+                - key: client.key
+                  path: client.key
+                - key: server-ca.pem
+                  path: server-ca.pem
+
+  - it: should map custom TLS secret keys to the paths Loop Runtime reads
+    template: loop-runtime-deployment.yaml
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/google-values.yaml
+      - __fixtures__/loop-runtime-google-values.yaml
+    set:
+      loopRuntime.sandbox.sandboxService.tls.secretName: cert-manager-client
+      loopRuntime.sandbox.sandboxService.tls.certKey: tls.crt
+      loopRuntime.sandbox.sandboxService.tls.keyKey: tls.key
+      loopRuntime.sandbox.sandboxService.tls.caKey: ca.crt
+    asserts:
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: sandbox-service-tls
+            secret:
+              secretName: cert-manager-client
+              items:
+                - key: tls.crt
+                  path: client.pem
+                - key: tls.key
+                  path: client.key
+                - key: ca.crt
+                  path: server-ca.pem
+
+  - it: should omit the TLS volume for a plain HTTP Sandbox Service endpoint
+    template: loop-runtime-deployment.yaml
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/google-values.yaml
+      - __fixtures__/loop-runtime-google-values.yaml
+    set:
+      loopRuntime.sandbox.sandboxService.dnsUrl: http://sandbox-service.sandbox:9400
+      loopRuntime.sandbox.sandboxService.tls.secretName: ""
+    asserts:
+      - lengthEqual:
+          path: spec.template.spec.volumes
+          count: 2
+      - lengthEqual:
+          path: spec.template.spec.containers[0].volumeMounts
+          count: 2
+
+  - it: should ignore Sandbox Service TLS settings for the MicroVM backend
+    template: loop-runtime-deployment.yaml
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/loop-runtime-values.yaml
+    set:
+      loopRuntime.sandbox.sandboxService.tls.secretName: sandbox-client-tls
+    asserts:
+      - lengthEqual:
+          path: spec.template.spec.volumes
+          count: 2
+
+  - it: should expose the egress gateway container port when enabled
+    template: loop-runtime-deployment.yaml
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/google-values.yaml
+      - __fixtures__/loop-runtime-google-values.yaml
+    set:
+      loopRuntime.sandbox.egressGateway.enabled: true
+      loopRuntime.sandbox.egressGateway.url: http://10.10.0.20:4002
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].ports
+          content:
+            name: egress
+            containerPort: 4002
+            protocol: TCP
+
+  - it: should not render when reused values have no loopRuntime map
+    template: loop-runtime-deployment.yaml
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/google-values.yaml
+      - __fixtures__/pre-loop-runtime-values.yaml
+    asserts:
+      - hasDocuments:
+          count: 0
