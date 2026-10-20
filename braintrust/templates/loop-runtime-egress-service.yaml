@@ -22,7 +22,7 @@ spec:
     - name: egress
       protocol: TCP
       port: {{ $egressGateway.port }}
-      targetPort: egress
+      targetPort: {{ $egressGateway.port }}
   type: {{ $egressGateway.service.type }}
   {{- with $egressGateway.service.loadBalancerSourceRanges }}
   loadBalancerSourceRanges:
