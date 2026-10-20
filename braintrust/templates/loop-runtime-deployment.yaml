@@ -5,10 +5,7 @@
 {{- if eq .Values.cloud "google" -}}
 {{- $_ := set $podLabels "gke-workload-identity/use" "true" -}}
 {{- end -}}
-{{- $sandboxServiceTls := "" -}}
-{{- if eq (include "braintrust.loopRuntime.sandboxBackend" .) "sandboxService" -}}
-{{- $sandboxServiceTls = .Values.loopRuntime.sandbox.sandboxService.tls -}}
-{{- end -}}
+{{- $sandboxServiceTls := .Values.loopRuntime.sandbox.tls -}}
 {{- $egressGateway := .Values.loopRuntime.sandbox.egressGateway -}}
 apiVersion: apps/v1
 kind: Deployment
@@ -147,7 +144,7 @@ spec:
               mountPath: {{ .Values.loopRuntime.stateDir }}
             - name: cache-volume
               mountPath: {{ .Values.loopRuntime.cacheDir }}
-            {{- if and $sandboxServiceTls $sandboxServiceTls.secretName }}
+            {{- if $sandboxServiceTls.secretName }}
             - name: sandbox-service-tls
               mountPath: /etc/sandbox-tls
               readOnly: true
@@ -160,7 +157,7 @@ spec:
           emptyDir: {}
         - name: cache-volume
           emptyDir: {}
-        {{- if and $sandboxServiceTls $sandboxServiceTls.secretName }}
+        {{- if $sandboxServiceTls.secretName }}
         - name: sandbox-service-tls
           secret:
             secretName: {{ $sandboxServiceTls.secretName }}

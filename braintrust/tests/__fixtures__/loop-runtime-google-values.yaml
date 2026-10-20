@@ -1,5 +1,4 @@
-# Loop Runtime on GKE with the Sandbox Service backend. Layer on top of
-# base-values.yaml and google-values.yaml.
+# Loop Runtime on GKE. Layer on top of base-values.yaml and google-values.yaml.
 loopRuntime:
   enabled: true
   image:
@@ -9,7 +8,6 @@ loopRuntime:
     name: "braintrust-loop-runtime"
     googleServiceAccount: "braintrust-loop@test-project.iam.gserviceaccount.com"
   sandbox:
-    sandboxService:
-      dnsUrl: "https://workers.sandbox.internal:9400"
-      tls:
-        secretName: "sandbox-client-tls"
+    dnsUrl: "https://workers.sandbox.internal:9400"
+    tls:
+      secretName: "sandbox-client-tls"

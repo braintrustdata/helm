@@ -21,23 +21,52 @@ The `braintrust-secrets` secret must contain the following keys:
 ## Optional: Loop Runtime
 
 Set `loopRuntime.enabled: true` to run the Loop Runtime service in the cluster.
-It supports `cloud: aws` (EKS) and `cloud: google` (GKE). The cloud's
-Terraform data-plane module creates the runtime identity and the sandbox
-infrastructure; the chart runs the runtime process.
+It supports `cloud: aws` (EKS) and `cloud: google` (GKE). Loop Runtime runs
+agent sandboxes on Braintrust Sandbox Service workers, which it reaches over
+mTLS. The cloud's Terraform data-plane module creates the runtime identity and
+the Sandbox Service infrastructure; the chart runs the runtime process.
 
 The chart reuses the existing `braintrust-secrets` values, reads the same
 Brainstore buckets as the Brainstore pods, adds `LOOP_RUNTIME_URL` to the API,
 and adds `/loop/runtime` routes to the chart-managed Istio VirtualService when
 `virtualService.enabled` is true.
 
-`loopRuntime.sandbox.backend` selects where agent sandboxes run:
+Create a Secret in this namespace with the Sandbox Service client certificate,
+its key, and the server CA, and point `loopRuntime.sandbox.tls.secretName` at
+it. `sandbox.vcpuCount` and `sandbox.memoryMib` must match the per-sandbox
+sizing of the Sandbox Service release.
 
-| Backend | Clouds | Sandboxes run in |
-| --- | --- | --- |
-| `awsLambdaMicrovm` (default on AWS) | `aws` | AWS Lambda MicroVMs |
-| `sandboxService` (default on Google) | `aws`, `google` | Braintrust Sandbox Service workers, reached over mTLS |
+### Google GKE
 
-### AWS EKS with Lambda MicroVMs
+The GKE Terraform module creates a Google service account for Loop Runtime and
+binds it to the `braintrust/braintrust-loop-runtime` Kubernetes service account
+through Workload Identity. Its isolated worker cluster hosts the Sandbox
+Service.
+
+```yaml
+cloud: google
+
+objectStorage:
+  google:
+    brainstoreBucket: "<terraform output brainstore_bucket_name>"
+    apiBucket: "<terraform output braintrust_api_bucket_name>"
+
+loopRuntime:
+  enabled: true
+  serviceAccount:
+    name: braintrust-loop-runtime
+    googleServiceAccount: "<terraform output loop_runtime_service_account>"
+  sandbox:
+    dnsUrl: "<terraform output gke_isolated_workers.discovery.endpoint>"
+    tls:
+      secretName: sandbox-client-tls
+      # Keys in that Secret. Defaults match the Sandbox Service client Secret.
+      certKey: client.pem
+      keyKey: client.key
+      caKey: server-ca.pem
+```
+
+### AWS EKS
 
 ```yaml
 cloud: aws
@@ -54,48 +83,10 @@ loopRuntime:
     # Set for IRSA; leave empty when using an EKS Pod Identity association.
     awsRoleArn: "<Loop Runtime IAM role ARN>"
   sandbox:
-    awsLambdaMicrovm:
-      imageIdentifier: "<terraform output loop_runtime_microvm_image_arn>"
-      region: "<AWS region>"
-      ingressNetworkConnectorArns: "<sandbox ingress connector ARNs>"
-      egressNetworkConnectorArns: "<sandbox egress connector ARNs>"
+    dnsUrl: "https://<Sandbox Service worker discovery name>:9400"
+    tls:
+      secretName: sandbox-client-tls
 ```
-
-### Google GKE with the Sandbox Service
-
-The GKE Terraform module creates a Google service account for Loop Runtime and
-binds it to the `braintrust/braintrust-loop-runtime` Kubernetes service account
-through Workload Identity. Its optional isolated worker cluster hosts the
-Sandbox Service. Install the Sandbox Service release in that cluster, then
-create a Secret in this namespace with the Sandbox Service client certificate,
-its key, and the server CA.
-
-```yaml
-cloud: google
-
-objectStorage:
-  google:
-    brainstoreBucket: "<terraform output brainstore_bucket_name>"
-    apiBucket: "<terraform output braintrust_api_bucket_name>"
-
-loopRuntime:
-  enabled: true
-  serviceAccount:
-    name: braintrust-loop-runtime
-    googleServiceAccount: "<terraform output loop_runtime_service_account>"
-  sandbox:
-    sandboxService:
-      dnsUrl: "<terraform output gke_isolated_workers.discovery.endpoint>"
-      tls:
-        secretName: sandbox-client-tls
-        # Keys in that Secret. Defaults match the Sandbox Service client Secret.
-        certKey: client.pem
-        keyKey: client.key
-        caKey: server-ca.pem
-```
-
-`sandboxService.vcpuCount` and `sandboxService.memoryMib` must match the
-per-sandbox sizing of the Sandbox Service release.
 
 ### Optional sandbox egress gateway
 
