@@ -154,10 +154,7 @@ predates Loop Runtime have no loopRuntime map, which means disabled.
 {{- if (.Values.loopRuntime | default dict).enabled -}}true{{- end -}}
 {{- end -}}
 
-{{/*
-Object-store scheme and Brainstore bucket for Loop Runtime. Matches the
-Brainstore ConfigMaps so both read the same index, WAL, and locks.
-*/}}
+{{/* Loop Runtime object-store URIs. They match the Brainstore ConfigMaps. */}}
 {{- define "braintrust.loopRuntime.brainstoreBucketUri" -}}
 {{- if eq .Values.cloud "google" -}}
 gs://{{ .Values.objectStorage.google.brainstoreBucket }}
@@ -174,10 +171,7 @@ s3://{{ .Values.objectStorage.aws.codeBundleBucket }}
 {{- end -}}
 {{- end -}}
 
-{{/*
-Validate the Loop Runtime configuration. Terraform supplies the identity and
-Sandbox Service infrastructure; Helm supplies the Kubernetes workload.
-*/}}
+{{/* Validate the Loop Runtime configuration. */}}
 {{- define "braintrust.loopRuntime.validate" -}}
 {{- if include "braintrust.loopRuntime.enabled" . -}}
 {{- range (list "image" "service" "serviceAccount" "sandbox") -}}
@@ -199,9 +193,6 @@ Sandbox Service infrastructure; Helm supplies the Kubernetes workload.
 {{- end -}}
 {{- $_ := required "loopRuntime.serviceAccount.name is required when loopRuntime.enabled is true" .Values.loopRuntime.serviceAccount.name -}}
 {{- $urls := $sandbox.urls | default list -}}
-{{- if not (kindIs "slice" $urls) -}}
-{{- fail "loopRuntime.sandbox.urls must be a list of URLs" -}}
-{{- end -}}
 {{- if and $sandbox.dnsUrl $urls -}}
 {{- fail "Set only one of loopRuntime.sandbox.dnsUrl and loopRuntime.sandbox.urls." -}}
 {{- end -}}
@@ -209,24 +200,13 @@ Sandbox Service infrastructure; Helm supplies the Kubernetes workload.
 {{- fail "loopRuntime.sandbox.dnsUrl or loopRuntime.sandbox.urls is required when loopRuntime.enabled is true (GKE: use Terraform output gke_isolated_workers.discovery.endpoint)" -}}
 {{- end -}}
 {{- $_ := required "loopRuntime.sandbox.image is required when loopRuntime.enabled is true" $sandbox.image -}}
-{{- if not (has $sandbox.egressMode (list "restricted" "internet")) -}}
-{{- fail (printf "loopRuntime.sandbox.egressMode must be restricted or internet, got %q" (toString $sandbox.egressMode)) -}}
-{{- end -}}
 {{- range (prepend $urls ($sandbox.dnsUrl | default "")) -}}
 {{- if and . (hasPrefix "https://" .) (not $sandbox.tls.secretName) -}}
 {{- fail "loopRuntime.sandbox.tls.secretName is required for https:// Sandbox Service endpoints" -}}
 {{- end -}}
 {{- end -}}
-{{- if $sandbox.tls.secretName -}}
-{{- $_ := required "loopRuntime.sandbox.tls.certKey is required when tls.secretName is set" $sandbox.tls.certKey -}}
-{{- $_ := required "loopRuntime.sandbox.tls.keyKey is required when tls.secretName is set" $sandbox.tls.keyKey -}}
-{{- $_ := required "loopRuntime.sandbox.tls.caKey is required when tls.secretName is set" $sandbox.tls.caKey -}}
-{{- end -}}
 {{- if $sandbox.egressGateway.enabled -}}
 {{- $_ := required "loopRuntime.sandbox.egressGateway.url is required when loopRuntime.sandbox.egressGateway.enabled is true" $sandbox.egressGateway.url -}}
-{{- if eq (int $sandbox.egressGateway.port) (int .Values.loopRuntime.service.port) -}}
-{{- fail "loopRuntime.sandbox.egressGateway.port must differ from loopRuntime.service.port" -}}
-{{- end -}}
 {{- end -}}
 {{- end -}}
 {{- end -}}
@@ -234,11 +214,6 @@ Sandbox Service infrastructure; Helm supplies the Kubernetes workload.
 {{/* Internal cluster URL for the Loop Runtime service. */}}
 {{- define "braintrust.loopRuntimeInternalUrl" -}}
 http://{{ .Values.loopRuntime.service.name | default .Values.loopRuntime.name }}.{{ include "braintrust.namespace" . }}:{{ .Values.loopRuntime.service.port }}
-{{- end -}}
-
-{{/* Service that exposes the Loop Runtime sandbox egress gateway. */}}
-{{- define "braintrust.loopRuntimeEgressServiceName" -}}
-{{- printf "%s-egress" (.Values.loopRuntime.service.name | default .Values.loopRuntime.name) -}}
 {{- end -}}
 
 {{/* Stable Redis key namespace for a Helm-managed Loop Runtime. */}}
