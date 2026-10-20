@@ -101,9 +101,6 @@ tests:
       - isNull:
           path: spec.template.metadata.annotations["iam.gke.io/gcp-service-account"]
       - lengthEqual:
-          path: spec.template.spec.volumes
-          count: 2
-      - lengthEqual:
           path: spec.template.spec.containers[0].ports
           count: 1
 
@@ -152,10 +149,10 @@ tests:
       - __fixtures__/google-values.yaml
       - __fixtures__/loop-runtime-google-values.yaml
     set:
-      loopRuntime.sandbox.sandboxService.tls.secretName: cert-manager-client
-      loopRuntime.sandbox.sandboxService.tls.certKey: tls.crt
-      loopRuntime.sandbox.sandboxService.tls.keyKey: tls.key
-      loopRuntime.sandbox.sandboxService.tls.caKey: ca.crt
+      loopRuntime.sandbox.tls.secretName: cert-manager-client
+      loopRuntime.sandbox.tls.certKey: tls.crt
+      loopRuntime.sandbox.tls.keyKey: tls.key
+      loopRuntime.sandbox.tls.caKey: ca.crt
     asserts:
       - contains:
           path: spec.template.spec.volumes
@@ -178,8 +175,8 @@ tests:
       - __fixtures__/google-values.yaml
       - __fixtures__/loop-runtime-google-values.yaml
     set:
-      loopRuntime.sandbox.sandboxService.dnsUrl: http://sandbox-service.sandbox:9400
-      loopRuntime.sandbox.sandboxService.tls.secretName: ""
+      loopRuntime.sandbox.dnsUrl: http://sandbox-service.sandbox:9400
+      loopRuntime.sandbox.tls.secretName: ""
     asserts:
       - lengthEqual:
           path: spec.template.spec.volumes
@@ -188,17 +185,21 @@ tests:
           path: spec.template.spec.containers[0].volumeMounts
           count: 2
 
-  - it: should ignore Sandbox Service TLS settings for the MicroVM backend
+  - it: should mount Sandbox Service client TLS on AWS
     template: loop-runtime-deployment.yaml
     values:
       - __fixtures__/base-values.yaml
       - __fixtures__/loop-runtime-values.yaml
-    set:
-      loopRuntime.sandbox.sandboxService.tls.secretName: sandbox-client-tls
     asserts:
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: sandbox-service-tls
+            mountPath: /etc/sandbox-tls
+            readOnly: true
       - lengthEqual:
           path: spec.template.spec.volumes
-          count: 2
+          count: 3
 
   - it: should expose the egress gateway container port when enabled
     template: loop-runtime-deployment.yaml

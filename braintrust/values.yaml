@@ -309,8 +309,8 @@ api:
   extraVolumes: []
 
 # Loop Runtime configuration (AWS EKS and Google GKE)
-# The cloud's Terraform module creates the runtime identity and the sandbox
-# infrastructure; this chart runs the Loop Runtime process in Kubernetes.
+# The cloud's Terraform module creates the runtime identity and the Sandbox
+# Service infrastructure; this chart runs the Loop Runtime process in Kubernetes.
 loopRuntime:
   enabled: false
   name: "braintrust-loop-runtime"
@@ -391,56 +391,38 @@ loopRuntime:
   nodeSelector: {}
   tolerations: []
   affinity: {}
+  # Loop Runtime runs agent sandboxes on Braintrust Sandbox Service workers,
+  # reached over mTLS. On GKE the workers run in the Terraform-managed isolated
+  # worker cluster; on AWS they run on the Sandbox Service EKS cluster.
   sandbox:
-    # Where Loop Runtime runs agent sandboxes:
-    #   awsLambdaMicrovm - AWS Lambda MicroVMs. Requires cloud: aws.
-    #   sandboxService   - Braintrust Sandbox Service workers reached over mTLS.
-    #                      Works on any cloud; on GKE the workers run in the
-    #                      Terraform-managed isolated worker cluster.
-    # Empty selects awsLambdaMicrovm on AWS and sandboxService on Google.
-    backend: ""
-    awsLambdaMicrovm:
-      # These values come from Terraform outputs. They are required for this backend.
-      imageIdentifier: ""
-      # Optional. Pins sandboxes to one published MicroVM image version.
-      imageVersion: ""
-      region: ""
-      ingressNetworkConnectorArns: ""
-      egressNetworkConnectorArns: ""
-      maxIdleDurationSeconds: 900
-      suspendedDurationSeconds: 28800
-      autoResumeEnabled: true
-      maximumDurationSeconds: 28800
-      authTokenExpirationMinutes: 30
-      runtimePort: 8080
-      executionRoleArn: ""
-      allowExecutionRole: false
-    sandboxService:
-      # Set exactly one. dnsUrl discovers every worker behind one headless DNS
-      # name (GKE: Terraform output gke_isolated_workers.discovery.endpoint).
-      # urls lists fixed worker endpoints instead.
-      dnsUrl: ""
-      urls: []
-      # Sandbox guest image the workers start.
-      image: "public.ecr.aws/braintrust/codex-runtime:latest"
-      # Must match the Sandbox Service release's per-sandbox sizing.
-      vcpuCount: 1
-      memoryMib: 2048
-      tls:
-        # Kubernetes Secret with the Sandbox Service client certificate, its
-        # key, and the server CA. Required for https:// endpoints.
-        secretName: ""
-        certKey: client.pem
-        keyKey: client.key
-        caKey: server-ca.pem
+    # Set exactly one. dnsUrl discovers every worker behind one headless DNS
+    # name (GKE: Terraform output gke_isolated_workers.discovery.endpoint).
+    # urls lists fixed worker endpoints instead.
+    dnsUrl: ""
+    urls: []
+    # Sandbox guest image the workers start.
+    image: "public.ecr.aws/braintrust/codex-runtime:latest"
+    # Must match the Sandbox Service release's per-sandbox sizing.
+    vcpuCount: 1
+    memoryMib: 2048
+    # "restricted" permits only configured integrations; "internet" permits
+    # public destinations.
+    egressMode: "restricted"
+    tls:
+      # Kubernetes Secret with the Sandbox Service client certificate, its key,
+      # and the server CA. Required for https:// endpoints.
+      secretName: ""
+      certKey: client.pem
+      keyKey: client.key
+      caKey: server-ca.pem
     # Optional forward proxy that sandboxes use for brokered Git access. When
-    # enabled, Loop Runtime listens on port and advertises url to sandboxes.
+    # enabled, Loop Runtime listens on port and advertises url to the workers.
     egressGateway:
       enabled: false
       port: 4002
-      # Address sandboxes use to reach this proxy, e.g. http://<lb-address>:4002.
+      # Address the workers use to reach this proxy, e.g. http://<lb-address>:4002.
       url: ""
-      # Dedicated Service for the proxy port. Sandboxes usually run outside this
+      # Dedicated Service for the proxy port. The workers run outside this
       # cluster, so expose it through an internal load balancer. For GKE, set
       # type LoadBalancer with the networking.gke.io/load-balancer-type:
       # "Internal" annotation and restrict loadBalancerSourceRanges to the
