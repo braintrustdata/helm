@@ -31,3 +31,22 @@ tests:
       - equal:
           path: spec.type
           value: ClusterIP
+
+  - it: should expose the runtime port on GKE
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/google-values.yaml
+      - __fixtures__/loop-runtime-google-values.yaml
+    asserts:
+      - equal:
+          path: spec.ports[0].port
+          value: 4001
+
+  - it: should not render when reused values have no loopRuntime map
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/google-values.yaml
+      - __fixtures__/pre-loop-runtime-values.yaml
+    asserts:
+      - hasDocuments:
+          count: 0

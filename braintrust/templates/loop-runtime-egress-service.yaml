@@ -1,0 +1,31 @@
+{{- include "braintrust.loopRuntime.validate" . -}}
+{{- if and (include "braintrust.loopRuntime.enabled" .) .Values.loopRuntime.sandbox.egressGateway.enabled -}}
+{{- $resourceLabels := mergeOverwrite (deepCopy .Values.global.labels) (deepCopy .Values.loopRuntime.labels) -}}
+{{- $egressGateway := .Values.loopRuntime.sandbox.egressGateway -}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "braintrust.loopRuntimeEgressServiceName" . }}
+  namespace: {{ include "braintrust.namespace" . }}
+  {{- with $resourceLabels }}
+  labels:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with $egressGateway.service.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  selector:
+    app: {{ .Values.loopRuntime.name }}
+  ports:
+    - name: egress
+      protocol: TCP
+      port: {{ $egressGateway.port }}
+      targetPort: egress
+  type: {{ $egressGateway.service.type }}
+  {{- with $egressGateway.service.loadBalancerSourceRanges }}
+  loadBalancerSourceRanges:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- end }}

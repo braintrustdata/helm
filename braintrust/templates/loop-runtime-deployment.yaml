@@ -1,7 +1,15 @@
 {{- include "braintrust.loopRuntime.validate" . -}}
-{{- if .Values.loopRuntime.enabled -}}
+{{- if include "braintrust.loopRuntime.enabled" . -}}
 {{- $resourceLabels := mergeOverwrite (deepCopy .Values.global.labels) (deepCopy .Values.loopRuntime.labels) -}}
 {{- $podLabels := mergeOverwrite (deepCopy .Values.global.labels) (deepCopy .Values.loopRuntime.labels) (deepCopy .Values.loopRuntime.podLabels) (dict "app" .Values.loopRuntime.name) -}}
+{{- if eq .Values.cloud "google" -}}
+{{- $_ := set $podLabels "gke-workload-identity/use" "true" -}}
+{{- end -}}
+{{- $sandboxServiceTls := "" -}}
+{{- if eq (include "braintrust.loopRuntime.sandboxBackend" .) "sandboxService" -}}
+{{- $sandboxServiceTls = .Values.loopRuntime.sandbox.sandboxService.tls -}}
+{{- end -}}
+{{- $egressGateway := .Values.loopRuntime.sandbox.egressGateway -}}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -31,6 +39,9 @@ spec:
         {{- toYaml $podLabels | nindent 8 }}
       annotations:
         checksum/config: {{ include (print $.Template.BasePath "/loop-runtime-configmap.yaml") . | sha256sum }}
+        {{- if eq .Values.cloud "google" }}
+        iam.gke.io/gcp-service-account: {{ .Values.loopRuntime.serviceAccount.googleServiceAccount }}
+        {{- end }}
         {{- with .Values.loopRuntime.annotations.pod }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
@@ -64,6 +75,11 @@ spec:
             - name: {{ .Values.loopRuntime.service.portName }}
               containerPort: {{ .Values.loopRuntime.service.port }}
               protocol: TCP
+            {{- if $egressGateway.enabled }}
+            - name: egress
+              containerPort: {{ $egressGateway.port }}
+              protocol: TCP
+            {{- end }}
           resources:
             {{- toYaml .Values.loopRuntime.resources | nindent 12 }}
           {{- with .Values.loopRuntime.livenessProbe }}
@@ -131,6 +147,11 @@ spec:
               mountPath: {{ .Values.loopRuntime.stateDir }}
             - name: cache-volume
               mountPath: {{ .Values.loopRuntime.cacheDir }}
+            {{- if and $sandboxServiceTls $sandboxServiceTls.secretName }}
+            - name: sandbox-service-tls
+              mountPath: /etc/sandbox-tls
+              readOnly: true
+            {{- end }}
       {{- with .Values.loopRuntime.extraContainers }}
       {{- toYaml . | nindent 8 }}
       {{- end }}
@@ -139,6 +160,18 @@ spec:
           emptyDir: {}
         - name: cache-volume
           emptyDir: {}
+        {{- if and $sandboxServiceTls $sandboxServiceTls.secretName }}
+        - name: sandbox-service-tls
+          secret:
+            secretName: {{ $sandboxServiceTls.secretName }}
+            items:
+              - key: {{ $sandboxServiceTls.certKey }}
+                path: client.pem
+              - key: {{ $sandboxServiceTls.keyKey }}
+                path: client.key
+              - key: {{ $sandboxServiceTls.caKey }}
+                path: server-ca.pem
+        {{- end }}
         {{- with .Values.loopRuntime.extraVolumes }}
         {{- toYaml . | nindent 8 }}
         {{- end }}

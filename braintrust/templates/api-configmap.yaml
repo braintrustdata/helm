@@ -114,7 +114,7 @@ data:
   {{- if .Values.aiGateway.useGateway }}
   GATEWAY_URL: {{ include "braintrust.aiGatewayInternalUrl" . | quote }}
   {{- end }}
-  {{- if .Values.loopRuntime.enabled }}
+  {{- if include "braintrust.loopRuntime.enabled" . }}
   LOOP_RUNTIME_URL: {{ include "braintrust.loopRuntimeInternalUrl" . | quote }}
   {{- end }}
   {{- if $btqlStrictOrgIds }}

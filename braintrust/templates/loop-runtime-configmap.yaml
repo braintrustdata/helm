@@ -1,8 +1,11 @@
 {{- include "braintrust.loopRuntime.validate" . -}}
-{{- if .Values.loopRuntime.enabled -}}
+{{- if include "braintrust.loopRuntime.enabled" . -}}
 {{- $apiUrl := default (include "braintrust.apiInternalUrl" .) .Values.loopRuntime.braintrustApiUrl -}}
 {{- $aiProxyUrl := default (include "braintrust.apiAiProxyInternalUrl" .) .Values.loopRuntime.aiProxyUrl -}}
 {{- $brainstoreReaderUrl := default (include "braintrust.brainstoreFastReaderInternalUrl" .) .Values.loopRuntime.brainstoreReaderUrl -}}
+{{- $brainstoreBucketUri := include "braintrust.loopRuntime.brainstoreBucketUri" . -}}
+{{- $backend := include "braintrust.loopRuntime.sandboxBackend" . -}}
+{{- $egressGateway := .Values.loopRuntime.sandbox.egressGateway -}}
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -28,36 +31,67 @@ data:
   LOOP_RUNTIME_AI_PROXY_URL: {{ $aiProxyUrl | quote }}
   LOOP_RUNTIME_BRAINSTORE_READER_URL: {{ $brainstoreReaderUrl | quote }}
   BRAINSTORE_VERBOSE: "1"
-  BRAINSTORE_INDEX_URI: "s3://{{ .Values.objectStorage.aws.brainstoreBucket }}/brainstore/index"
-  BRAINSTORE_REALTIME_WAL_URI: "s3://{{ .Values.objectStorage.aws.brainstoreBucket }}/brainstore/wal"
-  BRAINSTORE_CODE_BUNDLE_URI: "s3://{{ .Values.objectStorage.aws.codeBundleBucket }}"
+  BRAINSTORE_INDEX_URI: "{{ $brainstoreBucketUri }}/brainstore/index"
+  BRAINSTORE_REALTIME_WAL_URI: "{{ $brainstoreBucketUri }}/brainstore/wal"
+  BRAINSTORE_CODE_BUNDLE_URI: {{ include "braintrust.loopRuntime.codeBundleUri" . | quote }}
   BRAINSTORE_CACHE_DIR: {{ .Values.loopRuntime.cacheDir | quote }}
   BRAINSTORE_CONTROL_PLANE_TELEMETRY: {{ .Values.global.controlPlaneTelemetry | quote }}
   BRAINSTORE_DISABLE_STATUS_UPDATES: {{ .Values.loopRuntime.brainstoreDisableStatusUpdates | toString | quote }}
   NO_COLOR: "1"
-  AWS_DEFAULT_REGION: {{ .Values.loopRuntime.sandbox.region | quote }}
-  AWS_REGION: {{ .Values.loopRuntime.sandbox.region | quote }}
-  EXO_SANDBOX_PROVIDER: {{ .Values.loopRuntime.sandbox.provider | quote }}
-  EXO_SANDBOX_IMAGE: {{ .Values.loopRuntime.sandbox.image | quote }}
-  AWS_LAMBDA_MICROVM_IMAGE_IDENTIFIER: {{ .Values.loopRuntime.sandbox.imageIdentifier | quote }}
-  AWS_LAMBDA_MICROVM_REGION: {{ .Values.loopRuntime.sandbox.region | quote }}
-  AWS_LAMBDA_MICROVM_INGRESS_NETWORK_CONNECTOR_ARNS: {{ .Values.loopRuntime.sandbox.ingressNetworkConnectorArns | quote }}
-  AWS_LAMBDA_MICROVM_EGRESS_NETWORK_CONNECTOR_ARNS: {{ .Values.loopRuntime.sandbox.egressNetworkConnectorArns | quote }}
-  AWS_LAMBDA_MICROVM_MAX_IDLE_DURATION_SECONDS: {{ .Values.loopRuntime.sandbox.maxIdleDurationSeconds | quote }}
-  AWS_LAMBDA_MICROVM_SUSPENDED_DURATION_SECONDS: {{ .Values.loopRuntime.sandbox.suspendedDurationSeconds | quote }}
-  AWS_LAMBDA_MICROVM_AUTO_RESUME_ENABLED: {{ .Values.loopRuntime.sandbox.autoResumeEnabled | toString | quote }}
-  AWS_LAMBDA_MICROVM_MAXIMUM_DURATION_SECONDS: {{ .Values.loopRuntime.sandbox.maximumDurationSeconds | quote }}
-  AWS_LAMBDA_MICROVM_AUTH_TOKEN_EXPIRATION_MINUTES: {{ .Values.loopRuntime.sandbox.authTokenExpirationMinutes | quote }}
-  AWS_LAMBDA_MICROVM_RUNTIME_PORT: {{ .Values.loopRuntime.sandbox.runtimePort | quote }}
-  {{- if .Values.loopRuntime.sandbox.allowExecutionRole }}
-  AWS_LAMBDA_MICROVM_EXECUTION_ROLE_ARN: {{ .Values.loopRuntime.sandbox.executionRoleArn | quote }}
+  {{- if eq $backend "awsLambdaMicrovm" }}
+  {{- $microvm := .Values.loopRuntime.sandbox.awsLambdaMicrovm }}
+  AWS_DEFAULT_REGION: {{ $microvm.region | quote }}
+  AWS_REGION: {{ $microvm.region | quote }}
+  EXO_SANDBOX_PROVIDER: "aws-lambda-microvm"
+  EXO_SANDBOX_IMAGE: "lambda-microvm"
+  AWS_LAMBDA_MICROVM_IMAGE_IDENTIFIER: {{ $microvm.imageIdentifier | quote }}
+  {{- with $microvm.imageVersion }}
+  AWS_LAMBDA_MICROVM_IMAGE_VERSION: {{ . | toString | quote }}
+  {{- end }}
+  AWS_LAMBDA_MICROVM_REGION: {{ $microvm.region | quote }}
+  AWS_LAMBDA_MICROVM_INGRESS_NETWORK_CONNECTOR_ARNS: {{ $microvm.ingressNetworkConnectorArns | quote }}
+  AWS_LAMBDA_MICROVM_EGRESS_NETWORK_CONNECTOR_ARNS: {{ $microvm.egressNetworkConnectorArns | quote }}
+  AWS_LAMBDA_MICROVM_MAX_IDLE_DURATION_SECONDS: {{ $microvm.maxIdleDurationSeconds | quote }}
+  AWS_LAMBDA_MICROVM_SUSPENDED_DURATION_SECONDS: {{ $microvm.suspendedDurationSeconds | quote }}
+  AWS_LAMBDA_MICROVM_AUTO_RESUME_ENABLED: {{ $microvm.autoResumeEnabled | toString | quote }}
+  AWS_LAMBDA_MICROVM_MAXIMUM_DURATION_SECONDS: {{ $microvm.maximumDurationSeconds | quote }}
+  AWS_LAMBDA_MICROVM_AUTH_TOKEN_EXPIRATION_MINUTES: {{ $microvm.authTokenExpirationMinutes | quote }}
+  AWS_LAMBDA_MICROVM_RUNTIME_PORT: {{ $microvm.runtimePort | quote }}
+  {{- if $microvm.allowExecutionRole }}
+  AWS_LAMBDA_MICROVM_EXECUTION_ROLE_ARN: {{ $microvm.executionRoleArn | quote }}
   AWS_LAMBDA_MICROVM_ALLOW_EXECUTION_ROLE: "true"
+  {{- end }}
+  {{- if $egressGateway.enabled }}
+  LOOP_RUNTIME_SANDBOX_EGRESS_GATEWAY_URL: {{ $egressGateway.url | quote }}
+  {{- end }}
+  {{- else }}
+  {{- $service := .Values.loopRuntime.sandbox.sandboxService }}
+  {{- /* Any Sandbox Service endpoint selects the remote backend; the provider stays unset. */}}
+  EXO_SANDBOX_IMAGE: {{ $service.image | quote }}
+  EXO_SANDBOX_VCPU_COUNT: {{ $service.vcpuCount | quote }}
+  EXO_SANDBOX_MEMORY_MIB: {{ $service.memoryMib | quote }}
+  {{- if $service.dnsUrl }}
+  EXO_SANDBOX_SERVICE_DNS_URL: {{ $service.dnsUrl | quote }}
+  {{- else }}
+  EXO_SANDBOX_SERVICE_URL: {{ $service.urls | join "," | quote }}
+  {{- end }}
+  {{- if $service.tls.secretName }}
+  SANDBOX_SERVICE_TLS_CERT: "/etc/sandbox-tls/client.pem"
+  SANDBOX_SERVICE_TLS_KEY: "/etc/sandbox-tls/client.key"
+  SANDBOX_SERVICE_TLS_CA: "/etc/sandbox-tls/server-ca.pem"
+  {{- end }}
+  {{- if $egressGateway.enabled }}
+  LOOP_RUNTIME_SANDBOX_SERVICE_EGRESS_GATEWAY_URL: {{ $egressGateway.url | quote }}
+  {{- end }}
+  {{- end }}
+  {{- if $egressGateway.enabled }}
+  LOOP_RUNTIME_SANDBOX_FORWARD_PROXY_LISTEN: "0.0.0.0:{{ $egressGateway.port }}"
   {{- end }}
   {{- with (.Values.global.allowedOrgIds | default "" | toString | trim) }}
   ALLOWED_ORG_IDS: {{ . | quote }}
   {{- end }}
   {{- if eq .Values.brainstore.locksBackend "objectStorage" }}
-  BRAINSTORE_LOCKS_URI: "s3://{{ .Values.objectStorage.aws.brainstoreBucket }}/brainstore/locks"
+  BRAINSTORE_LOCKS_URI: "{{ $brainstoreBucketUri }}/brainstore/locks"
   {{- end }}
   {{- if .Values.brainstoreWalFooterVersion }}
   BRAINSTORE_WAL_FOOTER_VERSION: {{ .Values.brainstoreWalFooterVersion | quote }}

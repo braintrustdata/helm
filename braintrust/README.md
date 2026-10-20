@@ -18,12 +18,26 @@ The `braintrust-secrets` secret must contain the following keys:
 | `GCS_ACCESS_KEY_ID` | Google HMAC Access ID string | Valid S3 API Key Id (only required if `cloud` is `google` and if `enableGcsAuth` is `false`) |
 | `GCS_SECRET_ACCESS_KEY` | Google HMAC Secret string | Valid S3 Secret string (only required if `cloud` is `google` and if `enableGcsAuth` is `false`) |
 
-## Optional: Loop Runtime on AWS EKS
+## Optional: Loop Runtime
 
-Set `loopRuntime.enabled: true` with `cloud: aws` to run the Loop Runtime
-service in EKS. The AWS MicroVM image, network connectors, and IAM role are
-created by the Terraform data-plane module. Configure the chart with the
-Terraform outputs:
+Set `loopRuntime.enabled: true` to run the Loop Runtime service in the cluster.
+It supports `cloud: aws` (EKS) and `cloud: google` (GKE). The cloud's
+Terraform data-plane module creates the runtime identity and the sandbox
+infrastructure; the chart runs the runtime process.
+
+The chart reuses the existing `braintrust-secrets` values, reads the same
+Brainstore buckets as the Brainstore pods, adds `LOOP_RUNTIME_URL` to the API,
+and adds `/loop/runtime` routes to the chart-managed Istio VirtualService when
+`virtualService.enabled` is true.
+
+`loopRuntime.sandbox.backend` selects where agent sandboxes run:
+
+| Backend | Clouds | Sandboxes run in |
+| --- | --- | --- |
+| `awsLambdaMicrovm` (default on AWS) | `aws` | AWS Lambda MicroVMs |
+| `sandboxService` (default on Google) | `aws`, `google` | Braintrust Sandbox Service workers, reached over mTLS |
+
+### AWS EKS with Lambda MicroVMs
 
 ```yaml
 cloud: aws
@@ -35,24 +49,77 @@ objectStorage:
 
 loopRuntime:
   enabled: true
-  image:
-    tag: "<terraform output loop_runtime_version>"
   serviceAccount:
     name: braintrust-loop-runtime
     # Set for IRSA; leave empty when using an EKS Pod Identity association.
-    awsRoleArn: "<terraform output loop_runtime_eks_role_arn>"
+    awsRoleArn: "<Loop Runtime IAM role ARN>"
   sandbox:
-    imageIdentifier: "<terraform output loop_runtime_microvm_image_arn>"
-    region: "<AWS region>"
-    ingressNetworkConnectorArns: "<sandbox ingress connector ARNs>"
-    egressNetworkConnectorArns: "<sandbox egress connector ARNs>"
+    awsLambdaMicrovm:
+      imageIdentifier: "<terraform output loop_runtime_microvm_image_arn>"
+      region: "<AWS region>"
+      ingressNetworkConnectorArns: "<sandbox ingress connector ARNs>"
+      egressNetworkConnectorArns: "<sandbox egress connector ARNs>"
 ```
 
-The connector values are in the Terraform
-`loop_runtime_sandbox_env_vars` output. The chart reuses the existing
-`braintrust-secrets` values, adds the Loop Runtime URL to the API, and adds
-`/loop/runtime` routes to the chart-managed Istio VirtualService when
-`virtualService.enabled` is true.
+### Google GKE with the Sandbox Service
+
+The GKE Terraform module creates a Google service account for Loop Runtime and
+binds it to the `braintrust/braintrust-loop-runtime` Kubernetes service account
+through Workload Identity. Its optional isolated worker cluster hosts the
+Sandbox Service. Install the Sandbox Service release in that cluster, then
+create a Secret in this namespace with the Sandbox Service client certificate,
+its key, and the server CA.
+
+```yaml
+cloud: google
+
+objectStorage:
+  google:
+    brainstoreBucket: "<terraform output brainstore_bucket_name>"
+    apiBucket: "<terraform output braintrust_api_bucket_name>"
+
+loopRuntime:
+  enabled: true
+  serviceAccount:
+    name: braintrust-loop-runtime
+    googleServiceAccount: "<terraform output loop_runtime_service_account>"
+  sandbox:
+    sandboxService:
+      dnsUrl: "<terraform output gke_isolated_workers.discovery.endpoint>"
+      tls:
+        secretName: sandbox-client-tls
+        # Keys in that Secret. Defaults match the Sandbox Service client Secret.
+        certKey: client.pem
+        keyKey: client.key
+        caKey: server-ca.pem
+```
+
+`sandboxService.vcpuCount` and `sandboxService.memoryMib` must match the
+per-sandbox sizing of the Sandbox Service release.
+
+### Optional sandbox egress gateway
+
+Sandboxes use a forward proxy in Loop Runtime for brokered Git access. Enable
+it with `loopRuntime.sandbox.egressGateway`. The chart opens the proxy port on
+the pod, renders a `<service name>-egress` Service, and tells sandboxes to use
+`egressGateway.url`. Sandboxes run outside this cluster, so expose the Service
+on a private address the sandboxes can reach. On GKE, use an internal load
+balancer and allow the isolated worker node range in the worker cluster's
+egress rules:
+
+```yaml
+loopRuntime:
+  sandbox:
+    egressGateway:
+      enabled: true
+      url: "http://<internal load balancer address>:4002"
+      service:
+        type: LoadBalancer
+        annotations:
+          networking.gke.io/load-balancer-type: "Internal"
+        loadBalancerSourceRanges:
+          - "<isolated worker node CIDR>"
+```
 
 ## Azure Key Vault Driver Integration
 

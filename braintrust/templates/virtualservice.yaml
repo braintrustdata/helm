@@ -30,7 +30,7 @@ spec:
     {{- toYaml . | nindent 4 }}
   {{- end }}
   http:
-    {{- if .Values.loopRuntime.enabled }}
+    {{- if include "braintrust.loopRuntime.enabled" . }}
     {{- include "braintrust.loopRuntimeVirtualServiceRoutes" . | nindent 4 }}
     {{- end }}
     {{- if $virtualServiceWorkloadIsolation.enabled }}

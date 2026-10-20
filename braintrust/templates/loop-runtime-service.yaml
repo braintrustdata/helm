@@ -1,5 +1,5 @@
 {{- include "braintrust.loopRuntime.validate" . -}}
-{{- if .Values.loopRuntime.enabled -}}
+{{- if include "braintrust.loopRuntime.enabled" . -}}
 {{- $resourceLabels := mergeOverwrite (deepCopy .Values.global.labels) (deepCopy .Values.loopRuntime.labels) -}}
 apiVersion: v1
 kind: Service

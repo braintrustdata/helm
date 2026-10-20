@@ -359,3 +359,27 @@ tests:
       - equal:
           path: spec.http[1].match[0].uri.prefix
           value: /
+
+  - it: should route Loop Runtime on GKE
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/google-values.yaml
+      - __fixtures__/loop-runtime-google-values.yaml
+    set:
+      virtualService.enabled: true
+    asserts:
+      - equal:
+          path: spec.http[0].route[0].destination.host
+          value: braintrust-loop-runtime
+
+  - it: should render without Loop Runtime routes when reused values have no loopRuntime map
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/google-values.yaml
+      - __fixtures__/pre-loop-runtime-values.yaml
+    set:
+      virtualService.enabled: true
+    asserts:
+      - equal:
+          path: spec.http[0].match[0].uri.prefix
+          value: /
