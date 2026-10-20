@@ -309,9 +309,9 @@ api:
   extraContainers: []
   extraVolumes: []
 
-# Loop Runtime configuration (AWS EKS only)
-# Terraform creates the AWS MicroVM image, network connectors, and IAM role;
-# this chart runs the Loop Runtime process in Kubernetes.
+# Loop Runtime configuration (AWS EKS and Google GKE)
+# The cloud's Terraform module creates the runtime identity and the sandbox
+# infrastructure; this chart runs the Loop Runtime process in Kubernetes.
 loopRuntime:
   enabled: false
   name: "braintrust-loop-runtime"
@@ -336,9 +336,11 @@ loopRuntime:
     portName: http
   serviceAccount:
     name: "braintrust-loop-runtime"
-    # Set this to Terraform's loop_runtime_eks_role_arn when using IRSA. Leave
+    # AWS: set this to Terraform's Loop Runtime role ARN when using IRSA. Leave
     # it empty when the role is attached through an EKS Pod Identity association.
     awsRoleArn: ""
+    # Google: required. Use the Terraform output loop_runtime_service_account.
+    googleServiceAccount: ""
     annotations: {}
   # These URLs default to in-cluster services. Set them when the API, AI proxy,
   # or Brainstore is exposed through a different service or namespace.
@@ -391,21 +393,63 @@ loopRuntime:
   tolerations: []
   affinity: {}
   sandbox:
-    provider: "aws-lambda-microvm"
-    image: "lambda-microvm"
-    # These values come from Terraform outputs. They are required when enabled.
-    imageIdentifier: ""
-    region: ""
-    ingressNetworkConnectorArns: ""
-    egressNetworkConnectorArns: ""
-    maxIdleDurationSeconds: 900
-    suspendedDurationSeconds: 28800
-    autoResumeEnabled: true
-    maximumDurationSeconds: 28800
-    authTokenExpirationMinutes: 30
-    runtimePort: 8080
-    executionRoleArn: ""
-    allowExecutionRole: false
+    # Where Loop Runtime runs agent sandboxes:
+    #   awsLambdaMicrovm - AWS Lambda MicroVMs. Requires cloud: aws.
+    #   sandboxService   - Braintrust Sandbox Service workers reached over mTLS.
+    #                      Works on any cloud; on GKE the workers run in the
+    #                      Terraform-managed isolated worker cluster.
+    # Empty selects awsLambdaMicrovm on AWS and sandboxService on Google.
+    backend: ""
+    awsLambdaMicrovm:
+      # These values come from Terraform outputs. They are required for this backend.
+      imageIdentifier: ""
+      # Optional. Pins sandboxes to one published MicroVM image version.
+      imageVersion: ""
+      region: ""
+      ingressNetworkConnectorArns: ""
+      egressNetworkConnectorArns: ""
+      maxIdleDurationSeconds: 900
+      suspendedDurationSeconds: 28800
+      autoResumeEnabled: true
+      maximumDurationSeconds: 28800
+      authTokenExpirationMinutes: 30
+      runtimePort: 8080
+      executionRoleArn: ""
+      allowExecutionRole: false
+    sandboxService:
+      # Set exactly one. dnsUrl discovers every worker behind one headless DNS
+      # name (GKE: Terraform output gke_isolated_workers.discovery.endpoint).
+      # urls lists fixed worker endpoints instead.
+      dnsUrl: ""
+      urls: []
+      # Sandbox guest image the workers start.
+      image: "public.ecr.aws/braintrust/codex-runtime:latest"
+      # Must match the Sandbox Service release's per-sandbox sizing.
+      vcpuCount: 1
+      memoryMib: 2048
+      tls:
+        # Kubernetes Secret with the Sandbox Service client certificate, its
+        # key, and the server CA. Required for https:// endpoints.
+        secretName: ""
+        certKey: client.pem
+        keyKey: client.key
+        caKey: server-ca.pem
+    # Optional forward proxy that sandboxes use for brokered Git access. When
+    # enabled, Loop Runtime listens on port and advertises url to sandboxes.
+    egressGateway:
+      enabled: false
+      port: 4002
+      # Address sandboxes use to reach this proxy, e.g. http://<lb-address>:4002.
+      url: ""
+      # Dedicated Service for the proxy port. Sandboxes usually run outside this
+      # cluster, so expose it through an internal load balancer. For GKE, set
+      # type LoadBalancer with the networking.gke.io/load-balancer-type:
+      # "Internal" annotation and restrict loadBalancerSourceRanges to the
+      # isolated worker node range.
+      service:
+        type: ClusterIP
+        annotations: {}
+        loadBalancerSourceRanges: []
   extraEnvVars: []
   extraContainers: []
   extraVolumes: []

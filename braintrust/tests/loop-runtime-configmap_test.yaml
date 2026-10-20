@@ -9,7 +9,25 @@ tests:
       - hasDocuments:
           count: 0
 
-  - it: should render the AWS runtime and sandbox configuration
+  - it: should not render when reused values have no loopRuntime map
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/google-values.yaml
+      - __fixtures__/pre-loop-runtime-values.yaml
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should explain how to upgrade when reused values enable Loop Runtime without defaults
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/google-values.yaml
+      - __fixtures__/reuse-loop-runtime-enabled-values.yaml
+    asserts:
+      - failedTemplate:
+          errorMessage: "loopRuntime.image is missing. Values reused from a chart release that predates Loop Runtime omit the loopRuntime defaults; upgrade with --reset-then-reuse-values or supply the full loopRuntime map."
+
+  - it: should render the AWS runtime and Lambda MicroVM sandbox configuration
     values:
       - __fixtures__/base-values.yaml
       - __fixtures__/loop-runtime-values.yaml
@@ -35,8 +53,23 @@ tests:
           path: data.LOOP_RUNTIME_BRAINSTORE_READER_URL
           value: http://brainstore-fastreader.braintrust:4000
       - equal:
+          path: data.BRAINSTORE_INDEX_URI
+          value: s3://test-brainstore-bucket/brainstore/index
+      - equal:
+          path: data.BRAINSTORE_REALTIME_WAL_URI
+          value: s3://test-brainstore-bucket/brainstore/wal
+      - equal:
           path: data.BRAINSTORE_CODE_BUNDLE_URI
           value: s3://test-code-bundle-bucket
+      - equal:
+          path: data.AWS_REGION
+          value: us-east-1
+      - equal:
+          path: data.EXO_SANDBOX_PROVIDER
+          value: aws-lambda-microvm
+      - equal:
+          path: data.EXO_SANDBOX_IMAGE
+          value: lambda-microvm
       - equal:
           path: data.AWS_LAMBDA_MICROVM_IMAGE_IDENTIFIER
           value: arn:aws:lambda:us-east-1:123456789012:microvm-image/test
@@ -44,9 +77,65 @@ tests:
           path: data.AWS_LAMBDA_MICROVM_EGRESS_NETWORK_CONNECTOR_ARNS
           value: arn:aws:lambda:us-east-1:123456789012:network-connector/out
       - isNull:
+          path: data.AWS_LAMBDA_MICROVM_IMAGE_VERSION
+      - isNull:
+          path: data.EXO_SANDBOX_SERVICE_DNS_URL
+      - isNull:
+          path: data.EXO_SANDBOX_SERVICE_URL
+      - isNull:
+          path: data.SANDBOX_SERVICE_TLS_CERT
+      - isNull:
+          path: data.LOOP_RUNTIME_SANDBOX_FORWARD_PROXY_LISTEN
+      - isNull:
           path: data.BRAINSTORE_LOCKS_URI
 
-  - it: should use object storage locks when configured
+  - it: should pin the MicroVM image version when configured
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/loop-runtime-values.yaml
+    set:
+      loopRuntime.sandbox.awsLambdaMicrovm.imageVersion: 7
+    asserts:
+      - equal:
+          path: data.AWS_LAMBDA_MICROVM_IMAGE_VERSION
+          value: "7"
+
+  - it: should pass the MicroVM execution role when allowed
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/loop-runtime-values.yaml
+    set:
+      loopRuntime.sandbox.awsLambdaMicrovm.allowExecutionRole: true
+      loopRuntime.sandbox.awsLambdaMicrovm.executionRoleArn: arn:aws:iam::123456789012:role/microvm
+    asserts:
+      - equal:
+          path: data.AWS_LAMBDA_MICROVM_EXECUTION_ROLE_ARN
+          value: arn:aws:iam::123456789012:role/microvm
+      - equal:
+          path: data.AWS_LAMBDA_MICROVM_ALLOW_EXECUTION_ROLE
+          value: "true"
+
+  - it: should require the execution role ARN when the execution role is allowed
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/loop-runtime-values.yaml
+    set:
+      loopRuntime.sandbox.awsLambdaMicrovm.allowExecutionRole: true
+    asserts:
+      - failedTemplate:
+          errorMessage: "loopRuntime.sandbox.awsLambdaMicrovm.executionRoleArn is required when loopRuntime.sandbox.awsLambdaMicrovm.allowExecutionRole is true"
+
+  - it: should require MicroVM settings for the AWS default backend
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/loop-runtime-values.yaml
+    set:
+      loopRuntime.sandbox.awsLambdaMicrovm.imageIdentifier: ""
+    asserts:
+      - failedTemplate:
+          errorMessage: "loopRuntime.sandbox.awsLambdaMicrovm.imageIdentifier is required for the awsLambdaMicrovm backend (use Terraform output loop_runtime_microvm_image_arn)"
+
+  - it: should use AWS object storage locks when configured
     values:
       - __fixtures__/base-values.yaml
       - __fixtures__/loop-runtime-values.yaml
@@ -57,11 +146,316 @@ tests:
           path: data.BRAINSTORE_LOCKS_URI
           value: s3://test-brainstore-bucket/brainstore/locks
 
-  - it: should reject Loop Runtime on non-AWS clouds
+  - it: should run the Sandbox Service backend on AWS without MicroVM settings
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/loop-runtime-values.yaml
+    set:
+      loopRuntime.sandbox.backend: sandboxService
+      loopRuntime.sandbox.awsLambdaMicrovm.imageIdentifier: ""
+      loopRuntime.sandbox.sandboxService.dnsUrl: https://nodes.sandbox.internal:9400
+      loopRuntime.sandbox.sandboxService.tls.secretName: sandbox-client-tls
+    asserts:
+      - equal:
+          path: data.BRAINSTORE_INDEX_URI
+          value: s3://test-brainstore-bucket/brainstore/index
+      - equal:
+          path: data.EXO_SANDBOX_SERVICE_DNS_URL
+          value: https://nodes.sandbox.internal:9400
+      - isNull:
+          path: data.EXO_SANDBOX_PROVIDER
+      - isNull:
+          path: data.AWS_REGION
+      - isNull:
+          path: data.AWS_LAMBDA_MICROVM_IMAGE_IDENTIFIER
+
+  - it: should render GKE storage and the Sandbox Service backend by default on Google
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/google-values.yaml
+      - __fixtures__/loop-runtime-google-values.yaml
+    release:
+      namespace: braintrust
+    asserts:
+      - equal:
+          path: data.BRAINSTORE_INDEX_URI
+          value: gs://test-brainstore-bucket/brainstore/index
+      - equal:
+          path: data.BRAINSTORE_REALTIME_WAL_URI
+          value: gs://test-brainstore-bucket/brainstore/wal
+      - equal:
+          path: data.BRAINSTORE_CODE_BUNDLE_URI
+          value: gs://test-api-bucket
+      - equal:
+          path: data.EXO_SANDBOX_IMAGE
+          value: public.ecr.aws/braintrust/codex-runtime:latest
+      - equal:
+          path: data.EXO_SANDBOX_VCPU_COUNT
+          value: "1"
+      - equal:
+          path: data.EXO_SANDBOX_MEMORY_MIB
+          value: "2048"
+      - equal:
+          path: data.EXO_SANDBOX_SERVICE_DNS_URL
+          value: https://workers.sandbox.internal:9400
+      - equal:
+          path: data.SANDBOX_SERVICE_TLS_CERT
+          value: /etc/sandbox-tls/client.pem
+      - equal:
+          path: data.SANDBOX_SERVICE_TLS_KEY
+          value: /etc/sandbox-tls/client.key
+      - equal:
+          path: data.SANDBOX_SERVICE_TLS_CA
+          value: /etc/sandbox-tls/server-ca.pem
+      - isNull:
+          path: data.EXO_SANDBOX_PROVIDER
+      - isNull:
+          path: data.EXO_SANDBOX_SERVICE_URL
+      - isNull:
+          path: data.AWS_REGION
+      - isNull:
+          path: data.AWS_DEFAULT_REGION
+      - isNull:
+          path: data.AWS_LAMBDA_MICROVM_IMAGE_IDENTIFIER
+      - isNull:
+          path: data.LOOP_RUNTIME_SANDBOX_SERVICE_EGRESS_GATEWAY_URL
+      - isNull:
+          path: data.BRAINSTORE_LOCKS_URI
+
+  - it: should use GCS object storage locks when configured
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/google-values.yaml
+      - __fixtures__/loop-runtime-google-values.yaml
+    set:
+      brainstore.locksBackend: objectStorage
+    asserts:
+      - equal:
+          path: data.BRAINSTORE_LOCKS_URI
+          value: gs://test-brainstore-bucket/brainstore/locks
+
+  - it: should join fixed Sandbox Service endpoints
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/google-values.yaml
+      - __fixtures__/loop-runtime-google-values.yaml
+    set:
+      loopRuntime.sandbox.sandboxService.dnsUrl: ""
+      loopRuntime.sandbox.sandboxService.urls:
+        - https://worker-0.sandbox.internal:9400
+        - https://worker-1.sandbox.internal:9400
+    asserts:
+      - equal:
+          path: data.EXO_SANDBOX_SERVICE_URL
+          value: https://worker-0.sandbox.internal:9400,https://worker-1.sandbox.internal:9400
+      - isNull:
+          path: data.EXO_SANDBOX_SERVICE_DNS_URL
+
+  - it: should allow a plain HTTP Sandbox Service endpoint without TLS
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/google-values.yaml
+      - __fixtures__/loop-runtime-google-values.yaml
+    set:
+      loopRuntime.sandbox.sandboxService.dnsUrl: http://sandbox-service.sandbox:9400
+      loopRuntime.sandbox.sandboxService.tls.secretName: ""
+    asserts:
+      - equal:
+          path: data.EXO_SANDBOX_SERVICE_DNS_URL
+          value: http://sandbox-service.sandbox:9400
+      - isNull:
+          path: data.SANDBOX_SERVICE_TLS_CERT
+
+  - it: should require TLS for HTTPS Sandbox Service endpoints
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/google-values.yaml
+      - __fixtures__/loop-runtime-google-values.yaml
+    set:
+      loopRuntime.sandbox.sandboxService.tls.secretName: ""
+    asserts:
+      - failedTemplate:
+          errorMessage: "loopRuntime.sandbox.sandboxService.tls.secretName is required for https:// Sandbox Service endpoints"
+
+  - it: should require TLS when any fixed endpoint uses HTTPS
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/google-values.yaml
+      - __fixtures__/loop-runtime-google-values.yaml
+    set:
+      loopRuntime.sandbox.sandboxService.dnsUrl: ""
+      loopRuntime.sandbox.sandboxService.tls.secretName: ""
+      loopRuntime.sandbox.sandboxService.urls:
+        - http://worker-0.sandbox.internal:9400
+        - https://worker-1.sandbox.internal:9400
+    asserts:
+      - failedTemplate:
+          errorMessage: "loopRuntime.sandbox.sandboxService.tls.secretName is required for https:// Sandbox Service endpoints"
+
+  - it: should require a Sandbox Service endpoint
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/google-values.yaml
+      - __fixtures__/loop-runtime-google-values.yaml
+    set:
+      loopRuntime.sandbox.sandboxService.dnsUrl: ""
+    asserts:
+      - failedTemplate:
+          errorMessage: "loopRuntime.sandbox.sandboxService.dnsUrl or loopRuntime.sandbox.sandboxService.urls is required for the sandboxService backend (GKE: use Terraform output gke_isolated_workers.discovery.endpoint)"
+
+  - it: should reject both Sandbox Service discovery modes
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/google-values.yaml
+      - __fixtures__/loop-runtime-google-values.yaml
+    set:
+      loopRuntime.sandbox.sandboxService.urls:
+        - https://worker-0.sandbox.internal:9400
+    asserts:
+      - failedTemplate:
+          errorMessage: "Set only one of loopRuntime.sandbox.sandboxService.dnsUrl and loopRuntime.sandbox.sandboxService.urls."
+
+  - it: should reject a string of Sandbox Service endpoints
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/google-values.yaml
+      - __fixtures__/loop-runtime-google-values.yaml
+    set:
+      loopRuntime.sandbox.sandboxService.dnsUrl: ""
+      loopRuntime.sandbox.sandboxService.urls: https://worker-0.sandbox.internal:9400
+    asserts:
+      - failedTemplate:
+          errorMessage: "loopRuntime.sandbox.sandboxService.urls must be a list of URLs"
+
+  - it: should require the Sandbox Service guest image
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/google-values.yaml
+      - __fixtures__/loop-runtime-google-values.yaml
+    set:
+      loopRuntime.sandbox.sandboxService.image: ""
+    asserts:
+      - failedTemplate:
+          errorMessage: "loopRuntime.sandbox.sandboxService.image is required for the sandboxService backend"
+
+  - it: should require the Loop Runtime Google service account on GKE
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/google-values.yaml
+      - __fixtures__/loop-runtime-google-values.yaml
+    set:
+      loopRuntime.serviceAccount.googleServiceAccount: ""
+    asserts:
+      - failedTemplate:
+          errorMessage: "loopRuntime.serviceAccount.googleServiceAccount is required when cloud is google (use Terraform output loop_runtime_service_account)"
+
+  - it: should require the GCS API bucket on GKE
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/google-values.yaml
+      - __fixtures__/loop-runtime-google-values.yaml
+    set:
+      objectStorage.google.apiBucket: ""
+    asserts:
+      - failedTemplate:
+          errorMessage: "objectStorage.google.apiBucket is required when loopRuntime.enabled is true"
+
+  - it: should reject the Lambda MicroVM backend on Google
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/google-values.yaml
+      - __fixtures__/loop-runtime-google-values.yaml
+    set:
+      loopRuntime.sandbox.backend: awsLambdaMicrovm
+    asserts:
+      - failedTemplate:
+          errorMessage: "loopRuntime.sandbox.backend awsLambdaMicrovm requires cloud: aws. Use sandboxService on other clouds."
+
+  - it: should reject an unknown sandbox backend
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/loop-runtime-values.yaml
+    set:
+      loopRuntime.sandbox.backend: docker
+    asserts:
+      - failedTemplate:
+          errorMessage: "loopRuntime.sandbox.backend must be awsLambdaMicrovm or sandboxService, got \"docker\""
+
+  - it: should reject Loop Runtime on Azure
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/azure-values.yaml
+    set:
+      loopRuntime.enabled: true
+    asserts:
+      - failedTemplate:
+          errorMessage: "loopRuntime.enabled requires cloud: aws or cloud: google."
+
+  - it: should reject Loop Runtime without a cloud
     values:
       - __fixtures__/base-values.yaml
     set:
       loopRuntime.enabled: true
     asserts:
       - failedTemplate:
-          errorMessage: "loopRuntime.enabled requires cloud: aws because the current sandbox backend uses AWS Lambda MicroVMs."
+          errorMessage: "loopRuntime.enabled requires cloud: aws or cloud: google."
+
+  - it: should advertise the egress gateway to MicroVM sandboxes
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/loop-runtime-values.yaml
+    set:
+      loopRuntime.sandbox.egressGateway.enabled: true
+      loopRuntime.sandbox.egressGateway.url: http://egress.vpce.internal:4002
+    asserts:
+      - equal:
+          path: data.LOOP_RUNTIME_SANDBOX_FORWARD_PROXY_LISTEN
+          value: 0.0.0.0:4002
+      - equal:
+          path: data.LOOP_RUNTIME_SANDBOX_EGRESS_GATEWAY_URL
+          value: http://egress.vpce.internal:4002
+      - isNull:
+          path: data.LOOP_RUNTIME_SANDBOX_SERVICE_EGRESS_GATEWAY_URL
+
+  - it: should advertise the egress gateway to Sandbox Service workers
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/google-values.yaml
+      - __fixtures__/loop-runtime-google-values.yaml
+    set:
+      loopRuntime.sandbox.egressGateway.enabled: true
+      loopRuntime.sandbox.egressGateway.port: 4100
+      loopRuntime.sandbox.egressGateway.url: http://10.10.0.20:4100
+    asserts:
+      - equal:
+          path: data.LOOP_RUNTIME_SANDBOX_FORWARD_PROXY_LISTEN
+          value: 0.0.0.0:4100
+      - equal:
+          path: data.LOOP_RUNTIME_SANDBOX_SERVICE_EGRESS_GATEWAY_URL
+          value: http://10.10.0.20:4100
+      - isNull:
+          path: data.LOOP_RUNTIME_SANDBOX_EGRESS_GATEWAY_URL
+
+  - it: should require the egress gateway URL when the gateway is enabled
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/google-values.yaml
+      - __fixtures__/loop-runtime-google-values.yaml
+    set:
+      loopRuntime.sandbox.egressGateway.enabled: true
+    asserts:
+      - failedTemplate:
+          errorMessage: "loopRuntime.sandbox.egressGateway.url is required when loopRuntime.sandbox.egressGateway.enabled is true"
+
+  - it: should keep the egress gateway off the runtime port
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/google-values.yaml
+      - __fixtures__/loop-runtime-google-values.yaml
+    set:
+      loopRuntime.sandbox.egressGateway.enabled: true
+      loopRuntime.sandbox.egressGateway.url: http://10.10.0.20:4001
+      loopRuntime.sandbox.egressGateway.port: 4001
+    asserts:
+      - failedTemplate:
+          errorMessage: "loopRuntime.sandbox.egressGateway.port must differ from loopRuntime.service.port"

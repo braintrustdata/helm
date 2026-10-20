@@ -147,23 +147,109 @@ http://{{ .Values.aiGateway.service.name | default .Values.aiGateway.name }}.{{ 
 {{- end -}}
 
 {{/*
-Validate the AWS-only Loop Runtime configuration. Terraform supplies the
-MicroVM image and connector values; Helm supplies the Kubernetes workload.
+Whether Loop Runtime is enabled. Values reused from a chart release that
+predates Loop Runtime have no loopRuntime map, which means disabled.
+*/}}
+{{- define "braintrust.loopRuntime.enabled" -}}
+{{- if (.Values.loopRuntime | default dict).enabled -}}true{{- end -}}
+{{- end -}}
+
+{{/*
+Loop Runtime sandbox backend. Empty selects the cloud default:
+awsLambdaMicrovm on AWS and sandboxService elsewhere.
+*/}}
+{{- define "braintrust.loopRuntime.sandboxBackend" -}}
+{{- .Values.loopRuntime.sandbox.backend | default (eq .Values.cloud "aws" | ternary "awsLambdaMicrovm" "sandboxService") -}}
+{{- end -}}
+
+{{/*
+Object-store scheme and Brainstore bucket for Loop Runtime. Matches the
+Brainstore ConfigMaps so both read the same index, WAL, and locks.
+*/}}
+{{- define "braintrust.loopRuntime.brainstoreBucketUri" -}}
+{{- if eq .Values.cloud "google" -}}
+gs://{{ .Values.objectStorage.google.brainstoreBucket }}
+{{- else -}}
+s3://{{ .Values.objectStorage.aws.brainstoreBucket }}
+{{- end -}}
+{{- end -}}
+
+{{- define "braintrust.loopRuntime.codeBundleUri" -}}
+{{- if eq .Values.cloud "google" -}}
+gs://{{ .Values.objectStorage.google.apiBucket }}
+{{- else -}}
+s3://{{ .Values.objectStorage.aws.codeBundleBucket }}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Validate the Loop Runtime configuration. Terraform supplies the identity and
+sandbox infrastructure; Helm supplies the Kubernetes workload.
 */}}
 {{- define "braintrust.loopRuntime.validate" -}}
-{{- if .Values.loopRuntime.enabled -}}
-{{- if ne .Values.cloud "aws" -}}
-{{- fail "loopRuntime.enabled requires cloud: aws because the current sandbox backend uses AWS Lambda MicroVMs." -}}
+{{- if include "braintrust.loopRuntime.enabled" . -}}
+{{- range (list "image" "service" "serviceAccount" "sandbox") -}}
+{{- if not (hasKey $.Values.loopRuntime .) -}}
+{{- fail (printf "loopRuntime.%s is missing. Values reused from a chart release that predates Loop Runtime omit the loopRuntime defaults; upgrade with --reset-then-reuse-values or supply the full loopRuntime map." .) -}}
 {{- end -}}
+{{- end -}}
+{{- $sandbox := .Values.loopRuntime.sandbox -}}
+{{- $backend := include "braintrust.loopRuntime.sandboxBackend" . -}}
+{{- if not (has .Values.cloud (list "aws" "google")) -}}
+{{- fail "loopRuntime.enabled requires cloud: aws or cloud: google." -}}
+{{- end -}}
+{{- if eq .Values.cloud "aws" -}}
 {{- $_ := required "objectStorage.aws.brainstoreBucket is required when loopRuntime.enabled is true" .Values.objectStorage.aws.brainstoreBucket -}}
 {{- $_ := required "objectStorage.aws.codeBundleBucket is required when loopRuntime.enabled is true" .Values.objectStorage.aws.codeBundleBucket -}}
-{{- $_ := required "loopRuntime.sandbox.imageIdentifier is required when loopRuntime.enabled is true (use Terraform output loop_runtime_microvm_image_arn)" .Values.loopRuntime.sandbox.imageIdentifier -}}
-{{- $_ := required "loopRuntime.sandbox.region is required when loopRuntime.enabled is true" .Values.loopRuntime.sandbox.region -}}
-{{- $_ := required "loopRuntime.sandbox.ingressNetworkConnectorArns is required when loopRuntime.enabled is true (use Terraform sandbox output)" .Values.loopRuntime.sandbox.ingressNetworkConnectorArns -}}
-{{- $_ := required "loopRuntime.sandbox.egressNetworkConnectorArns is required when loopRuntime.enabled is true (use Terraform sandbox output)" .Values.loopRuntime.sandbox.egressNetworkConnectorArns -}}
+{{- else -}}
+{{- $_ := required "objectStorage.google.brainstoreBucket is required when loopRuntime.enabled is true" .Values.objectStorage.google.brainstoreBucket -}}
+{{- $_ := required "objectStorage.google.apiBucket is required when loopRuntime.enabled is true" .Values.objectStorage.google.apiBucket -}}
+{{- $_ := required "loopRuntime.serviceAccount.googleServiceAccount is required when cloud is google (use Terraform output loop_runtime_service_account)" .Values.loopRuntime.serviceAccount.googleServiceAccount -}}
+{{- end -}}
 {{- $_ := required "loopRuntime.serviceAccount.name is required when loopRuntime.enabled is true" .Values.loopRuntime.serviceAccount.name -}}
-{{- if .Values.loopRuntime.sandbox.allowExecutionRole -}}
-{{- $_ := required "loopRuntime.sandbox.executionRoleArn is required when loopRuntime.sandbox.allowExecutionRole is true" .Values.loopRuntime.sandbox.executionRoleArn -}}
+{{- if eq $backend "awsLambdaMicrovm" -}}
+{{- if ne .Values.cloud "aws" -}}
+{{- fail "loopRuntime.sandbox.backend awsLambdaMicrovm requires cloud: aws. Use sandboxService on other clouds." -}}
+{{- end -}}
+{{- $microvm := $sandbox.awsLambdaMicrovm -}}
+{{- $_ := required "loopRuntime.sandbox.awsLambdaMicrovm.imageIdentifier is required for the awsLambdaMicrovm backend (use Terraform output loop_runtime_microvm_image_arn)" $microvm.imageIdentifier -}}
+{{- $_ := required "loopRuntime.sandbox.awsLambdaMicrovm.region is required for the awsLambdaMicrovm backend" $microvm.region -}}
+{{- $_ := required "loopRuntime.sandbox.awsLambdaMicrovm.ingressNetworkConnectorArns is required for the awsLambdaMicrovm backend (use Terraform sandbox output)" $microvm.ingressNetworkConnectorArns -}}
+{{- $_ := required "loopRuntime.sandbox.awsLambdaMicrovm.egressNetworkConnectorArns is required for the awsLambdaMicrovm backend (use Terraform sandbox output)" $microvm.egressNetworkConnectorArns -}}
+{{- if $microvm.allowExecutionRole -}}
+{{- $_ := required "loopRuntime.sandbox.awsLambdaMicrovm.executionRoleArn is required when loopRuntime.sandbox.awsLambdaMicrovm.allowExecutionRole is true" $microvm.executionRoleArn -}}
+{{- end -}}
+{{- else if eq $backend "sandboxService" -}}
+{{- $service := $sandbox.sandboxService -}}
+{{- $urls := $service.urls | default list -}}
+{{- if not (kindIs "slice" $urls) -}}
+{{- fail "loopRuntime.sandbox.sandboxService.urls must be a list of URLs" -}}
+{{- end -}}
+{{- if and $service.dnsUrl $urls -}}
+{{- fail "Set only one of loopRuntime.sandbox.sandboxService.dnsUrl and loopRuntime.sandbox.sandboxService.urls." -}}
+{{- end -}}
+{{- if not (or $service.dnsUrl $urls) -}}
+{{- fail "loopRuntime.sandbox.sandboxService.dnsUrl or loopRuntime.sandbox.sandboxService.urls is required for the sandboxService backend (GKE: use Terraform output gke_isolated_workers.discovery.endpoint)" -}}
+{{- end -}}
+{{- $_ := required "loopRuntime.sandbox.sandboxService.image is required for the sandboxService backend" $service.image -}}
+{{- range (prepend $urls ($service.dnsUrl | default "")) -}}
+{{- if and . (hasPrefix "https://" .) (not $service.tls.secretName) -}}
+{{- fail "loopRuntime.sandbox.sandboxService.tls.secretName is required for https:// Sandbox Service endpoints" -}}
+{{- end -}}
+{{- end -}}
+{{- if $service.tls.secretName -}}
+{{- $_ := required "loopRuntime.sandbox.sandboxService.tls.certKey is required when tls.secretName is set" $service.tls.certKey -}}
+{{- $_ := required "loopRuntime.sandbox.sandboxService.tls.keyKey is required when tls.secretName is set" $service.tls.keyKey -}}
+{{- $_ := required "loopRuntime.sandbox.sandboxService.tls.caKey is required when tls.secretName is set" $service.tls.caKey -}}
+{{- end -}}
+{{- else -}}
+{{- fail (printf "loopRuntime.sandbox.backend must be awsLambdaMicrovm or sandboxService, got %q" $backend) -}}
+{{- end -}}
+{{- if $sandbox.egressGateway.enabled -}}
+{{- $_ := required "loopRuntime.sandbox.egressGateway.url is required when loopRuntime.sandbox.egressGateway.enabled is true" $sandbox.egressGateway.url -}}
+{{- if eq (int $sandbox.egressGateway.port) (int .Values.loopRuntime.service.port) -}}
+{{- fail "loopRuntime.sandbox.egressGateway.port must differ from loopRuntime.service.port" -}}
+{{- end -}}
 {{- end -}}
 {{- end -}}
 {{- end -}}
@@ -171,6 +257,11 @@ MicroVM image and connector values; Helm supplies the Kubernetes workload.
 {{/* Internal cluster URL for the Loop Runtime service. */}}
 {{- define "braintrust.loopRuntimeInternalUrl" -}}
 http://{{ .Values.loopRuntime.service.name | default .Values.loopRuntime.name }}.{{ include "braintrust.namespace" . }}:{{ .Values.loopRuntime.service.port }}
+{{- end -}}
+
+{{/* Service that exposes the Loop Runtime sandbox egress gateway. */}}
+{{- define "braintrust.loopRuntimeEgressServiceName" -}}
+{{- printf "%s-egress" (.Values.loopRuntime.service.name | default .Values.loopRuntime.name) -}}
 {{- end -}}
 
 {{/* Stable Redis key namespace for a Helm-managed Loop Runtime. */}}
