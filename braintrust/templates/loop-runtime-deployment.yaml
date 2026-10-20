@@ -1,0 +1,145 @@
+{{- include "braintrust.loopRuntime.validate" . -}}
+{{- if .Values.loopRuntime.enabled -}}
+{{- $resourceLabels := mergeOverwrite (deepCopy .Values.global.labels) (deepCopy .Values.loopRuntime.labels) -}}
+{{- $podLabels := mergeOverwrite (deepCopy .Values.global.labels) (deepCopy .Values.loopRuntime.labels) (deepCopy .Values.loopRuntime.podLabels) (dict "app" .Values.loopRuntime.name) -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.loopRuntime.name }}
+  namespace: {{ include "braintrust.namespace" . }}
+  {{- with $resourceLabels }}
+  labels:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with .Values.loopRuntime.annotations.deployment }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  replicas: {{ .Values.loopRuntime.replicas }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 100%
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: {{ .Values.loopRuntime.name }}
+  template:
+    metadata:
+      labels:
+        {{- toYaml $podLabels | nindent 8 }}
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/loop-runtime-configmap.yaml") . | sha256sum }}
+        {{- with .Values.loopRuntime.annotations.pod }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      serviceAccountName: {{ .Values.loopRuntime.serviceAccount.name }}
+      {{- with .Values.loopRuntime.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.loopRuntime.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.loopRuntime.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.loopRuntime.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: loop-runtime
+          image: "{{ .Values.loopRuntime.image.repository }}:{{ .Values.loopRuntime.image.tag }}"
+          imagePullPolicy: {{ .Values.loopRuntime.image.pullPolicy }}
+          {{- with .Values.loopRuntime.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          ports:
+            - name: {{ .Values.loopRuntime.service.portName }}
+              containerPort: {{ .Values.loopRuntime.service.port }}
+              protocol: TCP
+          resources:
+            {{- toYaml .Values.loopRuntime.resources | nindent 12 }}
+          {{- with .Values.loopRuntime.livenessProbe }}
+          {{- $livenessProbe := deepCopy . -}}
+          {{- if and (hasKey $livenessProbe "httpGet") (not (hasKey $livenessProbe.httpGet "port")) -}}
+          {{- $_ := set $livenessProbe.httpGet "port" $.Values.loopRuntime.service.portName -}}
+          {{- end }}
+          livenessProbe:
+            {{- toYaml $livenessProbe | nindent 12 }}
+          {{- end }}
+          {{- with .Values.loopRuntime.readinessProbe }}
+          {{- $readinessProbe := deepCopy . -}}
+          {{- if and (hasKey $readinessProbe "httpGet") (not (hasKey $readinessProbe.httpGet "port")) -}}
+          {{- $_ := set $readinessProbe.httpGet "port" $.Values.loopRuntime.service.portName -}}
+          {{- end }}
+          readinessProbe:
+            {{- toYaml $readinessProbe | nindent 12 }}
+          {{- end }}
+          envFrom:
+            - configMapRef:
+                name: {{ .Values.loopRuntime.name }}
+          env:
+            - name: BRAINSTORE_METADATA_URI
+              valueFrom:
+                secretKeyRef:
+                  name: braintrust-secrets
+                  key: PG_URL
+            - name: BRAINSTORE_WAL_URI
+              valueFrom:
+                secretKeyRef:
+                  name: braintrust-secrets
+                  key: PG_URL
+            - name: BRAINSTORE_XACT_MANAGER_URI
+              valueFrom:
+                secretKeyRef:
+                  name: braintrust-secrets
+                  key: REDIS_URL
+            - name: BRAINSTORE_REDIS_URI
+              valueFrom:
+                secretKeyRef:
+                  name: braintrust-secrets
+                  key: REDIS_URL
+            - name: SERVICE_TOKEN_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: braintrust-secrets
+                  key: FUNCTION_SECRET_KEY
+            - name: BRAINSTORE_LICENSE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: braintrust-secrets
+                  key: BRAINSTORE_LICENSE_KEY
+            {{- if eq .Values.brainstore.locksBackend "redis" }}
+            - name: BRAINSTORE_LOCKS_URI
+              valueFrom:
+                secretKeyRef:
+                  name: braintrust-secrets
+                  key: REDIS_URL
+            {{- end }}
+            {{- with .Values.loopRuntime.extraEnvVars }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          volumeMounts:
+            - name: state-volume
+              mountPath: {{ .Values.loopRuntime.stateDir }}
+            - name: cache-volume
+              mountPath: {{ .Values.loopRuntime.cacheDir }}
+      {{- with .Values.loopRuntime.extraContainers }}
+      {{- toYaml . | nindent 8 }}
+      {{- end }}
+      volumes:
+        - name: state-volume
+          emptyDir: {}
+        - name: cache-volume
+          emptyDir: {}
+        {{- with .Values.loopRuntime.extraVolumes }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+{{- end }}
