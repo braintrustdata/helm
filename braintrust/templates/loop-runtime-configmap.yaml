@@ -38,7 +38,7 @@ data:
   BRAINSTORE_CONTROL_PLANE_TELEMETRY: {{ .Values.global.controlPlaneTelemetry | quote }}
   BRAINSTORE_DISABLE_STATUS_UPDATES: {{ .Values.loopRuntime.brainstoreDisableStatusUpdates | toString | quote }}
   NO_COLOR: "1"
-  {{- /* A Sandbox Service endpoint with no sandbox provider selects the Sandbox Service for every sandbox. */}}
+  {{- /* Without EXO_SANDBOX_PROVIDER, a Sandbox Service endpoint sends every sandbox to the Sandbox Service. */}}
   EXO_SANDBOX_IMAGE: {{ $sandbox.image | quote }}
   EXO_SANDBOX_VCPU_COUNT: {{ $sandbox.vcpuCount | quote }}
   EXO_SANDBOX_MEMORY_MIB: {{ $sandbox.memoryMib | quote }}

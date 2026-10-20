@@ -308,9 +308,7 @@ api:
   extraContainers: []
   extraVolumes: []
 
-# Loop Runtime configuration (AWS EKS and Google GKE)
-# The cloud's Terraform module creates the runtime identity and the Sandbox
-# Service infrastructure; this chart runs the Loop Runtime process in Kubernetes.
+# Loop Runtime configuration (optional; cloud: aws or google)
 loopRuntime:
   enabled: false
   name: "braintrust-loop-runtime"
@@ -335,10 +333,9 @@ loopRuntime:
     portName: http
   serviceAccount:
     name: "braintrust-loop-runtime"
-    # AWS: set this to Terraform's Loop Runtime role ARN when using IRSA. Leave
-    # it empty when the role is attached through an EKS Pod Identity association.
+    # AWS IRSA role. Leave empty when using EKS Pod Identity.
     awsRoleArn: ""
-    # Google: required. Use the Terraform output loop_runtime_service_account.
+    # Required on Google (Terraform output loop_runtime_service_account).
     googleServiceAccount: ""
     annotations: {}
   # These URLs default to in-cluster services. Set them when the API, AI proxy,
@@ -391,42 +388,31 @@ loopRuntime:
   nodeSelector: {}
   tolerations: []
   affinity: {}
-  # Loop Runtime runs agent sandboxes on Braintrust Sandbox Service workers,
-  # reached over mTLS. On GKE the workers run in the Terraform-managed isolated
-  # worker cluster; on AWS they run on the Sandbox Service EKS cluster.
+  # Sandboxes run on Braintrust Sandbox Service workers, reached over mTLS.
   sandbox:
-    # Set exactly one. dnsUrl discovers every worker behind one headless DNS
-    # name (GKE: Terraform output gke_isolated_workers.discovery.endpoint).
-    # urls lists fixed worker endpoints instead.
+    # Set one. dnsUrl resolves every worker behind a headless DNS name
+    # (GKE: Terraform output gke_isolated_workers.discovery.endpoint).
     dnsUrl: ""
     urls: []
-    # Sandbox guest image the workers start.
     image: "public.ecr.aws/braintrust/codex-runtime:latest"
     # Must match the Sandbox Service release's per-sandbox sizing.
     vcpuCount: 1
     memoryMib: 2048
-    # "restricted" permits only configured integrations; "internet" permits
-    # public destinations.
+    # restricted or internet
     egressMode: "restricted"
     tls:
-      # Kubernetes Secret with the Sandbox Service client certificate, its key,
-      # and the server CA. Required for https:// endpoints.
+      # Secret with the client certificate, key, and server CA.
+      # Required for https:// endpoints.
       secretName: ""
       certKey: client.pem
       keyKey: client.key
       caKey: server-ca.pem
-    # Optional forward proxy that sandboxes use for brokered Git access. When
-    # enabled, Loop Runtime listens on port and advertises url to the workers.
+    # Forward proxy that sandboxes use for Git access. url is the address the
+    # workers use to reach the <service>-egress Service.
     egressGateway:
       enabled: false
       port: 4002
-      # Address the workers use to reach this proxy, e.g. http://<lb-address>:4002.
       url: ""
-      # Dedicated Service for the proxy port. The workers run outside this
-      # cluster, so expose it through an internal load balancer. For GKE, set
-      # type LoadBalancer with the networking.gke.io/load-balancer-type:
-      # "Internal" annotation and restrict loadBalancerSourceRanges to the
-      # isolated worker node range.
       service:
         type: ClusterIP
         annotations: {}

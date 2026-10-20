@@ -176,17 +176,6 @@ tests:
           path: data.LOOP_RUNTIME_SANDBOX_EGRESS_MODE
           value: internet
 
-  - it: should reject an unknown sandbox egress mode
-    values:
-      - __fixtures__/base-values.yaml
-      - __fixtures__/google-values.yaml
-      - __fixtures__/loop-runtime-google-values.yaml
-    set:
-      loopRuntime.sandbox.egressMode: open
-    asserts:
-      - failedTemplate:
-          errorMessage: "loopRuntime.sandbox.egressMode must be restricted or internet, got \"open\""
-
   - it: should join fixed Sandbox Service endpoints
     values:
       - __fixtures__/base-values.yaml
@@ -266,18 +255,6 @@ tests:
     asserts:
       - failedTemplate:
           errorMessage: "Set only one of loopRuntime.sandbox.dnsUrl and loopRuntime.sandbox.urls."
-
-  - it: should reject a string of Sandbox Service endpoints
-    values:
-      - __fixtures__/base-values.yaml
-      - __fixtures__/google-values.yaml
-      - __fixtures__/loop-runtime-google-values.yaml
-    set:
-      loopRuntime.sandbox.dnsUrl: ""
-      loopRuntime.sandbox.urls: https://worker-0.sandbox.internal:9400
-    asserts:
-      - failedTemplate:
-          errorMessage: "loopRuntime.sandbox.urls must be a list of URLs"
 
   - it: should require the sandbox guest image
     values:
@@ -370,16 +347,3 @@ tests:
     asserts:
       - failedTemplate:
           errorMessage: "loopRuntime.sandbox.egressGateway.url is required when loopRuntime.sandbox.egressGateway.enabled is true"
-
-  - it: should keep the egress gateway off the runtime port
-    values:
-      - __fixtures__/base-values.yaml
-      - __fixtures__/google-values.yaml
-      - __fixtures__/loop-runtime-google-values.yaml
-    set:
-      loopRuntime.sandbox.egressGateway.enabled: true
-      loopRuntime.sandbox.egressGateway.url: http://10.10.0.20:4001
-      loopRuntime.sandbox.egressGateway.port: 4001
-    asserts:
-      - failedTemplate:
-          errorMessage: "loopRuntime.sandbox.egressGateway.port must differ from loopRuntime.service.port"

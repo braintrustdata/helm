@@ -20,28 +20,20 @@ The `braintrust-secrets` secret must contain the following keys:
 
 ## Optional: Loop Runtime
 
-Set `loopRuntime.enabled: true` to run the Loop Runtime service in the cluster.
-It supports `cloud: aws` (EKS) and `cloud: google` (GKE). Loop Runtime runs
-agent sandboxes on Braintrust Sandbox Service workers, which it reaches over
-mTLS. The cloud's Terraform data-plane module creates the runtime identity and
-the Sandbox Service infrastructure; the chart runs the runtime process.
+Set `loopRuntime.enabled: true` to run Loop Runtime on EKS (`cloud: aws`) or
+GKE (`cloud: google`). Loop Runtime runs sandboxes on Braintrust Sandbox
+Service workers over mTLS. Terraform creates the runtime identity and the
+Sandbox Service infrastructure.
 
-The chart reuses the existing `braintrust-secrets` values, reads the same
-Brainstore buckets as the Brainstore pods, adds `LOOP_RUNTIME_URL` to the API,
-and adds `/loop/runtime` routes to the chart-managed Istio VirtualService when
-`virtualService.enabled` is true.
+The runtime reads `braintrust-secrets` and the Brainstore buckets. The chart
+adds `LOOP_RUNTIME_URL` to the API and, when `virtualService.enabled` is true,
+routes `/loop/runtime` to Loop Runtime.
 
-Create a Secret in this namespace with the Sandbox Service client certificate,
-its key, and the server CA, and point `loopRuntime.sandbox.tls.secretName` at
-it. `sandbox.vcpuCount` and `sandbox.memoryMib` must match the per-sandbox
-sizing of the Sandbox Service release.
+Put the Sandbox Service client certificate, key, and server CA in a Secret and
+set `loopRuntime.sandbox.tls.secretName`. `sandbox.vcpuCount` and
+`sandbox.memoryMib` must match the Sandbox Service release.
 
-### Google GKE
-
-The GKE Terraform module creates a Google service account for Loop Runtime and
-binds it to the `braintrust/braintrust-loop-runtime` Kubernetes service account
-through Workload Identity. Its isolated worker cluster hosts the Sandbox
-Service.
+GKE:
 
 ```yaml
 cloud: google
@@ -54,19 +46,14 @@ objectStorage:
 loopRuntime:
   enabled: true
   serviceAccount:
-    name: braintrust-loop-runtime
     googleServiceAccount: "<terraform output loop_runtime_service_account>"
   sandbox:
     dnsUrl: "<terraform output gke_isolated_workers.discovery.endpoint>"
     tls:
       secretName: sandbox-client-tls
-      # Keys in that Secret. Defaults match the Sandbox Service client Secret.
-      certKey: client.pem
-      keyKey: client.key
-      caKey: server-ca.pem
 ```
 
-### AWS EKS
+EKS:
 
 ```yaml
 cloud: aws
@@ -79,24 +66,17 @@ objectStorage:
 loopRuntime:
   enabled: true
   serviceAccount:
-    name: braintrust-loop-runtime
-    # Set for IRSA; leave empty when using an EKS Pod Identity association.
+    # Leave empty when using EKS Pod Identity.
     awsRoleArn: "<Loop Runtime IAM role ARN>"
   sandbox:
-    dnsUrl: "https://<Sandbox Service worker discovery name>:9400"
+    dnsUrl: "https://<Sandbox Service worker DNS name>:9400"
     tls:
       secretName: sandbox-client-tls
 ```
 
-### Optional sandbox egress gateway
-
-Sandboxes use a forward proxy in Loop Runtime for brokered Git access. Enable
-it with `loopRuntime.sandbox.egressGateway`. The chart opens the proxy port on
-the pod, renders a `<service name>-egress` Service, and tells sandboxes to use
-`egressGateway.url`. Sandboxes run outside this cluster, so expose the Service
-on a private address the sandboxes can reach. On GKE, use an internal load
-balancer and allow the isolated worker node range in the worker cluster's
-egress rules:
+Sandboxes reach Git through a forward proxy in Loop Runtime. To enable it, set
+`loopRuntime.sandbox.egressGateway`. The workers run outside this cluster, so
+expose the `<service>-egress` Service on an internal load balancer. On GKE:
 
 ```yaml
 loopRuntime:
