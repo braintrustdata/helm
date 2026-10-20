@@ -18,6 +18,42 @@ The `braintrust-secrets` secret must contain the following keys:
 | `GCS_ACCESS_KEY_ID` | Google HMAC Access ID string | Valid S3 API Key Id (only required if `cloud` is `google` and if `enableGcsAuth` is `false`) |
 | `GCS_SECRET_ACCESS_KEY` | Google HMAC Secret string | Valid S3 Secret string (only required if `cloud` is `google` and if `enableGcsAuth` is `false`) |
 
+## Optional: Loop Runtime on AWS EKS
+
+Set `loopRuntime.enabled: true` with `cloud: aws` to run the Loop Runtime
+service in EKS. The AWS MicroVM image, network connectors, and IAM role are
+created by the Terraform data-plane module. Configure the chart with the
+Terraform outputs:
+
+```yaml
+cloud: aws
+
+objectStorage:
+  aws:
+    brainstoreBucket: "<terraform output brainstore_s3_bucket_name>"
+    codeBundleBucket: "<terraform output code_bundle_s3_bucket_name>"
+
+loopRuntime:
+  enabled: true
+  image:
+    tag: "<terraform output loop_runtime_version>"
+  serviceAccount:
+    name: braintrust-loop-runtime
+    # Set for IRSA; leave empty when using an EKS Pod Identity association.
+    awsRoleArn: "<terraform output loop_runtime_eks_role_arn>"
+  sandbox:
+    imageIdentifier: "<terraform output loop_runtime_microvm_image_arn>"
+    region: "<AWS region>"
+    ingressNetworkConnectorArns: "<sandbox ingress connector ARNs>"
+    egressNetworkConnectorArns: "<sandbox egress connector ARNs>"
+```
+
+The connector values are in the Terraform
+`loop_runtime_sandbox_env_vars` output. The chart reuses the existing
+`braintrust-secrets` values, adds the Loop Runtime URL to the API, and adds
+`/loop/runtime` routes to the chart-managed Istio VirtualService when
+`virtualService.enabled` is true.
+
 ## Azure Key Vault Driver Integration
 
 If you're using Azure, the Azure Key Vault CSI driver is default enabled and will automatically sync secrets from Azure Key Vault into Kubernetes. This eliminates the need to manually create and manage the `braintrust-secrets` Kubernetes secret.

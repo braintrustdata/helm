@@ -1,0 +1,67 @@
+suite: test Loop Runtime ConfigMap template
+templates:
+  - loop-runtime-configmap.yaml
+tests:
+  - it: should not render when Loop Runtime is disabled
+    values:
+      - __fixtures__/base-values.yaml
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should render the AWS runtime and sandbox configuration
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/loop-runtime-values.yaml
+    release:
+      name: test-release
+      namespace: braintrust
+    asserts:
+      - isKind:
+          of: ConfigMap
+      - equal:
+          path: metadata.name
+          value: braintrust-loop-runtime
+      - equal:
+          path: metadata.namespace
+          value: braintrust
+      - equal:
+          path: data.LOOP_RUNTIME_REDIS_NAMESPACE
+          value: loop-runtime:test-release
+      - equal:
+          path: data.BRAINTRUST_API_URL
+          value: http://braintrust-api.braintrust:8000
+      - equal:
+          path: data.LOOP_RUNTIME_BRAINSTORE_READER_URL
+          value: http://brainstore-fastreader.braintrust:4000
+      - equal:
+          path: data.BRAINSTORE_CODE_BUNDLE_URI
+          value: s3://test-code-bundle-bucket
+      - equal:
+          path: data.AWS_LAMBDA_MICROVM_IMAGE_IDENTIFIER
+          value: arn:aws:lambda:us-east-1:123456789012:microvm-image/test
+      - equal:
+          path: data.AWS_LAMBDA_MICROVM_EGRESS_NETWORK_CONNECTOR_ARNS
+          value: arn:aws:lambda:us-east-1:123456789012:network-connector/out
+      - isNull:
+          path: data.BRAINSTORE_LOCKS_URI
+
+  - it: should use object storage locks when configured
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/loop-runtime-values.yaml
+    set:
+      brainstore.locksBackend: objectStorage
+    asserts:
+      - equal:
+          path: data.BRAINSTORE_LOCKS_URI
+          value: s3://test-brainstore-bucket/brainstore/locks
+
+  - it: should reject Loop Runtime on non-AWS clouds
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      loopRuntime.enabled: true
+    asserts:
+      - failedTemplate:
+          errorMessage: "loopRuntime.enabled requires cloud: aws because the current sandbox backend uses AWS Lambda MicroVMs."
