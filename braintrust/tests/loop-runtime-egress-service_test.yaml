@@ -51,7 +51,7 @@ tests:
             name: egress
             protocol: TCP
             port: 4002
-            targetPort: egress
+            targetPort: 4002
       - equal:
           path: spec.type
           value: ClusterIP
@@ -59,6 +59,24 @@ tests:
           path: spec.loadBalancerSourceRanges
       - isNull:
           path: metadata.annotations
+
+  - it: should target the numeric gateway port when the main port is named egress
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/loop-runtime-values.yaml
+    set:
+      loopRuntime.service.portName: egress
+      loopRuntime.sandbox.egressGateway.enabled: true
+      loopRuntime.sandbox.egressGateway.url: http://egress.example:5002
+      loopRuntime.sandbox.egressGateway.port: 5002
+    asserts:
+      - equal:
+          path: spec.ports[0]
+          value:
+            name: egress
+            protocol: TCP
+            port: 5002
+            targetPort: 5002
 
   - it: should expose the egress gateway through a GKE internal load balancer
     values:
