@@ -73,8 +73,7 @@ spec:
               containerPort: {{ .Values.loopRuntime.service.port }}
               protocol: TCP
             {{- if $egressGateway.enabled }}
-            - name: egress
-              containerPort: {{ $egressGateway.port }}
+            - containerPort: {{ $egressGateway.port }}
               protocol: TCP
             {{- end }}
           resources:

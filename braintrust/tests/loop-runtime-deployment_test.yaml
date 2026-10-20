@@ -214,9 +214,55 @@ tests:
       - contains:
           path: spec.template.spec.containers[0].ports
           content:
-            name: egress
             containerPort: 4002
             protocol: TCP
+
+  - it: should allow the main port to be named egress when the gateway is disabled
+    template: loop-runtime-deployment.yaml
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/loop-runtime-values.yaml
+    set:
+      loopRuntime.service.portName: egress
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].ports
+          value:
+            - name: egress
+              containerPort: 4001
+              protocol: TCP
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.httpGet.port
+          value: egress
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.httpGet.port
+          value: egress
+
+  - it: should keep port names unique with the gateway enabled and a custom port
+    template: loop-runtime-deployment.yaml
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/loop-runtime-values.yaml
+    set:
+      loopRuntime.service.portName: egress
+      loopRuntime.sandbox.egressGateway.enabled: true
+      loopRuntime.sandbox.egressGateway.url: http://egress.example:5002
+      loopRuntime.sandbox.egressGateway.port: 5002
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].ports
+          value:
+            - name: egress
+              containerPort: 4001
+              protocol: TCP
+            - containerPort: 5002
+              protocol: TCP
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.httpGet.port
+          value: egress
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.httpGet.port
+          value: egress
 
   - it: should not render when reused values have no loopRuntime map
     template: loop-runtime-deployment.yaml
