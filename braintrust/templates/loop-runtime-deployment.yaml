@@ -5,7 +5,7 @@
 {{- if eq .Values.cloud "google" -}}
 {{- $_ := set $podLabels "gke-workload-identity/use" "true" -}}
 {{- end -}}
-{{- $sandboxServiceTls := .Values.loopRuntime.sandbox.tls -}}
+{{- $tls := .Values.loopRuntime.sandbox.tls -}}
 {{- $egressGateway := .Values.loopRuntime.sandbox.egressGateway -}}
 apiVersion: apps/v1
 kind: Deployment
@@ -144,7 +144,7 @@ spec:
               mountPath: {{ .Values.loopRuntime.stateDir }}
             - name: cache-volume
               mountPath: {{ .Values.loopRuntime.cacheDir }}
-            {{- if $sandboxServiceTls.secretName }}
+            {{- if $tls.secretName }}
             - name: sandbox-service-tls
               mountPath: /etc/sandbox-tls
               readOnly: true
@@ -157,16 +157,16 @@ spec:
           emptyDir: {}
         - name: cache-volume
           emptyDir: {}
-        {{- if $sandboxServiceTls.secretName }}
+        {{- if $tls.secretName }}
         - name: sandbox-service-tls
           secret:
-            secretName: {{ $sandboxServiceTls.secretName }}
+            secretName: {{ $tls.secretName }}
             items:
-              - key: {{ $sandboxServiceTls.certKey }}
+              - key: {{ $tls.certKey }}
                 path: client.pem
-              - key: {{ $sandboxServiceTls.keyKey }}
+              - key: {{ $tls.keyKey }}
                 path: client.key
-              - key: {{ $sandboxServiceTls.caKey }}
+              - key: {{ $tls.caKey }}
                 path: server-ca.pem
         {{- end }}
         {{- with .Values.loopRuntime.extraVolumes }}
