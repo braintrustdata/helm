@@ -155,14 +155,6 @@ predates Loop Runtime have no loopRuntime map, which means disabled.
 {{- end -}}
 
 {{/*
-Loop Runtime sandbox backend. Empty selects the cloud default:
-awsLambdaMicrovm on AWS and sandboxService elsewhere.
-*/}}
-{{- define "braintrust.loopRuntime.sandboxBackend" -}}
-{{- .Values.loopRuntime.sandbox.backend | default (eq .Values.cloud "aws" | ternary "awsLambdaMicrovm" "sandboxService") -}}
-{{- end -}}
-
-{{/*
 Object-store scheme and Brainstore bucket for Loop Runtime. Matches the
 Brainstore ConfigMaps so both read the same index, WAL, and locks.
 */}}
@@ -184,7 +176,7 @@ s3://{{ .Values.objectStorage.aws.codeBundleBucket }}
 
 {{/*
 Validate the Loop Runtime configuration. Terraform supplies the identity and
-sandbox infrastructure; Helm supplies the Kubernetes workload.
+Sandbox Service infrastructure; Helm supplies the Kubernetes workload.
 */}}
 {{- define "braintrust.loopRuntime.validate" -}}
 {{- if include "braintrust.loopRuntime.enabled" . -}}
@@ -194,7 +186,6 @@ sandbox infrastructure; Helm supplies the Kubernetes workload.
 {{- end -}}
 {{- end -}}
 {{- $sandbox := .Values.loopRuntime.sandbox -}}
-{{- $backend := include "braintrust.loopRuntime.sandboxBackend" . -}}
 {{- if not (has .Values.cloud (list "aws" "google")) -}}
 {{- fail "loopRuntime.enabled requires cloud: aws or cloud: google." -}}
 {{- end -}}
@@ -207,43 +198,29 @@ sandbox infrastructure; Helm supplies the Kubernetes workload.
 {{- $_ := required "loopRuntime.serviceAccount.googleServiceAccount is required when cloud is google (use Terraform output loop_runtime_service_account)" .Values.loopRuntime.serviceAccount.googleServiceAccount -}}
 {{- end -}}
 {{- $_ := required "loopRuntime.serviceAccount.name is required when loopRuntime.enabled is true" .Values.loopRuntime.serviceAccount.name -}}
-{{- if eq $backend "awsLambdaMicrovm" -}}
-{{- if ne .Values.cloud "aws" -}}
-{{- fail "loopRuntime.sandbox.backend awsLambdaMicrovm requires cloud: aws. Use sandboxService on other clouds." -}}
-{{- end -}}
-{{- $microvm := $sandbox.awsLambdaMicrovm -}}
-{{- $_ := required "loopRuntime.sandbox.awsLambdaMicrovm.imageIdentifier is required for the awsLambdaMicrovm backend (use Terraform output loop_runtime_microvm_image_arn)" $microvm.imageIdentifier -}}
-{{- $_ := required "loopRuntime.sandbox.awsLambdaMicrovm.region is required for the awsLambdaMicrovm backend" $microvm.region -}}
-{{- $_ := required "loopRuntime.sandbox.awsLambdaMicrovm.ingressNetworkConnectorArns is required for the awsLambdaMicrovm backend (use Terraform sandbox output)" $microvm.ingressNetworkConnectorArns -}}
-{{- $_ := required "loopRuntime.sandbox.awsLambdaMicrovm.egressNetworkConnectorArns is required for the awsLambdaMicrovm backend (use Terraform sandbox output)" $microvm.egressNetworkConnectorArns -}}
-{{- if $microvm.allowExecutionRole -}}
-{{- $_ := required "loopRuntime.sandbox.awsLambdaMicrovm.executionRoleArn is required when loopRuntime.sandbox.awsLambdaMicrovm.allowExecutionRole is true" $microvm.executionRoleArn -}}
-{{- end -}}
-{{- else if eq $backend "sandboxService" -}}
-{{- $service := $sandbox.sandboxService -}}
-{{- $urls := $service.urls | default list -}}
+{{- $urls := $sandbox.urls | default list -}}
 {{- if not (kindIs "slice" $urls) -}}
-{{- fail "loopRuntime.sandbox.sandboxService.urls must be a list of URLs" -}}
+{{- fail "loopRuntime.sandbox.urls must be a list of URLs" -}}
 {{- end -}}
-{{- if and $service.dnsUrl $urls -}}
-{{- fail "Set only one of loopRuntime.sandbox.sandboxService.dnsUrl and loopRuntime.sandbox.sandboxService.urls." -}}
+{{- if and $sandbox.dnsUrl $urls -}}
+{{- fail "Set only one of loopRuntime.sandbox.dnsUrl and loopRuntime.sandbox.urls." -}}
 {{- end -}}
-{{- if not (or $service.dnsUrl $urls) -}}
-{{- fail "loopRuntime.sandbox.sandboxService.dnsUrl or loopRuntime.sandbox.sandboxService.urls is required for the sandboxService backend (GKE: use Terraform output gke_isolated_workers.discovery.endpoint)" -}}
+{{- if not (or $sandbox.dnsUrl $urls) -}}
+{{- fail "loopRuntime.sandbox.dnsUrl or loopRuntime.sandbox.urls is required when loopRuntime.enabled is true (GKE: use Terraform output gke_isolated_workers.discovery.endpoint)" -}}
 {{- end -}}
-{{- $_ := required "loopRuntime.sandbox.sandboxService.image is required for the sandboxService backend" $service.image -}}
-{{- range (prepend $urls ($service.dnsUrl | default "")) -}}
-{{- if and . (hasPrefix "https://" .) (not $service.tls.secretName) -}}
-{{- fail "loopRuntime.sandbox.sandboxService.tls.secretName is required for https:// Sandbox Service endpoints" -}}
+{{- $_ := required "loopRuntime.sandbox.image is required when loopRuntime.enabled is true" $sandbox.image -}}
+{{- if not (has $sandbox.egressMode (list "restricted" "internet")) -}}
+{{- fail (printf "loopRuntime.sandbox.egressMode must be restricted or internet, got %q" (toString $sandbox.egressMode)) -}}
+{{- end -}}
+{{- range (prepend $urls ($sandbox.dnsUrl | default "")) -}}
+{{- if and . (hasPrefix "https://" .) (not $sandbox.tls.secretName) -}}
+{{- fail "loopRuntime.sandbox.tls.secretName is required for https:// Sandbox Service endpoints" -}}
 {{- end -}}
 {{- end -}}
-{{- if $service.tls.secretName -}}
-{{- $_ := required "loopRuntime.sandbox.sandboxService.tls.certKey is required when tls.secretName is set" $service.tls.certKey -}}
-{{- $_ := required "loopRuntime.sandbox.sandboxService.tls.keyKey is required when tls.secretName is set" $service.tls.keyKey -}}
-{{- $_ := required "loopRuntime.sandbox.sandboxService.tls.caKey is required when tls.secretName is set" $service.tls.caKey -}}
-{{- end -}}
-{{- else -}}
-{{- fail (printf "loopRuntime.sandbox.backend must be awsLambdaMicrovm or sandboxService, got %q" $backend) -}}
+{{- if $sandbox.tls.secretName -}}
+{{- $_ := required "loopRuntime.sandbox.tls.certKey is required when tls.secretName is set" $sandbox.tls.certKey -}}
+{{- $_ := required "loopRuntime.sandbox.tls.keyKey is required when tls.secretName is set" $sandbox.tls.keyKey -}}
+{{- $_ := required "loopRuntime.sandbox.tls.caKey is required when tls.secretName is set" $sandbox.tls.caKey -}}
 {{- end -}}
 {{- if $sandbox.egressGateway.enabled -}}
 {{- $_ := required "loopRuntime.sandbox.egressGateway.url is required when loopRuntime.sandbox.egressGateway.enabled is true" $sandbox.egressGateway.url -}}
