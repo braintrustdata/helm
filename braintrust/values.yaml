@@ -320,6 +320,7 @@ loopRuntime:
     service: {}
     pod: {}
     serviceaccount: {}
+  # Null, missing, or empty replicas default to 1; 0 scales to zero.
   replicas: 1
   image:
     repository: public.ecr.aws/braintrust/loop-runtime

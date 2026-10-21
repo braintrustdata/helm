@@ -5,30 +5,26 @@ tests:
   - it: should not render when Loop Runtime is disabled
     values:
       - __fixtures__/base-values.yaml
-    asserts:
+    asserts: &absent
       - hasDocuments:
           count: 0
 
   - it: should not render when the egress gateway is disabled
-    values:
+    values: &gke-values
       - __fixtures__/base-values.yaml
       - __fixtures__/google-values.yaml
       - __fixtures__/loop-runtime-google-values.yaml
-    asserts:
-      - hasDocuments:
-          count: 0
+    asserts: *absent
 
   - it: should not render when reused values have no loopRuntime map
     values:
       - __fixtures__/base-values.yaml
       - __fixtures__/google-values.yaml
       - __fixtures__/pre-loop-runtime-values.yaml
-    asserts:
-      - hasDocuments:
-          count: 0
+    asserts: *absent
 
   - it: should expose the egress gateway through a ClusterIP Service by default
-    values:
+    values: &aws-values
       - __fixtures__/base-values.yaml
       - __fixtures__/loop-runtime-values.yaml
     set:
@@ -61,9 +57,7 @@ tests:
           path: metadata.annotations
 
   - it: should target the numeric gateway port when the main port is named egress
-    values:
-      - __fixtures__/base-values.yaml
-      - __fixtures__/loop-runtime-values.yaml
+    values: *aws-values
     set:
       loopRuntime.service.portName: egress
       loopRuntime.sandbox.egressGateway.enabled: true
@@ -79,10 +73,7 @@ tests:
             targetPort: 5002
 
   - it: should expose the egress gateway through a GKE internal load balancer
-    values:
-      - __fixtures__/base-values.yaml
-      - __fixtures__/google-values.yaml
-      - __fixtures__/loop-runtime-google-values.yaml
+    values: *gke-values
     set:
       loopRuntime.service.name: loop
       loopRuntime.labels.loop-specific: loop-egress
