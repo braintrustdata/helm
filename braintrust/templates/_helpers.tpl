@@ -199,14 +199,19 @@ s3://{{ .Values.objectStorage.aws.codeBundleBucket }}
 {{- if not (or $sandbox.dnsUrl $urls) -}}
 {{- fail "loopRuntime.sandbox.dnsUrl or loopRuntime.sandbox.urls is required when loopRuntime.enabled is true (GKE: use Terraform output gke_isolated_workers.discovery.endpoint)" -}}
 {{- end -}}
+{{- range $urls -}}
+{{- if not (. | default "" | trim) -}}
+{{- fail "loopRuntime.sandbox.urls entries must not be blank" -}}
+{{- end -}}
+{{- end -}}
 {{- $_ := required "loopRuntime.sandbox.image is required when loopRuntime.enabled is true" $sandbox.image -}}
 {{- range (prepend $urls ($sandbox.dnsUrl | default "")) -}}
+{{- if ne . (trim .) -}}
+{{- fail "Sandbox Service endpoints must not contain leading or trailing whitespace" -}}
+{{- end -}}
 {{- if and . (hasPrefix "https://" .) (not $sandbox.tls.secretName) -}}
 {{- fail "loopRuntime.sandbox.tls.secretName is required for https:// Sandbox Service endpoints" -}}
 {{- end -}}
-{{- end -}}
-{{- if $sandbox.egressGateway.enabled -}}
-{{- $_ := required "loopRuntime.sandbox.egressGateway.url is required when loopRuntime.sandbox.egressGateway.enabled is true" $sandbox.egressGateway.url -}}
 {{- end -}}
 {{- end -}}
 {{- end -}}
