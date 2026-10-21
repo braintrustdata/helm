@@ -9,6 +9,21 @@
 {{- if and (or (eq $orgName "") (eq $orgName "*")) (eq $primaryOrgName "") (not $hasPrimaryOrgNameExtraEnv) -}}
 {{- fail "global.primaryOrgName or api.extraEnvVars PRIMARY_ORG_NAME is required when global.orgName is empty or \"*\"; self-hosted service-token management needs a primary organization." -}}
 {{- end -}}
+{{- $googleRegion := "" -}}
+{{- if eq (.Values.cloud | default "") "google" -}}
+{{- $googleRegion = .Values.objectStorage.google.region | default "" | toString | trim -}}
+{{- end -}}
+{{- if and (eq (.Values.cloud | default "") "google") (not .Values.api.enableGcsAuth) -}}
+{{- $hasAwsRegionExtraEnv := false -}}
+{{- range .Values.api.extraEnvVars -}}
+{{- if eq (.name | default "" | toString) "AWS_REGION" -}}
+{{- $hasAwsRegionExtraEnv = true -}}
+{{- end -}}
+{{- end -}}
+{{- if and (eq $googleRegion "") (not $hasAwsRegionExtraEnv) -}}
+{{- fail "objectStorage.google.region or api.extraEnvVars AWS_REGION is required when cloud is google and api.enableGcsAuth is false; S3-compatible GCS needs a region." -}}
+{{- end -}}
+{{- end -}}
 {{- $allowedOrgIds := .Values.global.allowedOrgIds | default "" | toString | trim -}}
 {{- $btqlStrictOrgIds := .Values.btqlAuditLogsStrictOrgIds | default list -}}
 {{- $btqlBestEffortOrgIds := .Values.btqlAuditLogsBestEffortOrgIds | default list -}}
@@ -70,6 +85,10 @@ data:
   AWS_ENDPOINT_URL: "https://storage.googleapis.com"
   AWS_REQUEST_CHECKSUM_CALCULATION: "WHEN_REQUIRED"
   AWS_RESPONSE_CHECKSUM_VALIDATION: "WHEN_REQUIRED"
+  {{- if $googleRegion }}
+  AWS_REGION: {{ $googleRegion | quote }}
+  AWS_DEFAULT_REGION: {{ $googleRegion | quote }}
+  {{- end }}
   {{- end }}
   {{- end }}
 

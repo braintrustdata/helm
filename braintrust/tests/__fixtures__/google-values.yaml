@@ -10,6 +10,7 @@ objectStorage:
   google:
     brainstoreBucket: "test-brainstore-bucket"
     apiBucket: "test-api-bucket"
+    region: "us-central1"
 
 brainstore:
   serviceAccount:

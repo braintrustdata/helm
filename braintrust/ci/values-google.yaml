@@ -17,6 +17,7 @@ objectStorage:
   google:
     brainstoreBucket: "test-brainstore-bucket"
     apiBucket: "test-api-bucket"
+    region: "us-central1"
 
 api:
   name: "braintrust-api"

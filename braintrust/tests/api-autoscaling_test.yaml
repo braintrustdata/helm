@@ -14,6 +14,7 @@ tests:
       - __fixtures__/base-values.yaml
     set:
       cloud: google
+      objectStorage.google.region: us-central1
       api.autoscaling.enabled: false
     release:
       namespace: "braintrust"
@@ -27,6 +28,7 @@ tests:
       - __fixtures__/base-values.yaml
     set:
       cloud: google
+      objectStorage.google.region: us-central1
       api.autoscaling.enabled: false
     release:
       namespace: "braintrust"
@@ -53,6 +55,7 @@ tests:
       - __fixtures__/base-values.yaml
     set:
       cloud: google
+      objectStorage.google.region: us-central1
       api.autoscaling.enabled: true
     release:
       namespace: "braintrust"
@@ -96,6 +99,7 @@ tests:
       - __fixtures__/base-values.yaml
     set:
       cloud: google
+      objectStorage.google.region: us-central1
       api.autoscaling.enabled: true
     release:
       namespace: "braintrust"
@@ -157,6 +161,7 @@ tests:
       - __fixtures__/base-values.yaml
     set:
       cloud: google
+      objectStorage.google.region: us-central1
       api.autoscaling.enabled: true
       api.replicas: 4
     release:
@@ -184,6 +189,7 @@ tests:
       - __fixtures__/base-values.yaml
     set:
       cloud: google
+      objectStorage.google.region: us-central1
       api.autoscaling.enabled: true
       api.extraEnvVars:
         - name: ENABLE_PROMETHEUS_METRICS
@@ -206,6 +212,7 @@ tests:
       - __fixtures__/base-values.yaml
     set:
       cloud: google
+      objectStorage.google.region: us-central1
       api.autoscaling.enabled: false
       api.replicas: 4
     release:
@@ -230,6 +237,7 @@ tests:
       - __fixtures__/base-values.yaml
     set:
       cloud: google
+      objectStorage.google.region: us-central1
       api.autoscaling.enabled: true
       api.workloadIsolation.enabled: true
     release:
@@ -244,6 +252,7 @@ tests:
       - __fixtures__/base-values.yaml
     set:
       cloud: google
+      objectStorage.google.region: us-central1
       api.autoscaling.enabled: true
       api.workloadIsolation.enabled: true
     release:
@@ -268,6 +277,7 @@ tests:
       - __fixtures__/base-values.yaml
     set:
       cloud: google
+      objectStorage.google.region: us-central1
       api.autoscaling.enabled: true
       api.workloadIsolation.enabled: true
     release:
@@ -295,6 +305,7 @@ tests:
       - __fixtures__/base-values.yaml
     set:
       cloud: google
+      objectStorage.google.region: us-central1
       api.autoscaling.enabled: true
       api.workloadIsolation.enabled: true
     release:
@@ -319,6 +330,7 @@ tests:
       - __fixtures__/base-values.yaml
     set:
       cloud: google
+      objectStorage.google.region: us-central1
       api.autoscaling.enabled: true
       api.workloadIsolation.enabled: true
     release:
@@ -340,6 +352,7 @@ tests:
       - __fixtures__/base-values.yaml
     set:
       cloud: google
+      objectStorage.google.region: us-central1
       api.autoscaling.enabled: true
       api.workloadIsolation.enabled: true
     release:
@@ -362,6 +375,7 @@ tests:
       - __fixtures__/base-values.yaml
     set:
       cloud: google
+      objectStorage.google.region: us-central1
       api.autoscaling.enabled: true
       api.workloadIsolation.enabled: true
       api.workloadIsolation.ingest.autoscaling.enabled: false
@@ -382,6 +396,7 @@ tests:
       - __fixtures__/base-values.yaml
     set:
       cloud: google
+      objectStorage.google.region: us-central1
       api.autoscaling.enabled: true
       api.workloadIsolation.enabled: true
       api.workloadIsolation.ingest.autoscaling.enabled: false
@@ -397,6 +412,7 @@ tests:
       - __fixtures__/base-values.yaml
     set:
       cloud: google
+      objectStorage.google.region: us-central1
       api.autoscaling.enabled: true
       api.workloadIsolation.enabled: true
       api.workloadIsolation.ingest.autoscaling.enabled: false
@@ -422,6 +438,7 @@ tests:
       - __fixtures__/base-values.yaml
     set:
       cloud: google
+      objectStorage.google.region: us-central1
       api.autoscaling.enabled: true
       api.workloadIsolation.enabled: true
       api.workloadIsolation.ingest.autoscaling.enabled: false

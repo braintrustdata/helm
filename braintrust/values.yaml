@@ -74,6 +74,11 @@ objectStorage:
     brainstoreBucket: ""
     # Single API bucket with paths for responses and code bundles
     apiBucket: ""
+    # GCS bucket region. Required for S3-compatible HMAC access
+    # (api.enableGcsAuth false). Rendered as AWS_REGION and
+    # AWS_DEFAULT_REGION on the API. api.extraEnvVars can still override
+    # AWS_REGION, but replacing that list does not remove this value.
+    region: ""
 
 # No-PG mode: controls which object types bypass PostgreSQL and use Brainstore directly.
 # Options:

@@ -262,6 +262,79 @@ tests:
       - equal:
           path: data.AWS_RESPONSE_CHECKSUM_VALIDATION
           value: "WHEN_REQUIRED"
+      - equal:
+          path: data.AWS_REGION
+          value: "us-central1"
+      - equal:
+          path: data.AWS_DEFAULT_REGION
+          value: "us-central1"
+
+  - it: should keep the GCS region when extraEnvVars replaces the list
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/google-values.yaml
+    set:
+      api.extraEnvVars:
+        - name: ENABLE_CONTAINER_CPU_METRICS
+          value: "true"
+    release:
+      namespace: "braintrust"
+    asserts:
+      - equal:
+          path: data.AWS_REGION
+          value: "us-central1"
+      - equal:
+          path: data.AWS_DEFAULT_REGION
+          value: "us-central1"
+
+  - it: should trim the GCS region
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/google-values.yaml
+    set:
+      objectStorage.google.region: "  us-central1  "
+    release:
+      namespace: "braintrust"
+    asserts:
+      - equal:
+          path: data.AWS_REGION
+          value: "us-central1"
+      - equal:
+          path: data.AWS_DEFAULT_REGION
+          value: "us-central1"
+
+  - it: should allow a Google HMAC deployment that sets AWS_REGION via extraEnvVars
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/google-values.yaml
+    set:
+      objectStorage.google.region: ""
+      api.extraEnvVars:
+        - name: AWS_REGION
+          value: "us-central1"
+    release:
+      namespace: "braintrust"
+    asserts:
+      - equal:
+          path: data.AWS_ENDPOINT_URL
+          value: "https://storage.googleapis.com"
+      - isNull:
+          path: data.AWS_REGION
+      - isNull:
+          path: data.AWS_DEFAULT_REGION
+
+  - it: should reject a Google HMAC deployment with no region
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/google-values.yaml
+    set:
+      objectStorage.google.region: ""
+      api.extraEnvVars: []
+    release:
+      namespace: "braintrust"
+    asserts:
+      - failedTemplate:
+          errorMessage: "objectStorage.google.region or api.extraEnvVars AWS_REGION is required when cloud is google and api.enableGcsAuth is false; S3-compatible GCS needs a region."
 
   - it: should not set checksum vars when enableGcsAuth is true
     values:
@@ -282,6 +355,27 @@ tests:
           path: data.AWS_REQUEST_CHECKSUM_CALCULATION
       - isNull:
           path: data.AWS_RESPONSE_CHECKSUM_VALIDATION
+      - isNull:
+          path: data.AWS_REGION
+      - isNull:
+          path: data.AWS_DEFAULT_REGION
+
+  - it: should not require a GCS region when enableGcsAuth is true
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/google-values.yaml
+    set:
+      api.enableGcsAuth: true
+      api.serviceAccount.googleServiceAccount: "test@project.iam.gserviceaccount.com"
+      objectStorage.google.region: ""
+    release:
+      namespace: "braintrust"
+    asserts:
+      - equal:
+          path: data.ENABLE_GCS_AUTH
+          value: "true"
+      - isNull:
+          path: data.AWS_REGION
 
   - it: should configure brainstore URLs correctly
     values:
