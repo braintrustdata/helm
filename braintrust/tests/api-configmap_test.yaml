@@ -329,6 +329,104 @@ tests:
       - failedTemplate:
           errorMessage: "api.platformEnvVars or api.extraEnvVars AWS_REGION is required when cloud is google and api.enableGcsAuth is false; S3-compatible GCS needs a region."
 
+  - it: should reject a blank AWS_REGION literal in extraEnvVars
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/google-values.yaml
+    set:
+      api.platformEnvVars: []
+      api.extraEnvVars:
+        - name: AWS_REGION
+          value: ""
+    release:
+      namespace: "braintrust"
+    asserts:
+      - failedTemplate:
+          errorMessage: "api.platformEnvVars or api.extraEnvVars AWS_REGION is required when cloud is google and api.enableGcsAuth is false; S3-compatible GCS needs a region."
+
+  - it: should reject a name-only AWS_REGION entry
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/google-values.yaml
+    set:
+      api.platformEnvVars: []
+      api.extraEnvVars:
+        - name: AWS_REGION
+    release:
+      namespace: "braintrust"
+    asserts:
+      - failedTemplate:
+          errorMessage: "api.platformEnvVars or api.extraEnvVars AWS_REGION is required when cloud is google and api.enableGcsAuth is false; S3-compatible GCS needs a region."
+
+  - it: should reject a whitespace-only AWS_REGION value
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/google-values.yaml
+    set:
+      api.extraEnvVars: []
+      api.platformEnvVars:
+        - name: AWS_REGION
+          value: "   "
+    release:
+      namespace: "braintrust"
+    asserts:
+      - failedTemplate:
+          errorMessage: "api.platformEnvVars or api.extraEnvVars AWS_REGION is required when cloud is google and api.enableGcsAuth is false; S3-compatible GCS needs a region."
+
+  - it: should reject a later blank AWS_REGION that overrides a real one
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/google-values.yaml
+    set:
+      api.platformEnvVars:
+        - name: AWS_REGION
+          value: "us-central1"
+      api.extraEnvVars:
+        - name: AWS_REGION
+          value: ""
+    release:
+      namespace: "braintrust"
+    asserts:
+      - failedTemplate:
+          errorMessage: "api.platformEnvVars or api.extraEnvVars AWS_REGION is required when cloud is google and api.enableGcsAuth is false; S3-compatible GCS needs a region."
+
+  - it: should allow AWS_REGION from valueFrom without a literal value
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/google-values.yaml
+    set:
+      api.platformEnvVars: []
+      api.extraEnvVars:
+        - name: AWS_REGION
+          valueFrom:
+            secretKeyRef:
+              name: braintrust-secrets
+              key: AWS_REGION
+    release:
+      namespace: "braintrust"
+    asserts:
+      - equal:
+          path: data.AWS_ENDPOINT_URL
+          value: "https://storage.googleapis.com"
+
+  - it: should let a later literal AWS_REGION replace a blank platform entry
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/google-values.yaml
+    set:
+      api.platformEnvVars:
+        - name: AWS_REGION
+          value: ""
+      api.extraEnvVars:
+        - name: AWS_REGION
+          value: "us-central1"
+    release:
+      namespace: "braintrust"
+    asserts:
+      - equal:
+          path: data.AWS_ENDPOINT_URL
+          value: "https://storage.googleapis.com"
+
   - it: should reject a whitespace-only env name as AWS_REGION
     values:
       - __fixtures__/base-values.yaml

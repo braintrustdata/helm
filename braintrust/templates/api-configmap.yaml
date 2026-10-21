@@ -9,7 +9,14 @@
 {{- $hasPrimaryOrgNameEnv = true -}}
 {{- end -}}
 {{- if eq $envName "AWS_REGION" -}}
+{{- /* Last duplicate wins, matching kubelet env precedence. A later blank literal clears an earlier region. valueFrom is accepted without inspecting the secret. */ -}}
+{{- if .valueFrom -}}
 {{- $hasAwsRegionEnv = true -}}
+{{- else if ne (.value | default "" | toString | trim) "" -}}
+{{- $hasAwsRegionEnv = true -}}
+{{- else -}}
+{{- $hasAwsRegionEnv = false -}}
+{{- end -}}
 {{- end -}}
 {{- end -}}
 {{- if and (or (eq $orgName "") (eq $orgName "*")) (eq $primaryOrgName "") (not $hasPrimaryOrgNameEnv) -}}
