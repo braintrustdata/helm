@@ -6,13 +6,13 @@ tests:
   - it: should not render when Loop Runtime is disabled
     values:
       - __fixtures__/base-values.yaml
-    asserts:
+    asserts: &absent
       - hasDocuments:
           count: 0
 
   - it: should render a hardened runtime pod with data-plane secrets
     template: loop-runtime-deployment.yaml
-    values:
+    values: &aws-values
       - __fixtures__/base-values.yaml
       - __fixtures__/loop-runtime-values.yaml
     asserts:
@@ -21,6 +21,9 @@ tests:
       - equal:
           path: metadata.name
           value: braintrust-loop-runtime
+      - equal:
+          path: spec.replicas
+          value: 1
       - equal:
           path: spec.template.spec.serviceAccountName
           value: braintrust-loop-runtime
@@ -70,9 +73,7 @@ tests:
 
   - it: should keep probes on a custom named service port
     template: loop-runtime-deployment.yaml
-    values:
-      - __fixtures__/base-values.yaml
-      - __fixtures__/loop-runtime-values.yaml
+    values: *aws-values
     set:
       loopRuntime.service.port: 5000
       loopRuntime.service.portName: metrics
@@ -92,9 +93,7 @@ tests:
 
   - it: should not use GKE workload identity on AWS
     template: loop-runtime-deployment.yaml
-    values:
-      - __fixtures__/base-values.yaml
-      - __fixtures__/loop-runtime-values.yaml
+    values: *aws-values
     asserts:
       - isNull:
           path: spec.template.metadata.labels["gke-workload-identity/use"]
@@ -106,7 +105,7 @@ tests:
 
   - it: should use GKE workload identity and mount Sandbox Service client TLS on Google
     template: loop-runtime-deployment.yaml
-    values:
+    values: &gke-values
       - __fixtures__/base-values.yaml
       - __fixtures__/google-values.yaml
       - __fixtures__/loop-runtime-google-values.yaml
@@ -144,10 +143,7 @@ tests:
 
   - it: should map custom TLS secret keys to the paths Loop Runtime reads
     template: loop-runtime-deployment.yaml
-    values:
-      - __fixtures__/base-values.yaml
-      - __fixtures__/google-values.yaml
-      - __fixtures__/loop-runtime-google-values.yaml
+    values: *gke-values
     set:
       loopRuntime.sandbox.tls.secretName: cert-manager-client
       loopRuntime.sandbox.tls.certKey: tls.crt
@@ -170,10 +166,7 @@ tests:
 
   - it: should omit the TLS volume for a plain HTTP Sandbox Service endpoint
     template: loop-runtime-deployment.yaml
-    values:
-      - __fixtures__/base-values.yaml
-      - __fixtures__/google-values.yaml
-      - __fixtures__/loop-runtime-google-values.yaml
+    values: *gke-values
     set:
       loopRuntime.sandbox.dnsUrl: http://sandbox-service.sandbox:9400
       loopRuntime.sandbox.tls.secretName: ""
@@ -187,9 +180,7 @@ tests:
 
   - it: should mount Sandbox Service client TLS on AWS
     template: loop-runtime-deployment.yaml
-    values:
-      - __fixtures__/base-values.yaml
-      - __fixtures__/loop-runtime-values.yaml
+    values: *aws-values
     asserts:
       - contains:
           path: spec.template.spec.containers[0].volumeMounts
@@ -203,10 +194,7 @@ tests:
 
   - it: should expose the egress gateway container port when enabled
     template: loop-runtime-deployment.yaml
-    values:
-      - __fixtures__/base-values.yaml
-      - __fixtures__/google-values.yaml
-      - __fixtures__/loop-runtime-google-values.yaml
+    values: *gke-values
     set:
       loopRuntime.sandbox.egressGateway.enabled: true
       loopRuntime.sandbox.egressGateway.url: http://10.10.0.20:4002
@@ -219,9 +207,7 @@ tests:
 
   - it: should allow the main port to be named egress when the gateway is disabled
     template: loop-runtime-deployment.yaml
-    values:
-      - __fixtures__/base-values.yaml
-      - __fixtures__/loop-runtime-values.yaml
+    values: *aws-values
     set:
       loopRuntime.service.portName: egress
     asserts:
@@ -240,9 +226,7 @@ tests:
 
   - it: should keep port names unique with the gateway enabled and a custom port
     template: loop-runtime-deployment.yaml
-    values:
-      - __fixtures__/base-values.yaml
-      - __fixtures__/loop-runtime-values.yaml
+    values: *aws-values
     set:
       loopRuntime.service.portName: egress
       loopRuntime.sandbox.egressGateway.enabled: true
@@ -270,6 +254,41 @@ tests:
       - __fixtures__/base-values.yaml
       - __fixtures__/google-values.yaml
       - __fixtures__/pre-loop-runtime-values.yaml
+    asserts: *absent
+
+  - it: should scale to zero when explicitly requested
+    template: loop-runtime-deployment.yaml
+    values: *aws-values
+    set:
+      loopRuntime.replicas: 0
     asserts:
-      - hasDocuments:
-          count: 0
+      - equal:
+          path: spec.replicas
+          value: 0
+
+  - it: should use an explicit positive replica count
+    template: loop-runtime-deployment.yaml
+    values: *aws-values
+    set:
+      loopRuntime.replicas: 2
+    asserts:
+      - equal:
+          path: spec.replicas
+          value: 2
+
+  - it: should default null or missing replicas to one
+    template: loop-runtime-deployment.yaml
+    values: *aws-values
+    set:
+      loopRuntime.replicas: null
+    asserts: &default-replicas
+      - equal:
+          path: spec.replicas
+          value: 1
+
+  - it: should default empty replicas to one
+    template: loop-runtime-deployment.yaml
+    values: *aws-values
+    set:
+      loopRuntime.replicas: ""
+    asserts: *default-replicas

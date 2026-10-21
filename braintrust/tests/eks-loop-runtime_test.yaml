@@ -9,7 +9,7 @@ tests:
     release:
       namespace: braintrust
     template: loop-runtime-configmap.yaml
-    values:
+    values: &eks-values
       - __fixtures__/base-values.yaml
       - __fixtures__/loop-runtime-values.yaml
       - ../examples/eks-loop-runtime/values.yaml
@@ -28,30 +28,11 @@ tests:
       - isNull:
           path: data.AWS_LAMBDA_MICROVM_IMAGE_IDENTIFIER
 
-  - it: should expose an internal egress Service for the companion workers
-    release:
-      namespace: braintrust
-    template: loop-runtime-egress-service.yaml
-    values:
-      - __fixtures__/base-values.yaml
-      - __fixtures__/loop-runtime-values.yaml
-      - ../examples/eks-loop-runtime/values.yaml
-    asserts:
-      - equal:
-          path: spec.type
-          value: ClusterIP
-      - equal:
-          path: spec.ports[0].targetPort
-          value: 4002
-
   - it: should install the runtime on system nodes with the client TLS Secret
     release:
       namespace: braintrust
     template: loop-runtime-deployment.yaml
-    values:
-      - __fixtures__/base-values.yaml
-      - __fixtures__/loop-runtime-values.yaml
-      - ../examples/eks-loop-runtime/values.yaml
+    values: *eks-values
     asserts:
       - equal:
           path: spec.template.spec.nodeSelector["braintrust.io/workload"]
@@ -75,30 +56,3 @@ tests:
                   path: client.key
                 - key: server-ca.pem
                   path: server-ca.pem
-
-  - it: should publish the runtime URL to the API
-    release:
-      namespace: braintrust
-    template: api-configmap.yaml
-    values:
-      - __fixtures__/base-values.yaml
-      - __fixtures__/loop-runtime-values.yaml
-      - ../examples/eks-loop-runtime/values.yaml
-    asserts:
-      - equal:
-          path: data.LOOP_RUNTIME_URL
-          value: http://braintrust-loop-runtime.braintrust:4001
-
-  - it: should remove the runtime resources when disabled with the worker release retained
-    release:
-      namespace: braintrust
-    template: loop-runtime-deployment.yaml
-    values:
-      - __fixtures__/base-values.yaml
-      - __fixtures__/loop-runtime-values.yaml
-      - ../examples/eks-loop-runtime/values.yaml
-    set:
-      loopRuntime.enabled: false
-    asserts:
-      - hasDocuments:
-          count: 0

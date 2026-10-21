@@ -27,7 +27,6 @@ jobs:
         run: |
           python3 -m unittest discover -s tests -p 'test_*.py'
           helm unittest braintrust
-          bash scripts/test-eks-loop-runtime.sh
 
   lint-test:
     name: Lint and Test

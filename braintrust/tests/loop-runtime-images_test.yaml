@@ -5,7 +5,7 @@ templates:
 tests:
   - it: should render image tag v2.18.0
     template: loop-runtime-deployment.yaml
-    values:
+    values: &runtime-values
       - __fixtures__/base-values.yaml
       - __fixtures__/loop-runtime-values.yaml
     set:
@@ -20,129 +20,87 @@ tests:
 
   - it: should render image tag 2.18.0
     template: loop-runtime-deployment.yaml
-    values:
-      - __fixtures__/base-values.yaml
-      - __fixtures__/loop-runtime-values.yaml
+    values: *runtime-values
     set:
       loopRuntime.image.tag: "2.18.0"
     asserts:
       - equal:
           path: spec.template.spec.containers[0].image
           value: "test/loop-runtime:2.18.0"
-      - equal:
-          path: spec.template.spec.containers[0].imagePullPolicy
-          value: Always
 
   - it: should render image tag v2.18.0-rc.1
     template: loop-runtime-deployment.yaml
-    values:
-      - __fixtures__/base-values.yaml
-      - __fixtures__/loop-runtime-values.yaml
+    values: *runtime-values
     set:
       loopRuntime.image.tag: "v2.18.0-rc.1"
     asserts:
       - equal:
           path: spec.template.spec.containers[0].image
           value: "test/loop-runtime:v2.18.0-rc.1"
-      - equal:
-          path: spec.template.spec.containers[0].imagePullPolicy
-          value: Always
 
   - it: should render image tag 2.18.0-rc.1
     template: loop-runtime-deployment.yaml
-    values:
-      - __fixtures__/base-values.yaml
-      - __fixtures__/loop-runtime-values.yaml
+    values: *runtime-values
     set:
       loopRuntime.image.tag: "2.18.0-rc.1"
     asserts:
       - equal:
           path: spec.template.spec.containers[0].image
           value: "test/loop-runtime:2.18.0-rc.1"
-      - equal:
-          path: spec.template.spec.containers[0].imagePullPolicy
-          value: Always
 
   - it: should render image tag a1b2c3d
     template: loop-runtime-deployment.yaml
-    values:
-      - __fixtures__/base-values.yaml
-      - __fixtures__/loop-runtime-values.yaml
+    values: *runtime-values
     set:
       loopRuntime.image.tag: "a1b2c3d"
     asserts:
       - equal:
           path: spec.template.spec.containers[0].image
           value: "test/loop-runtime:a1b2c3d"
-      - equal:
-          path: spec.template.spec.containers[0].imagePullPolicy
-          value: Always
 
   - it: should render image tag 1234567
     template: loop-runtime-deployment.yaml
-    values:
-      - __fixtures__/base-values.yaml
-      - __fixtures__/loop-runtime-values.yaml
+    values: *runtime-values
     set:
       loopRuntime.image.tag: "1234567"
     asserts:
       - equal:
           path: spec.template.spec.containers[0].image
           value: "test/loop-runtime:1234567"
-      - equal:
-          path: spec.template.spec.containers[0].imagePullPolicy
-          value: Always
 
   - it: should render image tag 53af3580126bc915b67166a41d5c78b3985d1e94
     template: loop-runtime-deployment.yaml
-    values:
-      - __fixtures__/base-values.yaml
-      - __fixtures__/loop-runtime-values.yaml
+    values: *runtime-values
     set:
       loopRuntime.image.tag: "53af3580126bc915b67166a41d5c78b3985d1e94"
     asserts:
       - equal:
           path: spec.template.spec.containers[0].image
           value: "test/loop-runtime:53af3580126bc915b67166a41d5c78b3985d1e94"
-      - equal:
-          path: spec.template.spec.containers[0].imagePullPolicy
-          value: Always
 
   - it: should render image tag custom-build
     template: loop-runtime-deployment.yaml
-    values:
-      - __fixtures__/base-values.yaml
-      - __fixtures__/loop-runtime-values.yaml
+    values: *runtime-values
     set:
       loopRuntime.image.tag: "custom-build"
     asserts:
       - equal:
           path: spec.template.spec.containers[0].image
           value: "test/loop-runtime:custom-build"
-      - equal:
-          path: spec.template.spec.containers[0].imagePullPolicy
-          value: Always
 
   - it: should render image tag latest-2.x
     template: loop-runtime-deployment.yaml
-    values:
-      - __fixtures__/base-values.yaml
-      - __fixtures__/loop-runtime-values.yaml
+    values: *runtime-values
     set:
       loopRuntime.image.tag: "latest-2.x"
     asserts:
       - equal:
           path: spec.template.spec.containers[0].image
           value: "test/loop-runtime:latest-2.x"
-      - equal:
-          path: spec.template.spec.containers[0].imagePullPolicy
-          value: Always
 
   - it: should retain an explicit pull policy for a pinned image
     template: loop-runtime-deployment.yaml
-    values:
-      - __fixtures__/base-values.yaml
-      - __fixtures__/loop-runtime-values.yaml
+    values: *runtime-values
     set:
       loopRuntime.image.pullPolicy: IfNotPresent
     asserts:

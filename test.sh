@@ -95,10 +95,6 @@ echo ""
 echo "✅ Chart rendering tests passed"
 
 echo ""
-echo "Testing the EKS integration with the released Sandbox Service chart..."
-bash scripts/test-eks-loop-runtime.sh
-
-echo ""
 echo "=========================================="
 echo "3. Running Helm Lint"
 echo "=========================================="

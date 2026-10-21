@@ -55,27 +55,6 @@ loopRuntime:
       secretName: sandbox-client-tls
 ```
 
-EKS:
-
-```yaml
-cloud: aws
-
-objectStorage:
-  aws:
-    brainstoreBucket: "<terraform output brainstore_s3_bucket_name>"
-    codeBundleBucket: "<terraform output code_bundle_s3_bucket_name>"
-
-loopRuntime:
-  enabled: true
-  serviceAccount:
-    # Leave empty when using EKS Pod Identity.
-    awsRoleArn: "<Loop Runtime IAM role ARN>"
-  sandbox:
-    dnsUrl: "https://<Sandbox Service worker DNS name>:9400"
-    tls:
-      secretName: sandbox-client-tls
-```
-
 Sandboxes reach Git through a forward proxy in Loop Runtime. Enable
 `loopRuntime.sandbox.egressGateway` to create the `<service>-egress` Service.
 Workers in the same cluster use its internal URL by default. For workers outside

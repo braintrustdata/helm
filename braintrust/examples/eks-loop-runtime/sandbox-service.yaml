@@ -1,14 +1,5 @@
-# Values for the separately released Sandbox Service chart, not the Braintrust chart.
+# Values for the separately released Sandbox Service chart.
 hostname: sandbox-service.braintrust-sandbox.svc.cluster.local
 image: public.ecr.aws/braintrust/sandbox-service:v2.18.0
 replicas: 1
 gitResources: true
-controller:
-  clientTlsSecret: sandbox-client-tls
-# Fixed worker capacity is reconciled by the worker controller. Do not set the
-# ECS-only loopRuntime.cluster/service fields for a Kubernetes Loop Runtime.
-# This installation uses cluster DNS and the cluster's existing node provisioner.
-externalDns:
-  enabled: false
-nodeAutoscaler:
-  enabled: false
