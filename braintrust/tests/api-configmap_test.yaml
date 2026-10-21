@@ -122,6 +122,25 @@ tests:
           path: data.PRIMARY_ORG_NAME
           value: "primary-org"
 
+  - it: should allow wildcard org name when primary org name is provided via module env vars
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      global.orgName: "*"
+      global.primaryOrgName: ""
+      api.moduleEnvVars:
+        - name: PRIMARY_ORG_NAME
+          value: "primary-org"
+    release:
+      namespace: "braintrust"
+    asserts:
+      - equal:
+          path: data.ORG_NAME
+          value: "*"
+      - equal:
+          path: data.PRIMARY_ORG_NAME
+          value: ""
+
   - it: should allow wildcard org name when primary org name is provided via extra env vars
     values:
       - __fixtures__/base-values.yaml
@@ -151,7 +170,7 @@ tests:
       namespace: "braintrust"
     asserts:
       - failedTemplate:
-          errorMessage: "global.primaryOrgName or api.extraEnvVars PRIMARY_ORG_NAME is required when global.orgName is empty or \"*\"; self-hosted service-token management needs a primary organization."
+          errorMessage: "global.primaryOrgName or PRIMARY_ORG_NAME in api.moduleEnvVars or api.extraEnvVars is required when global.orgName is empty or \"*\"; self-hosted service-token management needs a primary organization."
 
   - it: should reject wildcard org name without primary org name
     values:
@@ -163,7 +182,7 @@ tests:
       namespace: "braintrust"
     asserts:
       - failedTemplate:
-          errorMessage: "global.primaryOrgName or api.extraEnvVars PRIMARY_ORG_NAME is required when global.orgName is empty or \"*\"; self-hosted service-token management needs a primary organization."
+          errorMessage: "global.primaryOrgName or PRIMARY_ORG_NAME in api.moduleEnvVars or api.extraEnvVars is required when global.orgName is empty or \"*\"; self-hosted service-token management needs a primary organization."
 
   - it: should use correct namespace from helper when createNamespace is false
     values:
@@ -262,53 +281,15 @@ tests:
       - equal:
           path: data.AWS_RESPONSE_CHECKSUM_VALIDATION
           value: "WHEN_REQUIRED"
-      - equal:
+      - isNull:
           path: data.AWS_REGION
-          value: "us-central1"
-      - equal:
-          path: data.AWS_DEFAULT_REGION
-          value: "us-central1"
-
-  - it: should keep the GCS region when extraEnvVars replaces the list
-    values:
-      - __fixtures__/base-values.yaml
-      - __fixtures__/google-values.yaml
-    set:
-      api.extraEnvVars:
-        - name: ENABLE_CONTAINER_CPU_METRICS
-          value: "true"
-    release:
-      namespace: "braintrust"
-    asserts:
-      - equal:
-          path: data.AWS_REGION
-          value: "us-central1"
-      - equal:
-          path: data.AWS_DEFAULT_REGION
-          value: "us-central1"
-
-  - it: should trim the GCS region
-    values:
-      - __fixtures__/base-values.yaml
-      - __fixtures__/google-values.yaml
-    set:
-      objectStorage.google.region: "  us-central1  "
-    release:
-      namespace: "braintrust"
-    asserts:
-      - equal:
-          path: data.AWS_REGION
-          value: "us-central1"
-      - equal:
-          path: data.AWS_DEFAULT_REGION
-          value: "us-central1"
 
   - it: should allow a Google HMAC deployment that sets AWS_REGION via extraEnvVars
     values:
       - __fixtures__/base-values.yaml
       - __fixtures__/google-values.yaml
     set:
-      objectStorage.google.region: ""
+      api.moduleEnvVars: []
       api.extraEnvVars:
         - name: AWS_REGION
           value: "us-central1"
@@ -318,23 +299,50 @@ tests:
       - equal:
           path: data.AWS_ENDPOINT_URL
           value: "https://storage.googleapis.com"
-      - isNull:
-          path: data.AWS_REGION
-      - isNull:
-          path: data.AWS_DEFAULT_REGION
 
-  - it: should reject a Google HMAC deployment with no region
+  - it: should allow a Google HMAC deployment that sets AWS_REGION via moduleEnvVars
     values:
       - __fixtures__/base-values.yaml
       - __fixtures__/google-values.yaml
     set:
-      objectStorage.google.region: ""
+      api.extraEnvVars: []
+      api.moduleEnvVars:
+        - name: AWS_REGION
+          value: "us-central1"
+    release:
+      namespace: "braintrust"
+    asserts:
+      - equal:
+          path: data.AWS_ENDPOINT_URL
+          value: "https://storage.googleapis.com"
+
+  - it: should reject a Google HMAC deployment with no AWS_REGION
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/google-values.yaml
+    set:
+      api.moduleEnvVars: []
       api.extraEnvVars: []
     release:
       namespace: "braintrust"
     asserts:
       - failedTemplate:
-          errorMessage: "objectStorage.google.region or api.extraEnvVars AWS_REGION is required when cloud is google and api.enableGcsAuth is false; S3-compatible GCS needs a region."
+          errorMessage: "api.moduleEnvVars or api.extraEnvVars AWS_REGION is required when cloud is google and api.enableGcsAuth is false; S3-compatible GCS needs a region."
+
+  - it: should reject a whitespace-only env name as AWS_REGION
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/google-values.yaml
+    set:
+      api.extraEnvVars: []
+      api.moduleEnvVars:
+        - name: "   "
+          value: "us-central1"
+    release:
+      namespace: "braintrust"
+    asserts:
+      - failedTemplate:
+          errorMessage: "api.moduleEnvVars or api.extraEnvVars AWS_REGION is required when cloud is google and api.enableGcsAuth is false; S3-compatible GCS needs a region."
 
   - it: should not set checksum vars when enableGcsAuth is true
     values:
@@ -367,7 +375,8 @@ tests:
     set:
       api.enableGcsAuth: true
       api.serviceAccount.googleServiceAccount: "test@project.iam.gserviceaccount.com"
-      objectStorage.google.region: ""
+      api.moduleEnvVars: []
+      api.extraEnvVars: []
     release:
       namespace: "braintrust"
     asserts:

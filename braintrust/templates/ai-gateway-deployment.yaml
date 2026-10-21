@@ -83,8 +83,11 @@ spec:
                 secretKeyRef:
                   name: braintrust-secrets
                   key: BRAINSTORE_LICENSE_KEY
-            {{- if .Values.aiGateway.extraEnvVars }}
-            {{- toYaml .Values.aiGateway.extraEnvVars | nindent 12 }}
+            {{- with .Values.aiGateway.moduleEnvVars }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+            {{- with .Values.aiGateway.extraEnvVars }}
+            {{- toYaml . | nindent 12 }}
             {{- end }}
       {{- with .Values.aiGateway.extraContainers }}
       {{- toYaml . | nindent 8 }}

@@ -17,7 +17,6 @@ objectStorage:
   google:
     brainstoreBucket: "test-brainstore-bucket"
     apiBucket: "test-api-bucket"
-    region: "us-central1"
 
 api:
   name: "braintrust-api"
@@ -43,7 +42,9 @@ api:
   backfillDisableNonhistorical: false
   allowInvalidBase64: false
   nodeMemoryPercent: "80"
-  extraEnvVars: []
+  extraEnvVars:
+    - name: AWS_REGION
+      value: "us-central1"
   nodeSelector: {}
   tolerations: []
   affinity: {}

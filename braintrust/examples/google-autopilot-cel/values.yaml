@@ -14,8 +14,6 @@ objectStorage:
   google:
     brainstoreBucket: "<your brainstore bucket name>"
     apiBucket: "<your api bucket name>"
-    # Required for S3-compatible GCS. Rendered as AWS_REGION and AWS_DEFAULT_REGION.
-    region: "us-central1"
 
 api:
   name: "braintrust-api"
@@ -59,6 +57,9 @@ api:
   tmpVolume:
     enabled: true
     sizeLimit: "1Gi"
+  extraEnvVars:
+    - name: AWS_REGION
+      value: "us-central1"
 
 brainstore:
   serviceAccount:

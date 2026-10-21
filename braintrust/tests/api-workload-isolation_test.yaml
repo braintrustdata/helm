@@ -102,6 +102,157 @@ tests:
             name: POOL_SETTING
             value: background
 
+  - it: should keep moduleEnvVars when extraEnvVars is overridden on every API pool
+    template: api-deployment.yaml
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      api.workloadIsolation.enabled: true
+      api.moduleEnvVars:
+        - name: AWS_REGION
+          value: from-module
+        - name: SHARED_NAME
+          value: module-value
+      api.extraEnvVars:
+        - name: USER_ONLY
+          value: from-user
+        - name: SHARED_NAME
+          value: user-value
+      api.workloadIsolation.ingest.moduleEnvVars:
+        - name: INGEST_MODULE
+          value: ingest
+      api.workloadIsolation.background.extraEnvVars:
+        - name: BACKGROUND_USER
+          value: background
+    documentIndex: 0
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].env[-4].name
+          value: AWS_REGION
+      - equal:
+          path: spec.template.spec.containers[0].env[-4].value
+          value: from-module
+      - equal:
+          path: spec.template.spec.containers[0].env[-3].name
+          value: SHARED_NAME
+      - equal:
+          path: spec.template.spec.containers[0].env[-3].value
+          value: module-value
+      - equal:
+          path: spec.template.spec.containers[0].env[-2].name
+          value: USER_ONLY
+      - equal:
+          path: spec.template.spec.containers[0].env[-2].value
+          value: from-user
+      - equal:
+          path: spec.template.spec.containers[0].env[-1].name
+          value: SHARED_NAME
+      - equal:
+          path: spec.template.spec.containers[0].env[-1].value
+          value: user-value
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: INGEST_MODULE
+            value: ingest
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: BACKGROUND_USER
+            value: background
+
+  - it: should append ingest moduleEnvVars after the shared module list
+    template: api-deployment.yaml
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      api.workloadIsolation.enabled: true
+      api.moduleEnvVars:
+        - name: AWS_REGION
+          value: from-module
+      api.extraEnvVars:
+        - name: USER_ONLY
+          value: from-user
+      api.workloadIsolation.ingest.moduleEnvVars:
+        - name: INGEST_MODULE
+          value: ingest
+    documentIndex: 1
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: AWS_REGION
+            value: from-module
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: INGEST_MODULE
+            value: ingest
+      - equal:
+          path: spec.template.spec.containers[0].env[-3].name
+          value: AWS_REGION
+      - equal:
+          path: spec.template.spec.containers[0].env[-3].value
+          value: from-module
+      - equal:
+          path: spec.template.spec.containers[0].env[-2].name
+          value: INGEST_MODULE
+      - equal:
+          path: spec.template.spec.containers[0].env[-2].value
+          value: ingest
+      - equal:
+          path: spec.template.spec.containers[0].env[-1].name
+          value: USER_ONLY
+      - equal:
+          path: spec.template.spec.containers[0].env[-1].value
+          value: from-user
+
+  - it: should append background extraEnvVars after shared moduleEnvVars and extraEnvVars
+    template: api-deployment.yaml
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      api.workloadIsolation.enabled: true
+      api.moduleEnvVars:
+        - name: AWS_REGION
+          value: from-module
+      api.extraEnvVars:
+        - name: USER_ONLY
+          value: from-user
+      api.workloadIsolation.background.extraEnvVars:
+        - name: BACKGROUND_USER
+          value: background
+    documentIndex: 2
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: AWS_REGION
+            value: from-module
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: USER_ONLY
+            value: from-user
+      - equal:
+          path: spec.template.spec.containers[0].env[-3].name
+          value: AWS_REGION
+      - equal:
+          path: spec.template.spec.containers[0].env[-3].value
+          value: from-module
+      - equal:
+          path: spec.template.spec.containers[0].env[-2].name
+          value: USER_ONLY
+      - equal:
+          path: spec.template.spec.containers[0].env[-2].value
+          value: from-user
+      - equal:
+          path: spec.template.spec.containers[0].env[-1].name
+          value: BACKGROUND_USER
+      - equal:
+          path: spec.template.spec.containers[0].env[-1].value
+          value: background
+
   - it: should render an isolated ingest Service with inherited annotations
     template: api-service.yaml
     values:

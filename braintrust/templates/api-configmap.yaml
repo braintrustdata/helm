@@ -1,28 +1,22 @@
 {{- $orgName := .Values.global.orgName | default "" | toString | trim -}}
 {{- $primaryOrgName := .Values.global.primaryOrgName | default "" | toString | trim -}}
-{{- $hasPrimaryOrgNameExtraEnv := false -}}
-{{- range .Values.api.extraEnvVars -}}
-{{- if eq (.name | default "" | toString) "PRIMARY_ORG_NAME" -}}
-{{- $hasPrimaryOrgNameExtraEnv = true -}}
+{{- $apiEnvVars := concat (.Values.api.moduleEnvVars | default (list)) (.Values.api.extraEnvVars | default (list)) -}}
+{{- $hasPrimaryOrgNameEnv := false -}}
+{{- $hasAwsRegionEnv := false -}}
+{{- range $apiEnvVars -}}
+{{- $envName := .name | default "" | toString | trim -}}
+{{- if eq $envName "PRIMARY_ORG_NAME" -}}
+{{- $hasPrimaryOrgNameEnv = true -}}
+{{- end -}}
+{{- if eq $envName "AWS_REGION" -}}
+{{- $hasAwsRegionEnv = true -}}
 {{- end -}}
 {{- end -}}
-{{- if and (or (eq $orgName "") (eq $orgName "*")) (eq $primaryOrgName "") (not $hasPrimaryOrgNameExtraEnv) -}}
-{{- fail "global.primaryOrgName or api.extraEnvVars PRIMARY_ORG_NAME is required when global.orgName is empty or \"*\"; self-hosted service-token management needs a primary organization." -}}
+{{- if and (or (eq $orgName "") (eq $orgName "*")) (eq $primaryOrgName "") (not $hasPrimaryOrgNameEnv) -}}
+{{- fail "global.primaryOrgName or PRIMARY_ORG_NAME in api.moduleEnvVars or api.extraEnvVars is required when global.orgName is empty or \"*\"; self-hosted service-token management needs a primary organization." -}}
 {{- end -}}
-{{- $googleRegion := "" -}}
-{{- if eq (.Values.cloud | default "") "google" -}}
-{{- $googleRegion = .Values.objectStorage.google.region | default "" | toString | trim -}}
-{{- end -}}
-{{- if and (eq (.Values.cloud | default "") "google") (not .Values.api.enableGcsAuth) -}}
-{{- $hasAwsRegionExtraEnv := false -}}
-{{- range .Values.api.extraEnvVars -}}
-{{- if eq (.name | default "" | toString) "AWS_REGION" -}}
-{{- $hasAwsRegionExtraEnv = true -}}
-{{- end -}}
-{{- end -}}
-{{- if and (eq $googleRegion "") (not $hasAwsRegionExtraEnv) -}}
-{{- fail "objectStorage.google.region or api.extraEnvVars AWS_REGION is required when cloud is google and api.enableGcsAuth is false; S3-compatible GCS needs a region." -}}
-{{- end -}}
+{{- if and (eq (.Values.cloud | default "") "google") (not .Values.api.enableGcsAuth) (not $hasAwsRegionEnv) -}}
+{{- fail "api.moduleEnvVars or api.extraEnvVars AWS_REGION is required when cloud is google and api.enableGcsAuth is false; S3-compatible GCS needs a region." -}}
 {{- end -}}
 {{- $allowedOrgIds := .Values.global.allowedOrgIds | default "" | toString | trim -}}
 {{- $btqlStrictOrgIds := .Values.btqlAuditLogsStrictOrgIds | default list -}}
@@ -85,10 +79,6 @@ data:
   AWS_ENDPOINT_URL: "https://storage.googleapis.com"
   AWS_REQUEST_CHECKSUM_CALCULATION: "WHEN_REQUIRED"
   AWS_RESPONSE_CHECKSUM_VALIDATION: "WHEN_REQUIRED"
-  {{- if $googleRegion }}
-  AWS_REGION: {{ $googleRegion | quote }}
-  AWS_DEFAULT_REGION: {{ $googleRegion | quote }}
-  {{- end }}
   {{- end }}
   {{- end }}
 

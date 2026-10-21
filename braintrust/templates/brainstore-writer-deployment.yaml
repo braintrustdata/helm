@@ -142,8 +142,11 @@ spec:
                 secretKeyRef:
                   name: braintrust-secrets
                   key: FUNCTION_SECRET_KEY
-            {{- if .Values.brainstore.writer.extraEnvVars }}
-            {{- toYaml .Values.brainstore.writer.extraEnvVars | nindent 12 }}
+            {{- with .Values.brainstore.writer.moduleEnvVars }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+            {{- with .Values.brainstore.writer.extraEnvVars }}
+            {{- toYaml . | nindent 12 }}
             {{- end }}
           volumeMounts:
             - name: cache-volume
