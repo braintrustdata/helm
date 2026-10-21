@@ -128,7 +128,7 @@ tests:
     set:
       global.orgName: "*"
       global.primaryOrgName: ""
-      api.moduleEnvVars:
+      api.platformEnvVars:
         - name: PRIMARY_ORG_NAME
           value: "primary-org"
     release:
@@ -170,7 +170,7 @@ tests:
       namespace: "braintrust"
     asserts:
       - failedTemplate:
-          errorMessage: "global.primaryOrgName or PRIMARY_ORG_NAME in api.moduleEnvVars or api.extraEnvVars is required when global.orgName is empty or \"*\"; self-hosted service-token management needs a primary organization."
+          errorMessage: "global.primaryOrgName or PRIMARY_ORG_NAME in api.platformEnvVars or api.extraEnvVars is required when global.orgName is empty or \"*\"; self-hosted service-token management needs a primary organization."
 
   - it: should reject wildcard org name without primary org name
     values:
@@ -182,7 +182,7 @@ tests:
       namespace: "braintrust"
     asserts:
       - failedTemplate:
-          errorMessage: "global.primaryOrgName or PRIMARY_ORG_NAME in api.moduleEnvVars or api.extraEnvVars is required when global.orgName is empty or \"*\"; self-hosted service-token management needs a primary organization."
+          errorMessage: "global.primaryOrgName or PRIMARY_ORG_NAME in api.platformEnvVars or api.extraEnvVars is required when global.orgName is empty or \"*\"; self-hosted service-token management needs a primary organization."
 
   - it: should use correct namespace from helper when createNamespace is false
     values:
@@ -289,7 +289,7 @@ tests:
       - __fixtures__/base-values.yaml
       - __fixtures__/google-values.yaml
     set:
-      api.moduleEnvVars: []
+      api.platformEnvVars: []
       api.extraEnvVars:
         - name: AWS_REGION
           value: "us-central1"
@@ -300,13 +300,13 @@ tests:
           path: data.AWS_ENDPOINT_URL
           value: "https://storage.googleapis.com"
 
-  - it: should allow a Google HMAC deployment that sets AWS_REGION via moduleEnvVars
+  - it: should allow a Google HMAC deployment that sets AWS_REGION via platformEnvVars
     values:
       - __fixtures__/base-values.yaml
       - __fixtures__/google-values.yaml
     set:
       api.extraEnvVars: []
-      api.moduleEnvVars:
+      api.platformEnvVars:
         - name: AWS_REGION
           value: "us-central1"
     release:
@@ -321,13 +321,13 @@ tests:
       - __fixtures__/base-values.yaml
       - __fixtures__/google-values.yaml
     set:
-      api.moduleEnvVars: []
+      api.platformEnvVars: []
       api.extraEnvVars: []
     release:
       namespace: "braintrust"
     asserts:
       - failedTemplate:
-          errorMessage: "api.moduleEnvVars or api.extraEnvVars AWS_REGION is required when cloud is google and api.enableGcsAuth is false; S3-compatible GCS needs a region."
+          errorMessage: "api.platformEnvVars or api.extraEnvVars AWS_REGION is required when cloud is google and api.enableGcsAuth is false; S3-compatible GCS needs a region."
 
   - it: should reject a whitespace-only env name as AWS_REGION
     values:
@@ -335,14 +335,14 @@ tests:
       - __fixtures__/google-values.yaml
     set:
       api.extraEnvVars: []
-      api.moduleEnvVars:
+      api.platformEnvVars:
         - name: "   "
           value: "us-central1"
     release:
       namespace: "braintrust"
     asserts:
       - failedTemplate:
-          errorMessage: "api.moduleEnvVars or api.extraEnvVars AWS_REGION is required when cloud is google and api.enableGcsAuth is false; S3-compatible GCS needs a region."
+          errorMessage: "api.platformEnvVars or api.extraEnvVars AWS_REGION is required when cloud is google and api.enableGcsAuth is false; S3-compatible GCS needs a region."
 
   - it: should not set checksum vars when enableGcsAuth is true
     values:
@@ -375,7 +375,7 @@ tests:
     set:
       api.enableGcsAuth: true
       api.serviceAccount.googleServiceAccount: "test@project.iam.gserviceaccount.com"
-      api.moduleEnvVars: []
+      api.platformEnvVars: []
       api.extraEnvVars: []
     release:
       namespace: "braintrust"

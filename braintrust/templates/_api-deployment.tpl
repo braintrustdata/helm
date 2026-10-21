@@ -231,7 +231,7 @@ spec:
             - name: PIP_CERT
               value: {{ $customCAPath | quote }}
             {{- end }}
-            {{- with $api.moduleEnvVars }}
+            {{- with $api.platformEnvVars }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
             {{- with $api.extraEnvVars }}

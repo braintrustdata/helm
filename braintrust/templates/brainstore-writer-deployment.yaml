@@ -142,7 +142,7 @@ spec:
                 secretKeyRef:
                   name: braintrust-secrets
                   key: FUNCTION_SECRET_KEY
-            {{- with .Values.brainstore.writer.moduleEnvVars }}
+            {{- with .Values.brainstore.writer.platformEnvVars }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
             {{- with .Values.brainstore.writer.extraEnvVars }}

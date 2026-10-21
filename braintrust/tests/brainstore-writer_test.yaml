@@ -318,12 +318,12 @@ tests:
             name: CUSTOM_VAR
             value: "custom-value"
 
-  - it: should render moduleEnvVars before extraEnvVars so the user value wins
+  - it: should render platformEnvVars before extraEnvVars so the user value wins
     template: brainstore-writer-deployment.yaml
     values:
       - __fixtures__/base-values.yaml
     set:
-      brainstore.writer.moduleEnvVars:
+      brainstore.writer.platformEnvVars:
         - name: MODULE_VAR
           value: from-module
         - name: SHARED_NAME

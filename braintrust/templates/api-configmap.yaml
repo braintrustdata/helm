@@ -1,6 +1,6 @@
 {{- $orgName := .Values.global.orgName | default "" | toString | trim -}}
 {{- $primaryOrgName := .Values.global.primaryOrgName | default "" | toString | trim -}}
-{{- $apiEnvVars := concat (.Values.api.moduleEnvVars | default (list)) (.Values.api.extraEnvVars | default (list)) -}}
+{{- $apiEnvVars := concat (.Values.api.platformEnvVars | default (list)) (.Values.api.extraEnvVars | default (list)) -}}
 {{- $hasPrimaryOrgNameEnv := false -}}
 {{- $hasAwsRegionEnv := false -}}
 {{- range $apiEnvVars -}}
@@ -13,10 +13,10 @@
 {{- end -}}
 {{- end -}}
 {{- if and (or (eq $orgName "") (eq $orgName "*")) (eq $primaryOrgName "") (not $hasPrimaryOrgNameEnv) -}}
-{{- fail "global.primaryOrgName or PRIMARY_ORG_NAME in api.moduleEnvVars or api.extraEnvVars is required when global.orgName is empty or \"*\"; self-hosted service-token management needs a primary organization." -}}
+{{- fail "global.primaryOrgName or PRIMARY_ORG_NAME in api.platformEnvVars or api.extraEnvVars is required when global.orgName is empty or \"*\"; self-hosted service-token management needs a primary organization." -}}
 {{- end -}}
 {{- if and (eq (.Values.cloud | default "") "google") (not .Values.api.enableGcsAuth) (not $hasAwsRegionEnv) -}}
-{{- fail "api.moduleEnvVars or api.extraEnvVars AWS_REGION is required when cloud is google and api.enableGcsAuth is false; S3-compatible GCS needs a region." -}}
+{{- fail "api.platformEnvVars or api.extraEnvVars AWS_REGION is required when cloud is google and api.enableGcsAuth is false; S3-compatible GCS needs a region." -}}
 {{- end -}}
 {{- $allowedOrgIds := .Values.global.allowedOrgIds | default "" | toString | trim -}}
 {{- $btqlStrictOrgIds := .Values.btqlAuditLogsStrictOrgIds | default list -}}

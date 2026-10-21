@@ -157,7 +157,7 @@ spec:
                 secretKeyRef:
                   name: braintrust-secrets
                   key: FUNCTION_SECRET_KEY
-            {{- with $aw.moduleEnvVars }}
+            {{- with $aw.platformEnvVars }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
             {{- with $aw.extraEnvVars }}

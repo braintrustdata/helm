@@ -102,13 +102,13 @@ tests:
             name: POOL_SETTING
             value: background
 
-  - it: should keep moduleEnvVars when extraEnvVars is overridden on every API pool
+  - it: should keep platformEnvVars when extraEnvVars is overridden on every API pool
     template: api-deployment.yaml
     values:
       - __fixtures__/base-values.yaml
     set:
       api.workloadIsolation.enabled: true
-      api.moduleEnvVars:
+      api.platformEnvVars:
         - name: AWS_REGION
           value: from-module
         - name: SHARED_NAME
@@ -118,7 +118,7 @@ tests:
           value: from-user
         - name: SHARED_NAME
           value: user-value
-      api.workloadIsolation.ingest.moduleEnvVars:
+      api.workloadIsolation.ingest.platformEnvVars:
         - name: INGEST_MODULE
           value: ingest
       api.workloadIsolation.background.extraEnvVars:
@@ -161,19 +161,19 @@ tests:
             name: BACKGROUND_USER
             value: background
 
-  - it: should append ingest moduleEnvVars after the shared module list
+  - it: should append ingest platformEnvVars after the shared platform list
     template: api-deployment.yaml
     values:
       - __fixtures__/base-values.yaml
     set:
       api.workloadIsolation.enabled: true
-      api.moduleEnvVars:
+      api.platformEnvVars:
         - name: AWS_REGION
           value: from-module
       api.extraEnvVars:
         - name: USER_ONLY
           value: from-user
-      api.workloadIsolation.ingest.moduleEnvVars:
+      api.workloadIsolation.ingest.platformEnvVars:
         - name: INGEST_MODULE
           value: ingest
     documentIndex: 1
@@ -207,13 +207,13 @@ tests:
           path: spec.template.spec.containers[0].env[-1].value
           value: from-user
 
-  - it: should append background extraEnvVars after shared moduleEnvVars and extraEnvVars
+  - it: should append background extraEnvVars after shared platformEnvVars and extraEnvVars
     template: api-deployment.yaml
     values:
       - __fixtures__/base-values.yaml
     set:
       api.workloadIsolation.enabled: true
-      api.moduleEnvVars:
+      api.platformEnvVars:
         - name: AWS_REGION
           value: from-module
       api.extraEnvVars:
