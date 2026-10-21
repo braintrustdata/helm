@@ -337,13 +337,105 @@ tests:
       - isNull:
           path: data.LOOP_RUNTIME_SANDBOX_EGRESS_GATEWAY_URL
 
-  - it: should require the egress gateway URL when the gateway is enabled
+  - it: should use the in-cluster egress Service when no external URL is set
+    release:
+      namespace: braintrust
     values:
       - __fixtures__/base-values.yaml
       - __fixtures__/google-values.yaml
       - __fixtures__/loop-runtime-google-values.yaml
     set:
       loopRuntime.sandbox.egressGateway.enabled: true
+      loopRuntime.service.name: loop
+      loopRuntime.sandbox.egressGateway.port: 4100
+    asserts:
+      - equal:
+          path: data.LOOP_RUNTIME_SANDBOX_FORWARD_PROXY_LISTEN
+          value: 0.0.0.0:4100
+      - equal:
+          path: data.LOOP_RUNTIME_SANDBOX_SERVICE_EGRESS_GATEWAY_URL
+          value: http://loop-egress.braintrust:4100
+
+  - it: should default the egress URL when reused values omit it
+    release:
+      namespace: braintrust
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/loop-runtime-values.yaml
+    set:
+      loopRuntime.sandbox.egressGateway.enabled: true
+      loopRuntime.sandbox.egressGateway.url: null
+    asserts:
+      - equal:
+          path: data.LOOP_RUNTIME_SANDBOX_SERVICE_EGRESS_GATEWAY_URL
+          value: http://braintrust-loop-runtime-egress.braintrust:4002
+
+  - it: should treat a zero egress URL as empty
+    release:
+      namespace: braintrust
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/loop-runtime-values.yaml
+    set:
+      loopRuntime.sandbox.egressGateway.enabled: true
+      loopRuntime.sandbox.egressGateway.url: 0
+    asserts:
+      - equal:
+          path: data.LOOP_RUNTIME_SANDBOX_SERVICE_EGRESS_GATEWAY_URL
+          value: http://braintrust-loop-runtime-egress.braintrust:4002
+
+
+  - it: should reject empty endpoint
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/loop-runtime-values.yaml
+    set:
+      loopRuntime.sandbox.dnsUrl: ""
+      loopRuntime.sandbox.urls: [""]
     asserts:
       - failedTemplate:
-          errorMessage: "loopRuntime.sandbox.egressGateway.url is required when loopRuntime.sandbox.egressGateway.enabled is true"
+          errorMessage: "loopRuntime.sandbox.urls entries must not be blank"
+
+  - it: should reject whitespace endpoint
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/loop-runtime-values.yaml
+    set:
+      loopRuntime.sandbox.dnsUrl: ""
+      loopRuntime.sandbox.urls: ["   "]
+    asserts:
+      - failedTemplate:
+          errorMessage: "loopRuntime.sandbox.urls entries must not be blank"
+
+  - it: should reject null endpoint
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/loop-runtime-values.yaml
+    set:
+      loopRuntime.sandbox.dnsUrl: ""
+      loopRuntime.sandbox.urls: [null]
+    asserts:
+      - failedTemplate:
+          errorMessage: "loopRuntime.sandbox.urls entries must not be blank"
+
+  - it: should reject blank entry alongside a usable endpoint
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/loop-runtime-values.yaml
+    set:
+      loopRuntime.sandbox.dnsUrl: ""
+      loopRuntime.sandbox.urls: ["https://worker.example:9400", ""]
+    asserts:
+      - failedTemplate:
+          errorMessage: "loopRuntime.sandbox.urls entries must not be blank"
+
+  - it: should reject padded endpoint
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/loop-runtime-values.yaml
+    set:
+      loopRuntime.sandbox.dnsUrl: ""
+      loopRuntime.sandbox.urls: [" https://worker.example:9400 "]
+    asserts:
+      - failedTemplate:
+          errorMessage: "Sandbox Service endpoints must not contain leading or trailing whitespace"

@@ -324,7 +324,7 @@ loopRuntime:
   image:
     repository: public.ecr.aws/braintrust/loop-runtime
     tag: latest-2.x
-    pullPolicy: IfNotPresent
+    pullPolicy: Always
   service:
     # Optional name for the Service. If empty, loopRuntime.name is used.
     name: ""
@@ -335,7 +335,7 @@ loopRuntime:
     name: "braintrust-loop-runtime"
     # AWS IRSA role. Leave empty when using EKS Pod Identity.
     awsRoleArn: ""
-    # Required on Google (Terraform output loop_runtime_service_account).
+    # Required on Google: the Google service account bound to this workload.
     googleServiceAccount: ""
     annotations: {}
   # These URLs default to in-cluster services. Set them when the API, AI proxy,
@@ -390,12 +390,12 @@ loopRuntime:
   affinity: {}
   # Sandboxes run on Braintrust Sandbox Service workers, reached over mTLS.
   sandbox:
-    # Set one. dnsUrl resolves every worker behind a headless DNS name
-    # (GKE: Terraform output gke_isolated_workers.discovery.endpoint).
+    # Set one. dnsUrl resolves every worker behind a headless DNS name.
+    # Workers may run in this cluster or on a separately managed cluster.
     dnsUrl: ""
     urls: []
     image: "public.ecr.aws/braintrust/codex-runtime:latest"
-    # Must match the Sandbox Service release's per-sandbox sizing.
+    # Resources requested for each sandbox; size worker capacity accordingly.
     vcpuCount: 1
     memoryMib: 2048
     # restricted or internet
@@ -407,8 +407,8 @@ loopRuntime:
       certKey: client.pem
       keyKey: client.key
       caKey: server-ca.pem
-    # Forward proxy that sandboxes use for Git access. url is the address the
-    # workers use to reach the <service>-egress Service.
+    # Forward proxy that sandboxes use for Git access. An empty url defaults to
+    # the in-cluster <service>-egress Service. Override it for external workers.
     egressGateway:
       enabled: false
       port: 4002
