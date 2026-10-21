@@ -21,7 +21,7 @@ metadata:
     {{- toYaml . | nindent 4 }}
   {{- end }}
 spec:
-  replicas: {{ .Values.loopRuntime.replicas }}
+  replicas: {{ ternary 1 .Values.loopRuntime.replicas (has .Values.loopRuntime.replicas (list nil "")) }}
   strategy:
     type: RollingUpdate
     rollingUpdate:
