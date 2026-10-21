@@ -18,6 +18,63 @@ The `braintrust-secrets` secret must contain the following keys:
 | `GCS_ACCESS_KEY_ID` | Google HMAC Access ID string | Valid S3 API Key Id (only required if `cloud` is `google` and if `enableGcsAuth` is `false`) |
 | `GCS_SECRET_ACCESS_KEY` | Google HMAC Secret string | Valid S3 Secret string (only required if `cloud` is `google` and if `enableGcsAuth` is `false`) |
 
+## Optional: Loop Runtime
+
+Set `loopRuntime.enabled: true` to run Loop Runtime on EKS (`cloud: aws`) or
+GKE (`cloud: google`). Loop Runtime runs sandboxes on Braintrust Sandbox
+Service workers over mTLS. For a complete installation on EKS, follow the
+[Loop Runtime and Sandbox Service example](examples/eks-loop-runtime/README.md).
+It installs the shared worker chart as a separate Helm release and reuses the
+existing AWS infrastructure and workload identities.
+
+The runtime reads `braintrust-secrets` and the Brainstore buckets. The chart
+adds `LOOP_RUNTIME_URL` to the API and, when `virtualService.enabled` is true,
+routes `/loop/runtime` to Loop Runtime.
+
+Put the Sandbox Service client certificate, key, and server CA in a Secret and
+set `loopRuntime.sandbox.tls.secretName`. `sandbox.vcpuCount` and
+`sandbox.memoryMib` specify the resources requested for each sandbox.
+
+GKE:
+
+```yaml
+cloud: google
+
+objectStorage:
+  google:
+    brainstoreBucket: "<terraform output brainstore_bucket_name>"
+    apiBucket: "<terraform output braintrust_api_bucket_name>"
+
+loopRuntime:
+  enabled: true
+  serviceAccount:
+    googleServiceAccount: "<terraform output loop_runtime_service_account>"
+  sandbox:
+    dnsUrl: "<terraform output gke_isolated_workers.discovery.endpoint>"
+    tls:
+      secretName: sandbox-client-tls
+```
+
+Sandboxes reach Git through a forward proxy in Loop Runtime. Enable
+`loopRuntime.sandbox.egressGateway` to create the `<service>-egress` Service.
+Workers in the same cluster use its internal URL by default. For workers outside
+the cluster, expose it on an internal load balancer and set a reachable `url`.
+For example, on GKE:
+
+```yaml
+loopRuntime:
+  sandbox:
+    egressGateway:
+      enabled: true
+      url: "http://<internal load balancer address>:4002"
+      service:
+        type: LoadBalancer
+        annotations:
+          networking.gke.io/load-balancer-type: "Internal"
+        loadBalancerSourceRanges:
+          - "<isolated worker node CIDR>"
+```
+
 ## Azure Key Vault Driver Integration
 
 If you're using Azure, the Azure Key Vault CSI driver is default enabled and will automatically sync secrets from Azure Key Vault into Kubernetes. This eliminates the need to manually create and manage the `braintrust-secrets` Kubernetes secret.

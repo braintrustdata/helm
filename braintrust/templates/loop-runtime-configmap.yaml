@@ -1,0 +1,75 @@
+{{- include "braintrust.loopRuntime.validate" . -}}
+{{- if include "braintrust.loopRuntime.enabled" . -}}
+{{- $apiUrl := default (include "braintrust.apiInternalUrl" .) .Values.loopRuntime.braintrustApiUrl -}}
+{{- $aiProxyUrl := default (include "braintrust.apiAiProxyInternalUrl" .) .Values.loopRuntime.aiProxyUrl -}}
+{{- $brainstoreReaderUrl := default (include "braintrust.brainstoreFastReaderInternalUrl" .) .Values.loopRuntime.brainstoreReaderUrl -}}
+{{- $brainstoreBucketUri := include "braintrust.loopRuntime.brainstoreBucketUri" . -}}
+{{- $sandbox := .Values.loopRuntime.sandbox -}}
+{{- $egressGateway := $sandbox.egressGateway -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.loopRuntime.name }}
+  namespace: {{ include "braintrust.namespace" . }}
+  {{- with (mergeOverwrite (deepCopy .Values.global.labels) (deepCopy .Values.loopRuntime.labels)) }}
+  labels:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with .Values.loopRuntime.annotations.configmap }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+data:
+  BRAINTRUST_LEGACY_IDS: "true"
+  LOOP_RUNTIME_HOST: "0.0.0.0"
+  LOOP_RUNTIME_PORT: {{ .Values.loopRuntime.service.port | quote }}
+  LOOP_RUNTIME_LIFECYCLE_LOG: {{ .Values.loopRuntime.lifecycleLog | toString | quote }}
+  LOOP_RUNTIME_REDIS_NAMESPACE: {{ include "braintrust.loopRuntimeRedisNamespace" . | quote }}
+  LOOP_RUNTIME_STATE_DIR: {{ .Values.loopRuntime.stateDir | quote }}
+  ORG_NAME: {{ .Values.global.orgName | default "" | toString | trim | quote }}
+  BRAINTRUST_API_URL: {{ $apiUrl | quote }}
+  LOOP_RUNTIME_AI_PROXY_URL: {{ $aiProxyUrl | quote }}
+  LOOP_RUNTIME_BRAINSTORE_READER_URL: {{ $brainstoreReaderUrl | quote }}
+  BRAINSTORE_VERBOSE: "1"
+  BRAINSTORE_INDEX_URI: "{{ $brainstoreBucketUri }}/brainstore/index"
+  BRAINSTORE_REALTIME_WAL_URI: "{{ $brainstoreBucketUri }}/brainstore/wal"
+  BRAINSTORE_CODE_BUNDLE_URI: {{ include "braintrust.loopRuntime.codeBundleUri" . | quote }}
+  BRAINSTORE_CACHE_DIR: {{ .Values.loopRuntime.cacheDir | quote }}
+  BRAINSTORE_CONTROL_PLANE_TELEMETRY: {{ .Values.global.controlPlaneTelemetry | quote }}
+  BRAINSTORE_DISABLE_STATUS_UPDATES: {{ .Values.loopRuntime.brainstoreDisableStatusUpdates | toString | quote }}
+  NO_COLOR: "1"
+  {{- /* Without EXO_SANDBOX_PROVIDER, a Sandbox Service endpoint sends every sandbox to the Sandbox Service. */}}
+  EXO_SANDBOX_IMAGE: {{ $sandbox.image | quote }}
+  EXO_SANDBOX_VCPU_COUNT: {{ $sandbox.vcpuCount | quote }}
+  EXO_SANDBOX_MEMORY_MIB: {{ $sandbox.memoryMib | quote }}
+  LOOP_RUNTIME_SANDBOX_EGRESS_MODE: {{ $sandbox.egressMode | quote }}
+  {{- if $sandbox.dnsUrl }}
+  EXO_SANDBOX_SERVICE_DNS_URL: {{ $sandbox.dnsUrl | quote }}
+  {{- else }}
+  EXO_SANDBOX_SERVICE_URL: {{ $sandbox.urls | join "," | quote }}
+  {{- end }}
+  {{- if $sandbox.tls.secretName }}
+  SANDBOX_SERVICE_TLS_CERT: "/etc/sandbox-tls/client.pem"
+  SANDBOX_SERVICE_TLS_KEY: "/etc/sandbox-tls/client.key"
+  SANDBOX_SERVICE_TLS_CA: "/etc/sandbox-tls/server-ca.pem"
+  {{- end }}
+  {{- if $egressGateway.enabled }}
+  LOOP_RUNTIME_SANDBOX_FORWARD_PROXY_LISTEN: "0.0.0.0:{{ $egressGateway.port }}"
+  LOOP_RUNTIME_SANDBOX_SERVICE_EGRESS_GATEWAY_URL: {{ $egressGateway.url | default (printf "http://%s-egress.%s:%v" (.Values.loopRuntime.service.name | default .Values.loopRuntime.name) (include "braintrust.namespace" .) $egressGateway.port) | quote }}
+  {{- end }}
+  {{- with (.Values.global.allowedOrgIds | default "" | toString | trim) }}
+  ALLOWED_ORG_IDS: {{ . | quote }}
+  {{- end }}
+  {{- if eq .Values.brainstore.locksBackend "objectStorage" }}
+  BRAINSTORE_LOCKS_URI: "{{ $brainstoreBucketUri }}/brainstore/locks"
+  {{- end }}
+  {{- if .Values.brainstoreWalFooterVersion }}
+  BRAINSTORE_WAL_FOOTER_VERSION: {{ .Values.brainstoreWalFooterVersion | quote }}
+  {{- end }}
+  {{- if .Values.skipPgForBrainstoreObjects }}
+  SKIP_PG_FOR_BRAINSTORE_OBJECTS: {{ .Values.skipPgForBrainstoreObjects | quote }}
+  {{- end }}
+  {{- if or .Values.brainstoreWalFooterVersion .Values.skipPgForBrainstoreObjects }}
+  BRAINSTORE_WAL_USE_EFFICIENT_FORMAT: "true"
+  {{- end }}
+{{- end }}

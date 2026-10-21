@@ -147,6 +147,105 @@ http://{{ .Values.aiGateway.service.name | default .Values.aiGateway.name }}.{{ 
 {{- end -}}
 
 {{/*
+Whether Loop Runtime is enabled. Values reused from a chart release that
+predates Loop Runtime have no loopRuntime map, which means disabled.
+*/}}
+{{- define "braintrust.loopRuntime.enabled" -}}
+{{- if (.Values.loopRuntime | default dict).enabled -}}true{{- end -}}
+{{- end -}}
+
+{{/* Loop Runtime object-store URIs. They match the Brainstore ConfigMaps. */}}
+{{- define "braintrust.loopRuntime.brainstoreBucketUri" -}}
+{{- if eq .Values.cloud "google" -}}
+gs://{{ .Values.objectStorage.google.brainstoreBucket }}
+{{- else -}}
+s3://{{ .Values.objectStorage.aws.brainstoreBucket }}
+{{- end -}}
+{{- end -}}
+
+{{- define "braintrust.loopRuntime.codeBundleUri" -}}
+{{- if eq .Values.cloud "google" -}}
+gs://{{ .Values.objectStorage.google.apiBucket }}
+{{- else -}}
+s3://{{ .Values.objectStorage.aws.codeBundleBucket }}
+{{- end -}}
+{{- end -}}
+
+{{/* Validate the Loop Runtime configuration. */}}
+{{- define "braintrust.loopRuntime.validate" -}}
+{{- if include "braintrust.loopRuntime.enabled" . -}}
+{{- range (list "image" "service" "serviceAccount" "sandbox") -}}
+{{- if not (hasKey $.Values.loopRuntime .) -}}
+{{- fail (printf "loopRuntime.%s is missing. Values reused from a chart release that predates Loop Runtime omit the loopRuntime defaults; upgrade with --reset-then-reuse-values or supply the full loopRuntime map." .) -}}
+{{- end -}}
+{{- end -}}
+{{- $sandbox := .Values.loopRuntime.sandbox -}}
+{{- if not (has .Values.cloud (list "aws" "google")) -}}
+{{- fail "loopRuntime.enabled requires cloud: aws or cloud: google." -}}
+{{- end -}}
+{{- if eq .Values.cloud "aws" -}}
+{{- $_ := required "objectStorage.aws.brainstoreBucket is required when loopRuntime.enabled is true" .Values.objectStorage.aws.brainstoreBucket -}}
+{{- $_ := required "objectStorage.aws.codeBundleBucket is required when loopRuntime.enabled is true" .Values.objectStorage.aws.codeBundleBucket -}}
+{{- else -}}
+{{- $_ := required "objectStorage.google.brainstoreBucket is required when loopRuntime.enabled is true" .Values.objectStorage.google.brainstoreBucket -}}
+{{- $_ := required "objectStorage.google.apiBucket is required when loopRuntime.enabled is true" .Values.objectStorage.google.apiBucket -}}
+{{- $_ := required "loopRuntime.serviceAccount.googleServiceAccount is required when cloud is google (use Terraform output loop_runtime_service_account)" .Values.loopRuntime.serviceAccount.googleServiceAccount -}}
+{{- end -}}
+{{- $_ := required "loopRuntime.serviceAccount.name is required when loopRuntime.enabled is true" .Values.loopRuntime.serviceAccount.name -}}
+{{- $urls := $sandbox.urls | default list -}}
+{{- if and $sandbox.dnsUrl $urls -}}
+{{- fail "Set only one of loopRuntime.sandbox.dnsUrl and loopRuntime.sandbox.urls." -}}
+{{- end -}}
+{{- if not (or $sandbox.dnsUrl $urls) -}}
+{{- fail "loopRuntime.sandbox.dnsUrl or loopRuntime.sandbox.urls is required when loopRuntime.enabled is true (GKE: use Terraform output gke_isolated_workers.discovery.endpoint)" -}}
+{{- end -}}
+{{- range $urls -}}
+{{- if not (. | default "" | trim) -}}
+{{- fail "loopRuntime.sandbox.urls entries must not be blank" -}}
+{{- end -}}
+{{- end -}}
+{{- $_ := required "loopRuntime.sandbox.image is required when loopRuntime.enabled is true" $sandbox.image -}}
+{{- range (prepend $urls ($sandbox.dnsUrl | default "")) -}}
+{{- if ne . (trim .) -}}
+{{- fail "Sandbox Service endpoints must not contain leading or trailing whitespace" -}}
+{{- end -}}
+{{- if and . (hasPrefix "https://" .) (not $sandbox.tls.secretName) -}}
+{{- fail "loopRuntime.sandbox.tls.secretName is required for https:// Sandbox Service endpoints" -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
+
+{{/* Internal cluster URL for the Loop Runtime service. */}}
+{{- define "braintrust.loopRuntimeInternalUrl" -}}
+http://{{ .Values.loopRuntime.service.name | default .Values.loopRuntime.name }}.{{ include "braintrust.namespace" . }}:{{ .Values.loopRuntime.service.port }}
+{{- end -}}
+
+{{/* Stable Redis key namespace for a Helm-managed Loop Runtime. */}}
+{{- define "braintrust.loopRuntimeRedisNamespace" -}}
+{{- .Values.loopRuntime.redisNamespace | default (printf "loop-runtime:%s" .Release.Name) -}}
+{{- end -}}
+
+{{/* Internal cluster URL for the Brainstore fast reader used by Loop Runtime. */}}
+{{- define "braintrust.brainstoreFastReaderInternalUrl" -}}
+http://{{ .Values.brainstore.fastreader.service.name | default .Values.brainstore.fastreader.name }}.{{ include "braintrust.namespace" . }}:{{ .Values.brainstore.fastreader.service.port }}
+{{- end -}}
+
+{{/* Product-owned Loop Runtime routes for an Istio VirtualService. */}}
+{{- define "braintrust.loopRuntimeVirtualServiceRoutes" -}}
+- match:
+    - uri:
+        exact: /loop/runtime
+    - uri:
+        prefix: /loop/runtime/
+  route:
+    - destination:
+        host: {{ .Values.loopRuntime.service.name | default .Values.loopRuntime.name }}
+        port:
+          number: {{ .Values.loopRuntime.service.port }}
+{{- end -}}
+
+{{/*
 Validate API autoscaling prerequisites (GKE + AutoscalingMetric CRD).
 */}}
 {{- define "braintrust.apiAutoscaling.validate" -}}

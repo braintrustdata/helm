@@ -585,3 +585,35 @@ tests:
     asserts:
       - failedTemplate:
           errorMessage: "btqlAuditLogsBestEffortOrgIds: \"not-a-uuid\" is not a valid UUID"
+
+  - it: should publish the Loop Runtime URL when Loop Runtime is enabled
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/loop-runtime-values.yaml
+    release:
+      namespace: "braintrust"
+    asserts:
+      - equal:
+          path: data.LOOP_RUNTIME_URL
+          value: http://braintrust-loop-runtime.braintrust:4001
+
+  - it: should publish the Loop Runtime URL on GKE
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/google-values.yaml
+      - __fixtures__/loop-runtime-google-values.yaml
+    release:
+      namespace: "braintrust"
+    asserts:
+      - equal:
+          path: data.LOOP_RUNTIME_URL
+          value: http://braintrust-loop-runtime.braintrust:4001
+
+  - it: should omit the Loop Runtime URL when reused values have no loopRuntime map
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/google-values.yaml
+      - __fixtures__/pre-loop-runtime-values.yaml
+    asserts:
+      - isNull:
+          path: data.LOOP_RUNTIME_URL

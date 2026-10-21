@@ -1,0 +1,368 @@
+suite: test Loop Runtime ConfigMap template
+templates:
+  - loop-runtime-configmap.yaml
+tests:
+  - it: should not render when Loop Runtime is disabled
+    values: &base-values
+      - __fixtures__/base-values.yaml
+    asserts: &absent
+      - hasDocuments:
+          count: 0
+
+  - it: should not render when reused values have no loopRuntime map
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/google-values.yaml
+      - __fixtures__/pre-loop-runtime-values.yaml
+    asserts: *absent
+
+  - it: should explain how to upgrade when reused values enable Loop Runtime without defaults
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/google-values.yaml
+      - __fixtures__/reuse-loop-runtime-enabled-values.yaml
+    asserts:
+      - failedTemplate:
+          errorMessage: "loopRuntime.image is missing. Values reused from a chart release that predates Loop Runtime omit the loopRuntime defaults; upgrade with --reset-then-reuse-values or supply the full loopRuntime map."
+
+  - it: should render AWS storage and the Sandbox Service configuration
+    values: &aws-values
+      - __fixtures__/base-values.yaml
+      - __fixtures__/loop-runtime-values.yaml
+    release:
+      name: test-release
+      namespace: braintrust
+    asserts:
+      - isKind:
+          of: ConfigMap
+      - equal:
+          path: metadata.name
+          value: braintrust-loop-runtime
+      - equal:
+          path: metadata.namespace
+          value: braintrust
+      - equal:
+          path: data.LOOP_RUNTIME_REDIS_NAMESPACE
+          value: loop-runtime:test-release
+      - equal:
+          path: data.BRAINTRUST_API_URL
+          value: http://braintrust-api.braintrust:8000
+      - equal:
+          path: data.LOOP_RUNTIME_BRAINSTORE_READER_URL
+          value: http://brainstore-fastreader.braintrust:4000
+      - equal:
+          path: data.BRAINSTORE_INDEX_URI
+          value: s3://test-brainstore-bucket/brainstore/index
+      - equal:
+          path: data.BRAINSTORE_REALTIME_WAL_URI
+          value: s3://test-brainstore-bucket/brainstore/wal
+      - equal:
+          path: data.BRAINSTORE_CODE_BUNDLE_URI
+          value: s3://test-code-bundle-bucket
+      - equal:
+          path: data.EXO_SANDBOX_SERVICE_DNS_URL
+          value: https://nodes.sandbox.internal:9400
+      - equal:
+          path: data.EXO_SANDBOX_IMAGE
+          value: public.ecr.aws/braintrust/codex-runtime:latest
+      - equal:
+          path: data.SANDBOX_SERVICE_TLS_CERT
+          value: /etc/sandbox-tls/client.pem
+      - isNull:
+          path: data.EXO_SANDBOX_PROVIDER
+      - isNull:
+          path: data.AWS_REGION
+      - isNull:
+          path: data.AWS_LAMBDA_MICROVM_IMAGE_IDENTIFIER
+      - isNull:
+          path: data.LOOP_RUNTIME_SANDBOX_FORWARD_PROXY_LISTEN
+      - isNull:
+          path: data.BRAINSTORE_LOCKS_URI
+
+  - it: should use AWS object storage locks when configured
+    values: *aws-values
+    set:
+      brainstore.locksBackend: objectStorage
+    asserts:
+      - equal:
+          path: data.BRAINSTORE_LOCKS_URI
+          value: s3://test-brainstore-bucket/brainstore/locks
+
+  - it: should render GKE storage and the Sandbox Service configuration
+    values: &gke-values
+      - __fixtures__/base-values.yaml
+      - __fixtures__/google-values.yaml
+      - __fixtures__/loop-runtime-google-values.yaml
+    release:
+      namespace: braintrust
+    asserts:
+      - equal:
+          path: data.BRAINSTORE_INDEX_URI
+          value: gs://test-brainstore-bucket/brainstore/index
+      - equal:
+          path: data.BRAINSTORE_REALTIME_WAL_URI
+          value: gs://test-brainstore-bucket/brainstore/wal
+      - equal:
+          path: data.BRAINSTORE_CODE_BUNDLE_URI
+          value: gs://test-api-bucket
+      - equal:
+          path: data.EXO_SANDBOX_IMAGE
+          value: public.ecr.aws/braintrust/codex-runtime:latest
+      - equal:
+          path: data.EXO_SANDBOX_VCPU_COUNT
+          value: "1"
+      - equal:
+          path: data.EXO_SANDBOX_MEMORY_MIB
+          value: "2048"
+      - equal:
+          path: data.LOOP_RUNTIME_SANDBOX_EGRESS_MODE
+          value: restricted
+      - equal:
+          path: data.EXO_SANDBOX_SERVICE_DNS_URL
+          value: https://workers.sandbox.internal:9400
+      - equal:
+          path: data.SANDBOX_SERVICE_TLS_CERT
+          value: /etc/sandbox-tls/client.pem
+      - equal:
+          path: data.SANDBOX_SERVICE_TLS_KEY
+          value: /etc/sandbox-tls/client.key
+      - equal:
+          path: data.SANDBOX_SERVICE_TLS_CA
+          value: /etc/sandbox-tls/server-ca.pem
+      - isNull:
+          path: data.EXO_SANDBOX_PROVIDER
+      - isNull:
+          path: data.EXO_SANDBOX_SERVICE_URL
+      - isNull:
+          path: data.AWS_REGION
+      - isNull:
+          path: data.LOOP_RUNTIME_SANDBOX_SERVICE_EGRESS_GATEWAY_URL
+      - isNull:
+          path: data.BRAINSTORE_LOCKS_URI
+
+  - it: should use GCS object storage locks when configured
+    values: *gke-values
+    set:
+      brainstore.locksBackend: objectStorage
+    asserts:
+      - equal:
+          path: data.BRAINSTORE_LOCKS_URI
+          value: gs://test-brainstore-bucket/brainstore/locks
+
+  - it: should pass sandbox sizing and internet egress mode
+    values: *gke-values
+    set:
+      loopRuntime.sandbox.vcpuCount: 2
+      loopRuntime.sandbox.memoryMib: 4096
+      loopRuntime.sandbox.egressMode: internet
+    asserts:
+      - equal:
+          path: data.EXO_SANDBOX_VCPU_COUNT
+          value: "2"
+      - equal:
+          path: data.EXO_SANDBOX_MEMORY_MIB
+          value: "4096"
+      - equal:
+          path: data.LOOP_RUNTIME_SANDBOX_EGRESS_MODE
+          value: internet
+
+  - it: should join fixed Sandbox Service endpoints
+    values: *gke-values
+    set:
+      loopRuntime.sandbox.dnsUrl: ""
+      loopRuntime.sandbox.urls:
+        - https://worker-0.sandbox.internal:9400
+        - https://worker-1.sandbox.internal:9400
+    asserts:
+      - equal:
+          path: data.EXO_SANDBOX_SERVICE_URL
+          value: https://worker-0.sandbox.internal:9400,https://worker-1.sandbox.internal:9400
+      - isNull:
+          path: data.EXO_SANDBOX_SERVICE_DNS_URL
+
+  - it: should allow a plain HTTP Sandbox Service endpoint without TLS
+    values: *gke-values
+    set:
+      loopRuntime.sandbox.dnsUrl: http://sandbox-service.sandbox:9400
+      loopRuntime.sandbox.tls.secretName: ""
+    asserts:
+      - equal:
+          path: data.EXO_SANDBOX_SERVICE_DNS_URL
+          value: http://sandbox-service.sandbox:9400
+      - isNull:
+          path: data.SANDBOX_SERVICE_TLS_CERT
+
+  - it: should require TLS for HTTPS Sandbox Service endpoints
+    values: *gke-values
+    set:
+      loopRuntime.sandbox.tls.secretName: ""
+    asserts: &tls-required
+      - failedTemplate:
+          errorMessage: "loopRuntime.sandbox.tls.secretName is required for https:// Sandbox Service endpoints"
+
+  - it: should require TLS when any fixed endpoint uses HTTPS
+    values: *gke-values
+    set:
+      loopRuntime.sandbox.dnsUrl: ""
+      loopRuntime.sandbox.tls.secretName: ""
+      loopRuntime.sandbox.urls:
+        - http://worker-0.sandbox.internal:9400
+        - https://worker-1.sandbox.internal:9400
+    asserts: *tls-required
+
+  - it: should require a Sandbox Service endpoint
+    values: *aws-values
+    set:
+      loopRuntime.sandbox.dnsUrl: ""
+    asserts:
+      - failedTemplate:
+          errorMessage: "loopRuntime.sandbox.dnsUrl or loopRuntime.sandbox.urls is required when loopRuntime.enabled is true (GKE: use Terraform output gke_isolated_workers.discovery.endpoint)"
+
+  - it: should reject both Sandbox Service discovery modes
+    values: *gke-values
+    set:
+      loopRuntime.sandbox.urls:
+        - https://worker-0.sandbox.internal:9400
+    asserts:
+      - failedTemplate:
+          errorMessage: "Set only one of loopRuntime.sandbox.dnsUrl and loopRuntime.sandbox.urls."
+
+  - it: should require the sandbox guest image
+    values: *gke-values
+    set:
+      loopRuntime.sandbox.image: ""
+    asserts:
+      - failedTemplate:
+          errorMessage: "loopRuntime.sandbox.image is required when loopRuntime.enabled is true"
+
+  - it: should require the Loop Runtime Google service account on GKE
+    values: *gke-values
+    set:
+      loopRuntime.serviceAccount.googleServiceAccount: ""
+    asserts:
+      - failedTemplate:
+          errorMessage: "loopRuntime.serviceAccount.googleServiceAccount is required when cloud is google (use Terraform output loop_runtime_service_account)"
+
+  - it: should require the GCS API bucket on GKE
+    values: *gke-values
+    set:
+      objectStorage.google.apiBucket: ""
+    asserts:
+      - failedTemplate:
+          errorMessage: "objectStorage.google.apiBucket is required when loopRuntime.enabled is true"
+
+  - it: should require the code bundle bucket on AWS
+    values: *aws-values
+    set:
+      objectStorage.aws.codeBundleBucket: ""
+    asserts:
+      - failedTemplate:
+          errorMessage: "objectStorage.aws.codeBundleBucket is required when loopRuntime.enabled is true"
+
+  - it: should reject Loop Runtime on Azure
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/azure-values.yaml
+    set:
+      loopRuntime.enabled: true
+    asserts: &assertions-1
+      - failedTemplate:
+          errorMessage: "loopRuntime.enabled requires cloud: aws or cloud: google."
+
+  - it: should reject Loop Runtime without a cloud
+    values: *base-values
+    set:
+      loopRuntime.enabled: true
+    asserts: *assertions-1
+
+  - it: should advertise the egress gateway to Sandbox Service workers
+    values: *gke-values
+    set:
+      loopRuntime.sandbox.egressGateway.enabled: true
+      loopRuntime.sandbox.egressGateway.port: 4100
+      loopRuntime.sandbox.egressGateway.url: http://10.10.0.20:4100
+    asserts:
+      - equal:
+          path: data.LOOP_RUNTIME_SANDBOX_FORWARD_PROXY_LISTEN
+          value: 0.0.0.0:4100
+      - equal:
+          path: data.LOOP_RUNTIME_SANDBOX_SERVICE_EGRESS_GATEWAY_URL
+          value: http://10.10.0.20:4100
+      - isNull:
+          path: data.LOOP_RUNTIME_SANDBOX_EGRESS_GATEWAY_URL
+
+  - it: should use the in-cluster egress Service when no external URL is set
+    release:
+      namespace: braintrust
+    values: *gke-values
+    set:
+      loopRuntime.sandbox.egressGateway.enabled: true
+      loopRuntime.service.name: loop
+      loopRuntime.sandbox.egressGateway.port: 4100
+    asserts:
+      - equal:
+          path: data.LOOP_RUNTIME_SANDBOX_FORWARD_PROXY_LISTEN
+          value: 0.0.0.0:4100
+      - equal:
+          path: data.LOOP_RUNTIME_SANDBOX_SERVICE_EGRESS_GATEWAY_URL
+          value: http://loop-egress.braintrust:4100
+
+  - it: should default the egress URL when reused values omit it
+    release:
+      namespace: braintrust
+    values: *aws-values
+    set:
+      loopRuntime.sandbox.egressGateway.enabled: true
+      loopRuntime.sandbox.egressGateway.url: null
+    asserts: &assertions-2
+      - equal:
+          path: data.LOOP_RUNTIME_SANDBOX_SERVICE_EGRESS_GATEWAY_URL
+          value: http://braintrust-loop-runtime-egress.braintrust:4002
+
+  - it: should treat a zero egress URL as empty
+    release:
+      namespace: braintrust
+    values: *aws-values
+    set:
+      loopRuntime.sandbox.egressGateway.enabled: true
+      loopRuntime.sandbox.egressGateway.url: 0
+    asserts: *assertions-2
+
+  - it: should reject empty endpoint
+    values: *aws-values
+    set:
+      loopRuntime.sandbox.dnsUrl: ""
+      loopRuntime.sandbox.urls: [""]
+    asserts: &assertions-3
+      - failedTemplate:
+          errorMessage: "loopRuntime.sandbox.urls entries must not be blank"
+
+  - it: should reject whitespace endpoint
+    values: *aws-values
+    set:
+      loopRuntime.sandbox.dnsUrl: ""
+      loopRuntime.sandbox.urls: ["   "]
+    asserts: *assertions-3
+
+  - it: should reject null endpoint
+    values: *aws-values
+    set:
+      loopRuntime.sandbox.dnsUrl: ""
+      loopRuntime.sandbox.urls: [null]
+    asserts: *assertions-3
+
+  - it: should reject blank entry alongside a usable endpoint
+    values: *aws-values
+    set:
+      loopRuntime.sandbox.dnsUrl: ""
+      loopRuntime.sandbox.urls: ["https://worker.example:9400", ""]
+    asserts: *assertions-3
+
+  - it: should reject padded endpoint
+    values: *aws-values
+    set:
+      loopRuntime.sandbox.dnsUrl: ""
+      loopRuntime.sandbox.urls: [" https://worker.example:9400 "]
+    asserts:
+      - failedTemplate:
+          errorMessage: "Sandbox Service endpoints must not contain leading or trailing whitespace"

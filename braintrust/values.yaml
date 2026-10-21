@@ -308,6 +308,120 @@ api:
   extraContainers: []
   extraVolumes: []
 
+# Loop Runtime configuration (optional; cloud: aws or google)
+loopRuntime:
+  enabled: false
+  name: "braintrust-loop-runtime"
+  labels: {}
+  podLabels: {}
+  annotations:
+    configmap: {}
+    deployment: {}
+    service: {}
+    pod: {}
+    serviceaccount: {}
+  # Null, missing, or empty replicas default to 1; 0 scales to zero.
+  replicas: 1
+  image:
+    repository: public.ecr.aws/braintrust/loop-runtime
+    tag: latest-2.x
+    pullPolicy: Always
+  service:
+    # Optional name for the Service. If empty, loopRuntime.name is used.
+    name: ""
+    type: ClusterIP
+    port: 4001
+    portName: http
+  serviceAccount:
+    name: "braintrust-loop-runtime"
+    # AWS IRSA role. Leave empty when using EKS Pod Identity.
+    awsRoleArn: ""
+    # Required on Google: the Google service account bound to this workload.
+    googleServiceAccount: ""
+    annotations: {}
+  # These URLs default to in-cluster services. Set them when the API, AI proxy,
+  # or Brainstore is exposed through a different service or namespace.
+  braintrustApiUrl: ""
+  aiProxyUrl: ""
+  brainstoreReaderUrl: ""
+  # Defaults to loop-runtime:<Helm release name>; set explicitly when retaining
+  # an existing Loop Runtime Redis namespace across release renames.
+  redisNamespace: ""
+  lifecycleLog: "0"
+  brainstoreDisableStatusUpdates: "false"
+  stateDir: "/mnt/tmp/loop-runtime"
+  cacheDir: "/mnt/tmp/brainstore"
+  resources:
+    requests:
+      cpu: "2"
+      memory: "8Gi"
+    limits:
+      cpu: "2"
+      memory: "8Gi"
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+    runAsGroup: 1000
+    fsGroup: 1000
+    seccompProfile:
+      type: RuntimeDefault
+  securityContext:
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+        - ALL
+  livenessProbe:
+    httpGet:
+      path: /health/liveness
+    initialDelaySeconds: 10
+    periodSeconds: 30
+    timeoutSeconds: 5
+    failureThreshold: 3
+    successThreshold: 1
+  readinessProbe:
+    httpGet:
+      path: /health/liveness
+    initialDelaySeconds: 10
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+    successThreshold: 1
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  # Sandboxes run on Braintrust Sandbox Service workers, reached over mTLS.
+  sandbox:
+    # Set one. dnsUrl resolves every worker behind a headless DNS name.
+    # Workers may run in this cluster or on a separately managed cluster.
+    dnsUrl: ""
+    urls: []
+    image: "public.ecr.aws/braintrust/codex-runtime:latest"
+    # Resources requested for each sandbox; size worker capacity accordingly.
+    vcpuCount: 1
+    memoryMib: 2048
+    # restricted or internet
+    egressMode: "restricted"
+    tls:
+      # Secret with the client certificate, key, and server CA.
+      # Required for https:// endpoints.
+      secretName: ""
+      certKey: client.pem
+      keyKey: client.key
+      caKey: server-ca.pem
+    # Forward proxy that sandboxes use for Git access. An empty url defaults to
+    # the in-cluster <service>-egress Service. Override it for external workers.
+    egressGateway:
+      enabled: false
+      port: 4002
+      url: ""
+      service:
+        type: ClusterIP
+        annotations: {}
+        loadBalancerSourceRanges: []
+  extraEnvVars: []
+  extraContainers: []
+  extraVolumes: []
+
 # AI Gateway configuration (optional)
 # Deploys the Braintrust AI gateway service for LLM proxying and completions caching.
 # Recommended rollout: enabled=true first, wait for gateway pods to be ready, then useGateway=true.

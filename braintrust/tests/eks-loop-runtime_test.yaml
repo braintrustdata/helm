@@ -1,0 +1,58 @@
+suite: EKS Loop Runtime installation with the shared Sandbox Service chart
+templates:
+  - loop-runtime-configmap.yaml
+  - loop-runtime-deployment.yaml
+  - loop-runtime-egress-service.yaml
+  - api-configmap.yaml
+tests:
+  - it: should discover the companion workers through cluster DNS and use the internal proxy
+    release:
+      namespace: braintrust
+    template: loop-runtime-configmap.yaml
+    values: &eks-values
+      - __fixtures__/base-values.yaml
+      - __fixtures__/loop-runtime-values.yaml
+      - ../examples/eks-loop-runtime/values.yaml
+    asserts:
+      - equal:
+          path: data.EXO_SANDBOX_SERVICE_DNS_URL
+          value: https://sandbox-service.braintrust-sandbox.svc.cluster.local:9400
+      - equal:
+          path: data.LOOP_RUNTIME_SANDBOX_SERVICE_EGRESS_GATEWAY_URL
+          value: http://braintrust-loop-runtime-egress.braintrust:4002
+      - equal:
+          path: data.SANDBOX_SERVICE_TLS_CERT
+          value: /etc/sandbox-tls/client.pem
+      - isNull:
+          path: data.EXO_SANDBOX_PROVIDER
+      - isNull:
+          path: data.AWS_LAMBDA_MICROVM_IMAGE_IDENTIFIER
+
+  - it: should install the runtime on system nodes with the client TLS Secret
+    release:
+      namespace: braintrust
+    template: loop-runtime-deployment.yaml
+    values: *eks-values
+    asserts:
+      - equal:
+          path: spec.template.spec.nodeSelector["braintrust.io/workload"]
+          value: sandbox-system
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: test/loop-runtime:v2.18.0
+      - equal:
+          path: spec.template.spec.containers[0].imagePullPolicy
+          value: Always
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: sandbox-service-tls
+            secret:
+              secretName: sandbox-client-tls
+              items:
+                - key: client.pem
+                  path: client.pem
+                - key: client.key
+                  path: client.key
+                - key: server-ca.pem
+                  path: server-ca.pem

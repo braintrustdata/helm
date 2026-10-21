@@ -1,0 +1,5 @@
+# Values for the separately released Sandbox Service chart.
+hostname: sandbox-service.braintrust-sandbox.svc.cluster.local
+image: public.ecr.aws/braintrust/sandbox-service:v2.18.0
+replicas: 1
+gitResources: true
