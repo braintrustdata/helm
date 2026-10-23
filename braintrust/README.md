@@ -119,14 +119,14 @@ brainstore:
     resources:
       requests:
         cpu: "8"
-        memory: "16Gi"
+        memory: "32Gi"
   writer:
     volume:
       size: "375Gi"
     resources:
       requests:
         cpu: "32"
-        memory: "64Gi"
+        memory: "128Gi"
 ```
 
 **What happens:**
