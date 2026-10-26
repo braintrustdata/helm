@@ -1,0 +1,102 @@
+# Prepares isolated worker nodes for the Sandbox Service worker chart, which
+# expects node-local storage at /var/lib/braintrust-sandboxes/1, /run/netns, and
+# /dev/kvm. On EKS the node bootstrap does this; GKE node pools have no
+# bootstrap hook, so this DaemonSet runs the same steps in the host namespaces.
+# Apply it to the isolated worker cluster before installing the worker release.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: sandbox-node-init
+  namespace: braintrust-sandbox
+data:
+  init.sh: |
+    #!/bin/bash
+    # Formats and mounts the raw local SSDs once per boot. Local SSD contents
+    # do not survive node recreation, so there is no data to preserve.
+    set -euo pipefail
+    MOUNT="${MOUNT:-/var/lib/braintrust-sandboxes/1}"
+    DEVICES="${DEVICES:-/dev/disk/by-id/google-local-nvme-ssd-*}"
+    mkdir -p /run/netns "$MOUNT"
+    modprobe kvm_intel 2>/dev/null || modprobe kvm_amd 2>/dev/null || true
+    test -c /dev/kvm || { echo "/dev/kvm is missing; enable nested virtualization" >&2; exit 1; }
+    if mountpoint -q "$MOUNT"; then
+      echo "$MOUNT is already mounted"
+      exit 0
+    fi
+    # shellcheck disable=SC2206
+    disks=($DEVICES)
+    [ -e "${disks[0]}" ] || { echo "no local SSD matches $DEVICES" >&2; exit 1; }
+    if [ "${#disks[@]}" -eq 1 ]; then
+      device="$(readlink -f "${disks[0]}")"
+    else
+      # Reuse an array the kernel assembled at boot; otherwise stripe the SSDs.
+      first="$(basename "$(readlink -f "${disks[0]}")")"
+      device=""
+      for slaves in /sys/block/md*/slaves; do
+        [ -e "$slaves/$first" ] && device="/dev/$(basename "$(dirname "$slaves")")"
+      done
+      if [ -z "$device" ]; then
+        device=/dev/md0
+        mdadm --create "$device" --level=0 --force --run \
+          --raid-devices="${#disks[@]}" "${disks[@]}"
+      fi
+    fi
+    blkid "$device" >/dev/null 2>&1 || mkfs.ext4 -q -F "$device"
+    mount -o discard,defaults "$device" "$MOUNT"
+    echo "mounted $device at $MOUNT"
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: sandbox-node-init
+  namespace: braintrust-sandbox
+spec:
+  selector:
+    matchLabels:
+      app: sandbox-node-init
+  template:
+    metadata:
+      labels:
+        app: sandbox-node-init
+    spec:
+      nodeSelector:
+        braintrust.io/workload: sandbox-service
+      tolerations:
+        - key: braintrust.io/sandbox
+          operator: Equal
+          value: "true"
+          effect: NoSchedule
+      hostPID: true
+      automountServiceAccountToken: false
+      initContainers:
+        - name: init
+          image: ubuntu:24.04
+          # Run the script with the host's tools in the host mount namespace so
+          # kubelet and the worker Pod see the mount.
+          command:
+            - nsenter
+            - --target=1
+            - --mount
+            - --uts
+            - --ipc
+            - --net
+            - --pid
+            - --
+            - bash
+            - -c
+            - "$(SCRIPT)"
+          env:
+            - name: SCRIPT
+              valueFrom:
+                configMapKeyRef:
+                  name: sandbox-node-init
+                  key: init.sh
+          securityContext:
+            privileged: true
+      containers:
+        - name: pause
+          image: registry.k8s.io/pause:3.10
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
