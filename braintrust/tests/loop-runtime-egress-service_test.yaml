@@ -29,14 +29,14 @@ tests:
           path: spec.ports[0].port
           value: 4002
 
-  - it: should retain IPv4 boundary ranges, host bits, and leading zeroes
+  - it: should retain IPv4 boundary ranges
     values: *values
     set:
-      loopRuntime.sandbox.egressGateway.sourceRanges: ["0.0.0.0/0","255.255.255.255/32","10.64.64.1/24","010.064.000.001/08"]
+      loopRuntime.sandbox.egressGateway.sourceRanges: ["0.0.0.0/0","255.255.255.255/32","10.64.64.0/24"]
     asserts:
       - equal:
           path: spec.loadBalancerSourceRanges
-          value: ["0.0.0.0/0","255.255.255.255/32","10.64.64.1/24","010.064.000.001/08"]
+          value: ["0.0.0.0/0","255.255.255.255/32","10.64.64.0/24"]
 
   - it: should reject out of range octets
     values: *values
@@ -80,4 +80,22 @@ tests:
     values: *values
     set:
       loopRuntime.sandbox.egressGateway.sourceRanges: [null]
+    asserts: *invalid-range
+
+  - it: should reject zero-padded octets
+    values: *values
+    set:
+      loopRuntime.sandbox.egressGateway.sourceRanges: ["010.064.000.000/8"]
+    asserts: *invalid-range
+
+  - it: should reject zero-padded prefixes
+    values: *values
+    set:
+      loopRuntime.sandbox.egressGateway.sourceRanges: ["10.0.0.0/08"]
+    asserts: *invalid-range
+
+  - it: should reject host bits beyond the prefix
+    values: *values
+    set:
+      loopRuntime.sandbox.egressGateway.sourceRanges: ["10.64.64.1/24"]
     asserts: *invalid-range
