@@ -53,6 +53,7 @@ tests:
           value:
             cpu: "1"
             memory: 2Gi
+            ephemeral-storage: 9Gi
       - contains:
           path: spec.template.spec.containers[0].env
           content:
@@ -234,3 +235,34 @@ tests:
       - equal:
           path: spec.template.spec.containers[0].imagePullPolicy
           value: Always
+
+  - it: should outlast the runtime drain, pass the function secret, and bound local storage
+    template: loop-runtime-deployment.yaml
+    values: *values
+    asserts:
+      - equal:
+          path: spec.template.spec.terminationGracePeriodSeconds
+          value: 120
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: FUNCTION_SECRET_KEY
+            valueFrom:
+              secretKeyRef:
+                name: braintrust-secrets
+                key: FUNCTION_SECRET_KEY
+      - equal:
+          path: spec.template.spec.volumes[0]
+          value:
+            name: state-volume
+            emptyDir:
+              sizeLimit: 2Gi
+      - equal:
+          path: spec.template.spec.volumes[1]
+          value:
+            name: cache-volume
+            emptyDir:
+              sizeLimit: 6Gi
+      - equal:
+          path: spec.template.spec.containers[0].resources.requests["ephemeral-storage"]
+          value: 9Gi

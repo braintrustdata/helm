@@ -39,6 +39,7 @@ spec:
         {{- end }}
     spec:
       serviceAccountName: {{ .Values.loopRuntime.serviceAccount.name }}
+      terminationGracePeriodSeconds: {{ .Values.loopRuntime.terminationGracePeriodSeconds }}
       {{- with .Values.loopRuntime.podSecurityContext }}
       securityContext:
         {{- toYaml . | nindent 8 }}
@@ -116,6 +117,12 @@ spec:
                 secretKeyRef:
                   name: braintrust-secrets
                   key: FUNCTION_SECRET_KEY
+            # Decrypts stored project MCP credentials.
+            - name: FUNCTION_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: braintrust-secrets
+                  key: FUNCTION_SECRET_KEY
             - name: BRAINSTORE_LICENSE_KEY
               valueFrom:
                 secretKeyRef:
@@ -144,9 +151,11 @@ spec:
       {{- end }}
       volumes:
         - name: state-volume
-          emptyDir: {}
+          emptyDir:
+            sizeLimit: {{ .Values.loopRuntime.stateSizeLimit | quote }}
         - name: cache-volume
-          emptyDir: {}
+          emptyDir:
+            sizeLimit: {{ .Values.loopRuntime.cacheSizeLimit | quote }}
         - name: sandbox-service-tls
           secret:
             secretName: {{ $sandbox.tlsSecretName }}

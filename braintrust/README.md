@@ -27,6 +27,12 @@ workers in a separate isolated GKE cluster. Follow the
 [Loop Runtime and Sandbox Service example](examples/gke-loop-runtime/README.md)
 to create the TLS Secrets and install the worker release.
 
+The Terraform outputs this needs (`loop_runtime_service_account` and
+`gke_isolated_workers`) are not on `main` of
+`terraform-google-braintrust-data-plane` yet. They come from
+[terraform-google-braintrust-data-plane#28](https://github.com/braintrustdata/terraform-google-braintrust-data-plane/pull/28),
+which is stacked on the GKE Standard work in that repository.
+
 The runtime reads `braintrust-secrets` and the Brainstore buckets. The chart
 adds `LOOP_RUNTIME_URL` to the API and, when `virtualService.enabled` is true,
 routes `/loop/runtime` to Loop Runtime. It also creates the `<service>-egress`

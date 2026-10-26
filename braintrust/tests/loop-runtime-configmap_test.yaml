@@ -199,3 +199,67 @@ tests:
     asserts:
       - failedTemplate:
           errorMessage: "loopRuntime.sandbox.egressGateway.sourceRanges is required (Terraform output gke_isolated_workers.loop_egress.source_ranges)"
+
+  - it: should serve every org when orgName is empty
+    values: *values
+    set:
+      global.orgName: ""
+    asserts:
+      - equal:
+          path: data.ORG_NAME
+          value: "*"
+
+  - it: should serve every org when orgName is whitespace
+    values: *values
+    set:
+      global.orgName: "  "
+    asserts:
+      - equal:
+          path: data.ORG_NAME
+          value: "*"
+
+  - it: should keep a configured orgName and set the drain and cache budgets
+    values: *values
+    set:
+      global.orgName: acme
+    asserts:
+      - equal:
+          path: data.ORG_NAME
+          value: acme
+      - equal:
+          path: data.LOOP_RUNTIME_DRAIN_TIMEOUT_SECONDS
+          value: "90"
+      - equal:
+          path: data.BRAINSTORE_OBJECT_STORE_CACHE_FILE_SIZE
+          value: 5Gi
+
+  - it: should reject a blank egress source range
+    values: *values
+    set:
+      loopRuntime.sandbox.egressGateway.sourceRanges: [""]
+    asserts:
+      - failedTemplate:
+          errorMessage: "loopRuntime.sandbox.egressGateway.sourceRanges entries must be IPv4 CIDR ranges, got \"\""
+
+  - it: should reject a null egress source range
+    values: *values
+    set:
+      loopRuntime.sandbox.egressGateway.sourceRanges: [null]
+    asserts:
+      - failedTemplate: {}
+
+  - it: should reject a blank entry alongside a valid egress source range
+    values: *values
+    set:
+      loopRuntime.sandbox.egressGateway.sourceRanges: ["10.64.64.0/24", " "]
+    asserts:
+      - failedTemplate:
+          errorMessage: "loopRuntime.sandbox.egressGateway.sourceRanges entries must be IPv4 CIDR ranges, got \" \""
+
+  - it: should reject a padded egress source range
+    values: *values
+    set:
+      loopRuntime.sandbox.egressGateway.sourceRanges: [" 10.64.64.0/24"]
+    asserts:
+      - failedTemplate:
+          errorMessage: "loopRuntime.sandbox.egressGateway.sourceRanges entries must be IPv4 CIDR ranges, got \" 10.64.64.0/24\""

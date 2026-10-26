@@ -20,6 +20,12 @@ WORKER_NAMESPACE="${WORKER_NAMESPACE:-braintrust-sandbox}"
 RUNTIME_NAMESPACE="${RUNTIME_NAMESPACE:-braintrust}"
 DAYS=3650
 
+# Fail before writing anything if either cluster is unreachable.
+for context in "$WORKER_CONTEXT" "$RUNTIME_CONTEXT"; do
+  kubectl --context "$context" get namespaces >/dev/null
+done
+# sandbox-tls is written last, so it marks a completed run. A partial run
+# leaves only client Secrets, which a rerun replaces.
 if kubectl --context "$WORKER_CONTEXT" -n "$WORKER_NAMESPACE" get secret sandbox-tls >/dev/null 2>&1; then
   echo "sandbox-tls already exists in $WORKER_CONTEXT/$WORKER_NAMESPACE; refusing to replace it." >&2
   exit 1
@@ -59,12 +65,12 @@ apply_secret() {
     kubectl --context "$1" apply -f -
 }
 
-# Workers present the server certificate and trust the client CA.
-apply_secret "$WORKER_CONTEXT" "$WORKER_NAMESPACE" sandbox-tls \
-  --from-file=cert.pem=server.pem --from-file=key.pem=server.key --from-file=ca_cert.pem=client-ca.pem
 # The worker controller and Loop Runtime present the client certificate and trust the server CA.
-for target in "$WORKER_CONTEXT $WORKER_NAMESPACE" "$RUNTIME_CONTEXT $RUNTIME_NAMESPACE"; do
+for target in "$RUNTIME_CONTEXT $RUNTIME_NAMESPACE" "$WORKER_CONTEXT $WORKER_NAMESPACE"; do
   # shellcheck disable=SC2086
   apply_secret $target sandbox-client-tls \
     --from-file=client.pem=client.pem --from-file=client.key=client.key --from-file=server-ca.pem=server-ca.pem
 done
+# Workers present the server certificate and trust the client CA.
+apply_secret "$WORKER_CONTEXT" "$WORKER_NAMESPACE" sandbox-tls \
+  --from-file=cert.pem=server.pem --from-file=key.pem=server.key --from-file=ca_cert.pem=client-ca.pem

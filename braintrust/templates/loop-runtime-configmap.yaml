@@ -25,7 +25,9 @@ data:
   LOOP_RUNTIME_LIFECYCLE_LOG: {{ .Values.loopRuntime.lifecycleLog | toString | quote }}
   LOOP_RUNTIME_REDIS_NAMESPACE: {{ include "braintrust.loopRuntimeRedisNamespace" . | quote }}
   LOOP_RUNTIME_STATE_DIR: {{ .Values.loopRuntime.stateDir | quote }}
-  ORG_NAME: {{ .Values.global.orgName | default "" | toString | trim | quote }}
+  {{- /* An empty orgName serves every org, matching the API. The runtime refuses an empty ORG_NAME. */}}
+  ORG_NAME: {{ .Values.global.orgName | default "" | toString | trim | default "*" | quote }}
+  LOOP_RUNTIME_DRAIN_TIMEOUT_SECONDS: "90"
   BRAINTRUST_API_URL: {{ $apiUrl | quote }}
   LOOP_RUNTIME_AI_PROXY_URL: {{ $aiProxyUrl | quote }}
   LOOP_RUNTIME_BRAINSTORE_READER_URL: {{ $brainstoreReaderUrl | quote }}
@@ -34,6 +36,7 @@ data:
   BRAINSTORE_REALTIME_WAL_URI: "{{ $brainstoreBucketUri }}/brainstore/wal"
   BRAINSTORE_CODE_BUNDLE_URI: "gs://{{ .Values.objectStorage.google.apiBucket }}"
   BRAINSTORE_CACHE_DIR: {{ .Values.loopRuntime.cacheDir | quote }}
+  BRAINSTORE_OBJECT_STORE_CACHE_FILE_SIZE: {{ .Values.loopRuntime.objectStoreCacheFileSize | quote }}
   BRAINSTORE_CONTROL_PLANE_TELEMETRY: {{ .Values.global.controlPlaneTelemetry | quote }}
   BRAINSTORE_DISABLE_STATUS_UPDATES: {{ .Values.loopRuntime.brainstoreDisableStatusUpdates | toString | quote }}
   NO_COLOR: "1"
