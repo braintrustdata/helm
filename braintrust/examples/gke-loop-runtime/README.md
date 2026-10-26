@@ -13,12 +13,34 @@ when `gke_isolated_workers` is set with `discovery`.
 | Loop Runtime, worker controller | Workers | TCP 9400, mTLS | `discovery.endpoint` |
 | Sandboxes (Git) | Loop Runtime forward proxy | TCP 4002 | `loop_egress.url`, an internal load balancer on a reserved address |
 
+## Terraform
+
+Enable the isolated worker cluster and its discovery zone in the GCP module:
+
+```hcl
+gke_isolated_workers = {
+  network_cidr = "10.64.0.0/16" # must not overlap any existing range
+  discovery = {
+    dns_name = "sandbox.<deployment>.internal"
+  }
+}
+```
+
 ## Install
 
 All `<...>` values come from `terraform output gke_isolated_workers` and
 `terraform output loop_runtime_service_account`.
 
-1. Create the mutual TLS Secrets in both clusters. The script refuses to
+1. Prepare the worker nodes. GKE node pools have no bootstrap hook, so this
+   DaemonSet mounts the local SSD at the path the worker chart expects,
+   creates `/run/netns`, and checks `/dev/kvm`.
+
+   ```sh
+   kubectl --context <worker cluster context> create namespace braintrust-sandbox
+   kubectl --context <worker cluster context> apply -f braintrust/examples/gke-loop-runtime/node-init.yaml
+   ```
+
+2. Create the mutual TLS Secrets in both clusters. The script refuses to
    replace existing Secrets.
 
    ```sh
@@ -26,7 +48,7 @@ All `<...>` values come from `terraform output gke_isolated_workers` and
      "<discovery.hostname>" <worker cluster context> <primary cluster context>
    ```
 
-2. Install the workers in the isolated cluster, using the worker chart that
+3. Install the workers in the isolated cluster, using the worker chart that
    matches the pinned images.
 
    ```sh
@@ -36,7 +58,7 @@ All `<...>` values come from `terraform output gke_isolated_workers` and
      --values braintrust/examples/gke-loop-runtime/sandbox-service.yaml --wait
    ```
 
-3. Install or upgrade this chart in the primary cluster with your existing GKE
+4. Install or upgrade this chart in the primary cluster with your existing GKE
    values plus `values.yaml` from this directory.
 
    ```sh
