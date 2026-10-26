@@ -166,6 +166,8 @@ predates Loop Runtime have no loopRuntime map, which means disabled.
 {{- fail "loopRuntime.enabled requires cloud: google. On AWS, Loop Runtime runs on ECS through the Terraform module." -}}
 {{- end -}}
 {{- $sandbox := .Values.loopRuntime.sandbox -}}
+{{- $_ := required "loopRuntime.image.repository is required when loopRuntime.enabled is true" .Values.loopRuntime.image.repository -}}
+{{- $_ := required "loopRuntime.image.tag is required when loopRuntime.enabled is true" (.Values.loopRuntime.image.tag | default "" | toString | trim) -}}
 {{- $_ := required "objectStorage.google.brainstoreBucket is required when loopRuntime.enabled is true" .Values.objectStorage.google.brainstoreBucket -}}
 {{- $_ := required "objectStorage.google.apiBucket is required when loopRuntime.enabled is true" .Values.objectStorage.google.apiBucket -}}
 {{- $_ := required "loopRuntime.serviceAccount.name is required when loopRuntime.enabled is true" .Values.loopRuntime.serviceAccount.name -}}

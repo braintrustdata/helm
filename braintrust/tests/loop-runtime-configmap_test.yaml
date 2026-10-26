@@ -263,3 +263,44 @@ tests:
     asserts:
       - failedTemplate:
           errorMessage: "loopRuntime.sandbox.egressGateway.sourceRanges entries must be IPv4 CIDR ranges, got \" 10.64.64.0/24\""
+
+  - it: should require the runtime image repository when it is empty
+    values: *values
+    set:
+      loopRuntime.image.repository: ""
+    asserts:
+      - failedTemplate:
+          errorMessage: "loopRuntime.image.repository is required when loopRuntime.enabled is true"
+
+  - it: should require the runtime image repository when it is null
+    values: *values
+    set:
+      loopRuntime.image.repository: null
+    asserts:
+      - failedTemplate:
+          errorMessage: "loopRuntime.image.repository is required when loopRuntime.enabled is true"
+
+  - it: should require the runtime image tag when it is empty
+    values: *values
+    set:
+      loopRuntime.image.tag: ""
+    asserts:
+      - failedTemplate:
+          errorMessage: "loopRuntime.image.tag is required when loopRuntime.enabled is true"
+
+  - it: should require the runtime image tag when it is null
+    values: *values
+    set:
+      loopRuntime.image.tag: null
+    asserts:
+      - failedTemplate:
+          errorMessage: "loopRuntime.image.tag is required when loopRuntime.enabled is true"
+
+  - it: should require the runtime image tag when reused values omit it
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/loop-runtime-values.yaml
+      - __fixtures__/partial-loop-runtime-image-values.yaml
+    asserts:
+      - failedTemplate:
+          errorMessage: "loopRuntime.image.tag is required when loopRuntime.enabled is true"
