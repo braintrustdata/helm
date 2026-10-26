@@ -1,0 +1,14 @@
+# Layer on top of your existing GKE values (for example, ../google-autopilot/values.yaml).
+# Every value below comes from the GCP Terraform module outputs.
+loopRuntime:
+  enabled: true
+  serviceAccount:
+    googleServiceAccount: "<loop_runtime_service_account>"
+  sandbox:
+    dnsUrl: "<gke_isolated_workers.discovery.endpoint>"
+    egressGateway:
+      address: "<gke_isolated_workers.loop_egress.address>"
+      # One entry per range in gke_isolated_workers.loop_egress.source_ranges.
+      sourceRanges:
+        - "<range>"
+      url: "<gke_isolated_workers.loop_egress.url>"

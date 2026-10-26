@@ -20,60 +20,18 @@ The `braintrust-secrets` secret must contain the following keys:
 
 ## Optional: Loop Runtime
 
-Set `loopRuntime.enabled: true` to run Loop Runtime on EKS (`cloud: aws`) or
-GKE (`cloud: google`). Loop Runtime runs sandboxes on Braintrust Sandbox
-Service workers over mTLS. For a complete installation on EKS, follow the
-[Loop Runtime and Sandbox Service example](examples/eks-loop-runtime/README.md).
-It installs the shared worker chart as a separate Helm release and reuses the
-existing AWS infrastructure and workload identities.
+Set `loopRuntime.enabled: true` to run Loop Runtime on GKE (`cloud: google`).
+On AWS, Loop Runtime runs on ECS through the AWS Terraform module, so this
+chart rejects other clouds. Loop Runtime runs sandboxes on Sandbox Service
+workers in a separate isolated GKE cluster. Follow the
+[Loop Runtime and Sandbox Service example](examples/gke-loop-runtime/README.md)
+to create the TLS Secrets and install the worker release.
 
 The runtime reads `braintrust-secrets` and the Brainstore buckets. The chart
 adds `LOOP_RUNTIME_URL` to the API and, when `virtualService.enabled` is true,
-routes `/loop/runtime` to Loop Runtime.
-
-Put the Sandbox Service client certificate, key, and server CA in a Secret and
-set `loopRuntime.sandbox.tls.secretName`. `sandbox.vcpuCount` and
-`sandbox.memoryMib` specify the resources requested for each sandbox.
-
-GKE:
-
-```yaml
-cloud: google
-
-objectStorage:
-  google:
-    brainstoreBucket: "<terraform output brainstore_bucket_name>"
-    apiBucket: "<terraform output braintrust_api_bucket_name>"
-
-loopRuntime:
-  enabled: true
-  serviceAccount:
-    googleServiceAccount: "<terraform output loop_runtime_service_account>"
-  sandbox:
-    dnsUrl: "<terraform output gke_isolated_workers.discovery.endpoint>"
-    tls:
-      secretName: sandbox-client-tls
-```
-
-Sandboxes reach Git through a forward proxy in Loop Runtime. Enable
-`loopRuntime.sandbox.egressGateway` to create the `<service>-egress` Service.
-Workers in the same cluster use its internal URL by default. For workers outside
-the cluster, expose it on an internal load balancer and set a reachable `url`.
-For example, on GKE:
-
-```yaml
-loopRuntime:
-  sandbox:
-    egressGateway:
-      enabled: true
-      url: "http://<internal load balancer address>:4002"
-      service:
-        type: LoadBalancer
-        annotations:
-          networking.gke.io/load-balancer-type: "Internal"
-        loadBalancerSourceRanges:
-          - "<isolated worker node CIDR>"
-```
+routes `/loop/runtime` to Loop Runtime. It also creates the `<service>-egress`
+internal load balancer on the address that Terraform reserves, so sandboxes
+can reach Git through Loop Runtime's forward proxy.
 
 ## Azure Key Vault Driver Integration
 

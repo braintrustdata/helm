@@ -154,23 +154,6 @@ predates Loop Runtime have no loopRuntime map, which means disabled.
 {{- if (.Values.loopRuntime | default dict).enabled -}}true{{- end -}}
 {{- end -}}
 
-{{/* Loop Runtime object-store URIs. They match the Brainstore ConfigMaps. */}}
-{{- define "braintrust.loopRuntime.brainstoreBucketUri" -}}
-{{- if eq .Values.cloud "google" -}}
-gs://{{ .Values.objectStorage.google.brainstoreBucket }}
-{{- else -}}
-s3://{{ .Values.objectStorage.aws.brainstoreBucket }}
-{{- end -}}
-{{- end -}}
-
-{{- define "braintrust.loopRuntime.codeBundleUri" -}}
-{{- if eq .Values.cloud "google" -}}
-gs://{{ .Values.objectStorage.google.apiBucket }}
-{{- else -}}
-s3://{{ .Values.objectStorage.aws.codeBundleBucket }}
-{{- end -}}
-{{- end -}}
-
 {{/* Validate the Loop Runtime configuration. */}}
 {{- define "braintrust.loopRuntime.validate" -}}
 {{- if include "braintrust.loopRuntime.enabled" . -}}
@@ -179,39 +162,21 @@ s3://{{ .Values.objectStorage.aws.codeBundleBucket }}
 {{- fail (printf "loopRuntime.%s is missing. Values reused from a chart release that predates Loop Runtime omit the loopRuntime defaults; upgrade with --reset-then-reuse-values or supply the full loopRuntime map." .) -}}
 {{- end -}}
 {{- end -}}
-{{- $sandbox := .Values.loopRuntime.sandbox -}}
-{{- if not (has .Values.cloud (list "aws" "google")) -}}
-{{- fail "loopRuntime.enabled requires cloud: aws or cloud: google." -}}
+{{- if ne .Values.cloud "google" -}}
+{{- fail "loopRuntime.enabled requires cloud: google. On AWS, Loop Runtime runs on ECS through the Terraform module." -}}
 {{- end -}}
-{{- if eq .Values.cloud "aws" -}}
-{{- $_ := required "objectStorage.aws.brainstoreBucket is required when loopRuntime.enabled is true" .Values.objectStorage.aws.brainstoreBucket -}}
-{{- $_ := required "objectStorage.aws.codeBundleBucket is required when loopRuntime.enabled is true" .Values.objectStorage.aws.codeBundleBucket -}}
-{{- else -}}
+{{- $sandbox := .Values.loopRuntime.sandbox -}}
 {{- $_ := required "objectStorage.google.brainstoreBucket is required when loopRuntime.enabled is true" .Values.objectStorage.google.brainstoreBucket -}}
 {{- $_ := required "objectStorage.google.apiBucket is required when loopRuntime.enabled is true" .Values.objectStorage.google.apiBucket -}}
-{{- $_ := required "loopRuntime.serviceAccount.googleServiceAccount is required when cloud is google (use Terraform output loop_runtime_service_account)" .Values.loopRuntime.serviceAccount.googleServiceAccount -}}
-{{- end -}}
 {{- $_ := required "loopRuntime.serviceAccount.name is required when loopRuntime.enabled is true" .Values.loopRuntime.serviceAccount.name -}}
-{{- $urls := $sandbox.urls | default list -}}
-{{- if and $sandbox.dnsUrl $urls -}}
-{{- fail "Set only one of loopRuntime.sandbox.dnsUrl and loopRuntime.sandbox.urls." -}}
-{{- end -}}
-{{- if not (or $sandbox.dnsUrl $urls) -}}
-{{- fail "loopRuntime.sandbox.dnsUrl or loopRuntime.sandbox.urls is required when loopRuntime.enabled is true (GKE: use Terraform output gke_isolated_workers.discovery.endpoint)" -}}
-{{- end -}}
-{{- range $urls -}}
-{{- if not (. | default "" | trim) -}}
-{{- fail "loopRuntime.sandbox.urls entries must not be blank" -}}
-{{- end -}}
-{{- end -}}
+{{- $_ := required "loopRuntime.serviceAccount.googleServiceAccount is required (Terraform output loop_runtime_service_account)" .Values.loopRuntime.serviceAccount.googleServiceAccount -}}
+{{- $_ := required "loopRuntime.sandbox.dnsUrl is required (Terraform output gke_isolated_workers.discovery.endpoint)" $sandbox.dnsUrl -}}
 {{- $_ := required "loopRuntime.sandbox.image is required when loopRuntime.enabled is true" $sandbox.image -}}
-{{- range (prepend $urls ($sandbox.dnsUrl | default "")) -}}
-{{- if ne . (trim .) -}}
-{{- fail "Sandbox Service endpoints must not contain leading or trailing whitespace" -}}
-{{- end -}}
-{{- if and . (hasPrefix "https://" .) (not $sandbox.tls.secretName) -}}
-{{- fail "loopRuntime.sandbox.tls.secretName is required for https:// Sandbox Service endpoints" -}}
-{{- end -}}
+{{- $_ := required "loopRuntime.sandbox.tlsSecretName is required when loopRuntime.enabled is true" $sandbox.tlsSecretName -}}
+{{- $_ := required "loopRuntime.sandbox.egressGateway.address is required (Terraform output gke_isolated_workers.loop_egress.address)" $sandbox.egressGateway.address -}}
+{{- $_ := required "loopRuntime.sandbox.egressGateway.url is required (Terraform output gke_isolated_workers.loop_egress.url)" $sandbox.egressGateway.url -}}
+{{- if not $sandbox.egressGateway.sourceRanges -}}
+{{- fail "loopRuntime.sandbox.egressGateway.sourceRanges is required (Terraform output gke_isolated_workers.loop_egress.source_ranges)" -}}
 {{- end -}}
 {{- end -}}
 {{- end -}}

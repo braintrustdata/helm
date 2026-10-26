@@ -3,9 +3,8 @@
 {{- $apiUrl := default (include "braintrust.apiInternalUrl" .) .Values.loopRuntime.braintrustApiUrl -}}
 {{- $aiProxyUrl := default (include "braintrust.apiAiProxyInternalUrl" .) .Values.loopRuntime.aiProxyUrl -}}
 {{- $brainstoreReaderUrl := default (include "braintrust.brainstoreFastReaderInternalUrl" .) .Values.loopRuntime.brainstoreReaderUrl -}}
-{{- $brainstoreBucketUri := include "braintrust.loopRuntime.brainstoreBucketUri" . -}}
+{{- $brainstoreBucketUri := printf "gs://%s" .Values.objectStorage.google.brainstoreBucket -}}
 {{- $sandbox := .Values.loopRuntime.sandbox -}}
-{{- $egressGateway := $sandbox.egressGateway -}}
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -33,30 +32,23 @@ data:
   BRAINSTORE_VERBOSE: "1"
   BRAINSTORE_INDEX_URI: "{{ $brainstoreBucketUri }}/brainstore/index"
   BRAINSTORE_REALTIME_WAL_URI: "{{ $brainstoreBucketUri }}/brainstore/wal"
-  BRAINSTORE_CODE_BUNDLE_URI: {{ include "braintrust.loopRuntime.codeBundleUri" . | quote }}
+  BRAINSTORE_CODE_BUNDLE_URI: "gs://{{ .Values.objectStorage.google.apiBucket }}"
   BRAINSTORE_CACHE_DIR: {{ .Values.loopRuntime.cacheDir | quote }}
   BRAINSTORE_CONTROL_PLANE_TELEMETRY: {{ .Values.global.controlPlaneTelemetry | quote }}
   BRAINSTORE_DISABLE_STATUS_UPDATES: {{ .Values.loopRuntime.brainstoreDisableStatusUpdates | toString | quote }}
   NO_COLOR: "1"
-  {{- /* Without EXO_SANDBOX_PROVIDER, a Sandbox Service endpoint sends every sandbox to the Sandbox Service. */}}
-  EXO_SANDBOX_IMAGE: {{ $sandbox.image | quote }}
+  {{- /* Matches the ECS Loop Runtime settings for the Sandbox Service in the AWS Terraform module. */}}
+  EXO_SANDBOX_SERVICE_DNS_URL: {{ $sandbox.dnsUrl | quote }}
+  EXO_SANDBOX_SERVICE_IMAGE: {{ $sandbox.image | quote }}
   EXO_SANDBOX_VCPU_COUNT: {{ $sandbox.vcpuCount | quote }}
   EXO_SANDBOX_MEMORY_MIB: {{ $sandbox.memoryMib | quote }}
-  LOOP_RUNTIME_SANDBOX_EGRESS_MODE: {{ $sandbox.egressMode | quote }}
-  {{- if $sandbox.dnsUrl }}
-  EXO_SANDBOX_SERVICE_DNS_URL: {{ $sandbox.dnsUrl | quote }}
-  {{- else }}
-  EXO_SANDBOX_SERVICE_URL: {{ $sandbox.urls | join "," | quote }}
-  {{- end }}
-  {{- if $sandbox.tls.secretName }}
   SANDBOX_SERVICE_TLS_CERT: "/etc/sandbox-tls/client.pem"
   SANDBOX_SERVICE_TLS_KEY: "/etc/sandbox-tls/client.key"
   SANDBOX_SERVICE_TLS_CA: "/etc/sandbox-tls/server-ca.pem"
-  {{- end }}
-  {{- if $egressGateway.enabled }}
-  LOOP_RUNTIME_SANDBOX_FORWARD_PROXY_LISTEN: "0.0.0.0:{{ $egressGateway.port }}"
-  LOOP_RUNTIME_SANDBOX_SERVICE_EGRESS_GATEWAY_URL: {{ $egressGateway.url | default (printf "http://%s-egress.%s:%v" (.Values.loopRuntime.service.name | default .Values.loopRuntime.name) (include "braintrust.namespace" .) $egressGateway.port) | quote }}
-  {{- end }}
+  LOOP_RUNTIME_SANDBOX_FORWARD_PROXY_LISTEN: "0.0.0.0:{{ $sandbox.egressGateway.port }}"
+  LOOP_RUNTIME_SANDBOX_SERVICE_EGRESS_GATEWAY_URL: {{ $sandbox.egressGateway.url | quote }}
+  LOOP_RUNTIME_SANDBOX_EGRESS_MODE: "restricted"
+  LOOP_RUNTIME_ENABLE_SANDBOX_ADMIN: "true"
   {{- with (.Values.global.allowedOrgIds | default "" | toString | trim) }}
   ALLOWED_ORG_IDS: {{ . | quote }}
   {{- end }}

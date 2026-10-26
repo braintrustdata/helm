@@ -1,7 +1,9 @@
 {{- include "braintrust.loopRuntime.validate" . -}}
-{{- if and (include "braintrust.loopRuntime.enabled" .) .Values.loopRuntime.sandbox.egressGateway.enabled -}}
+{{- if include "braintrust.loopRuntime.enabled" . -}}
 {{- $resourceLabels := mergeOverwrite (deepCopy .Values.global.labels) (deepCopy .Values.loopRuntime.labels) -}}
 {{- $egressGateway := .Values.loopRuntime.sandbox.egressGateway -}}
+{{- /* Workers in the isolated cluster reach the Git forward proxy through this
+internal load balancer. Terraform reserves its address and DNS name. */}}
 apiVersion: v1
 kind: Service
 metadata:
@@ -11,11 +13,13 @@ metadata:
   labels:
     {{- toYaml . | nindent 4 }}
   {{- end }}
-  {{- with $egressGateway.service.annotations }}
   annotations:
-    {{- toYaml . | nindent 4 }}
-  {{- end }}
+    networking.gke.io/load-balancer-type: "Internal"
 spec:
+  type: LoadBalancer
+  loadBalancerIP: {{ $egressGateway.address | quote }}
+  loadBalancerSourceRanges:
+    {{- toYaml $egressGateway.sourceRanges | nindent 4 }}
   selector:
     app: {{ .Values.loopRuntime.name }}
   ports:
@@ -23,9 +27,4 @@ spec:
       protocol: TCP
       port: {{ $egressGateway.port }}
       targetPort: {{ $egressGateway.port }}
-  type: {{ $egressGateway.service.type }}
-  {{- with $egressGateway.service.loadBalancerSourceRanges }}
-  loadBalancerSourceRanges:
-    {{- toYaml . | nindent 4 }}
-  {{- end }}
 {{- end }}

@@ -202,8 +202,6 @@ tests:
       - __fixtures__/base-values.yaml
       - __fixtures__/loop-runtime-values.yaml
     set:
-      loopRuntime.sandbox.egressGateway.enabled: true
-      loopRuntime.sandbox.egressGateway.url: http://egress.example:4002
       global.labels.shared: global-service
       global.labels.component: global
       loopRuntime.labels.component: loop-runtime
@@ -230,8 +228,6 @@ tests:
       - __fixtures__/base-values.yaml
       - __fixtures__/loop-runtime-values.yaml
     set:
-      loopRuntime.sandbox.egressGateway.enabled: true
-      loopRuntime.sandbox.egressGateway.url: http://egress.example:4002
       global.labels.shared: global-service
       global.labels.component: global
       loopRuntime.labels.component: loop-runtime

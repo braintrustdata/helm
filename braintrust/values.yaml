@@ -309,7 +309,8 @@ api:
   extraContainers: []
   extraVolumes: []
 
-# Loop Runtime configuration (optional; cloud: aws or google)
+# Loop Runtime configuration (optional; cloud: google only)
+# See examples/gke-loop-runtime for the Sandbox Service worker release it needs.
 loopRuntime:
   enabled: false
   name: "braintrust-loop-runtime"
@@ -322,11 +323,12 @@ loopRuntime:
     pod: {}
     serviceaccount: {}
   # Null, missing, or empty replicas default to 1; 0 scales to zero.
-  replicas: 1
+  replicas: 2
   image:
     repository: public.ecr.aws/braintrust/loop-runtime
-    tag: latest-2.x
-    pullPolicy: Always
+    # Pinned to the release tested with the Sandbox Service worker chart.
+    tag: b96d95eaa269031cdd6f286a17b9b3e4795355d1
+    pullPolicy: IfNotPresent
   service:
     # Optional name for the Service. If empty, loopRuntime.name is used.
     name: ""
@@ -335,9 +337,7 @@ loopRuntime:
     portName: http
   serviceAccount:
     name: "braintrust-loop-runtime"
-    # AWS IRSA role. Leave empty when using EKS Pod Identity.
-    awsRoleArn: ""
-    # Required on Google: the Google service account bound to this workload.
+    # Required: Terraform output loop_runtime_service_account.
     googleServiceAccount: ""
     annotations: {}
   # These URLs default to in-cluster services. Set them when the API, AI proxy,
@@ -354,11 +354,11 @@ loopRuntime:
   cacheDir: "/mnt/tmp/brainstore"
   resources:
     requests:
-      cpu: "2"
-      memory: "8Gi"
+      cpu: "1"
+      memory: "2Gi"
     limits:
-      cpu: "2"
-      memory: "8Gi"
+      cpu: "1"
+      memory: "2Gi"
   podSecurityContext:
     runAsNonRoot: true
     runAsUser: 1000
@@ -390,35 +390,27 @@ loopRuntime:
   nodeSelector: {}
   tolerations: []
   affinity: {}
-  # Sandboxes run on Braintrust Sandbox Service workers, reached over mTLS.
+  # Sandboxes run on Sandbox Service workers in the isolated GKE cluster.
   sandbox:
-    # Set one. dnsUrl resolves every worker behind a headless DNS name.
-    # Workers may run in this cluster or on a separately managed cluster.
+    # Required: Terraform output gke_isolated_workers.discovery.endpoint.
     dnsUrl: ""
-    urls: []
-    image: "public.ecr.aws/braintrust/codex-runtime:latest"
+    image: "public.ecr.aws/braintrust/codex-runtime@sha256:35db9c98d4a74e20758a29b82f8a3a6552be0002eb439c8c1a0f434ac573ee21"
     # Resources requested for each sandbox; size worker capacity accordingly.
     vcpuCount: 1
     memoryMib: 2048
-    # restricted or internet
-    egressMode: "restricted"
-    tls:
-      # Secret with the client certificate, key, and server CA.
-      # Required for https:// endpoints.
-      secretName: ""
-      certKey: client.pem
-      keyKey: client.key
-      caKey: server-ca.pem
-    # Forward proxy that sandboxes use for Git access. An empty url defaults to
-    # the in-cluster <service>-egress Service. Override it for external workers.
+    # Secret with client.pem, client.key, and server-ca.pem.
+    # examples/gke-loop-runtime/create-sandbox-tls.sh creates it.
+    tlsSecretName: sandbox-client-tls
+    # Git forward proxy for sandboxes, on an internal load balancer that the
+    # workers reach. Both values come from Terraform output gke_isolated_workers.
     egressGateway:
-      enabled: false
       port: 4002
+      # Required: reserved internal address (loop_egress.address).
+      address: ""
+      # Required: worker ranges allowed to connect (loop_egress.source_ranges).
+      sourceRanges: []
+      # Required: loop_egress.url, http://<loop_egress.hostname>:4002.
       url: ""
-      service:
-        type: ClusterIP
-        annotations: {}
-        loadBalancerSourceRanges: []
   extraEnvVars: []
   extraContainers: []
   extraVolumes: []
