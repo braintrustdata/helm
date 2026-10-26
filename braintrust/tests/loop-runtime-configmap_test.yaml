@@ -45,6 +45,9 @@ tests:
           path: data.LOOP_RUNTIME_SANDBOX_SERVICE_EGRESS_GATEWAY_URL
           value: http://loop-egress.sandbox.internal:4002
       - equal:
+          path: data.LOOP_RUNTIME_SANDBOX_EGRESS_GATEWAY_URL
+          value: http://loop-egress.sandbox.internal:4002
+      - equal:
           path: data.LOOP_RUNTIME_REDIS_NAMESPACE
           value: loop-runtime:RELEASE-NAME
       - equal:
@@ -52,6 +55,18 @@ tests:
           value: test-org
       - isNull:
           path: data.BRAINSTORE_LOCKS_URI
+
+  - it: should use the configured egress URL for Git authorization and sandbox traffic
+    values: *values
+    set:
+      loopRuntime.sandbox.egressGateway.url: http://custom-egress.internal:4002
+    asserts:
+      - equal:
+          path: data.LOOP_RUNTIME_SANDBOX_EGRESS_GATEWAY_URL
+          value: http://custom-egress.internal:4002
+      - equal:
+          path: data.LOOP_RUNTIME_SANDBOX_SERVICE_EGRESS_GATEWAY_URL
+          value: http://custom-egress.internal:4002
 
   - it: should serve every org when orgName is empty
     values: *values
