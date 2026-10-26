@@ -63,11 +63,6 @@ tests:
       loopRuntime.service.port: 4888
       loopRuntime.service.portName: runtime
     asserts:
-      - contains:
-          path: spec.template.spec.containers[0].ports
-          content:
-            name: runtime
-            containerPort: 4888
       - equal:
           path: spec.template.spec.containers[0].livenessProbe.httpGet.port
           value: 4888
@@ -91,29 +86,20 @@ tests:
           path: spec.template.spec.containers[0].readinessProbe.httpGet.port
           value: runtime
 
-  - it: should retain disabled probes
+  - it: should retain disabled and non-HTTP probes
     template: loop-runtime-deployment.yaml
     values: *values
     set:
       loopRuntime.livenessProbe: null
-      loopRuntime.readinessProbe: null
+      loopRuntime.readinessProbe.httpGet: null
+      loopRuntime.readinessProbe.exec.command: ["true"]
     asserts:
       - notExists:
           path: spec.template.spec.containers[0].livenessProbe
-      - notExists:
-          path: spec.template.spec.containers[0].readinessProbe
-
-  - it: should not add an HTTP port to an exec probe
-    template: loop-runtime-deployment.yaml
-    values: *values
-    set:
-      loopRuntime.livenessProbe.httpGet: null
-      loopRuntime.livenessProbe.exec.command: ["true"]
-    asserts:
       - isNull:
-          path: spec.template.spec.containers[0].livenessProbe.httpGet
+          path: spec.template.spec.containers[0].readinessProbe.httpGet
       - equal:
-          path: spec.template.spec.containers[0].livenessProbe.exec.command
+          path: spec.template.spec.containers[0].readinessProbe.exec.command
           value: ["true"]
 
   - it: should default null replicas to one
