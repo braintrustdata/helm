@@ -177,12 +177,22 @@ predates Loop Runtime have no loopRuntime map, which means disabled.
 {{- end -}}
 {{- range $sandbox.egressGateway.sourceRanges -}}
 {{- $cidr := toString . -}}
-{{- $valid := regexMatch "^([0-9]{1,3}\\.){3}[0-9]{1,3}/[0-9]{1,2}$" $cidr -}}
+{{- $valid := regexMatch "^((0|[1-9][0-9]{0,2})\\.){3}(0|[1-9][0-9]{0,2})/(0|[1-9][0-9]?)$" $cidr -}}
 {{- if $valid -}}
 {{- $parts := splitList "/" $cidr -}}
-{{- $valid = le (int (index $parts 1)) 32 -}}
+{{- $prefix := int (index $parts 1) -}}
+{{- $valid = le $prefix 32 -}}
+{{- $address := 0 -}}
 {{- range splitList "." (index $parts 0) -}}
 {{- $valid = and $valid (le (int .) 255) -}}
+{{- $address = add (mul $address 256) (int .) -}}
+{{- end -}}
+{{- if $valid -}}
+{{- $blockSize := 1 -}}
+{{- range until (int (sub 32 $prefix)) -}}
+{{- $blockSize = mul $blockSize 2 -}}
+{{- end -}}
+{{- $valid = eq (mod $address $blockSize) 0 -}}
 {{- end -}}
 {{- end -}}
 {{- if not $valid -}}
