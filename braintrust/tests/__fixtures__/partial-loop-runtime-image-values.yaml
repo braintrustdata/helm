@@ -1,5 +1,0 @@
-# Reused values whose image map lacks a tag.
-loopRuntime:
-  image:
-    repository: "test/loop-runtime"
-    tag: null

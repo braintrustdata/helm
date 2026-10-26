@@ -21,23 +21,12 @@ The `braintrust-secrets` secret must contain the following keys:
 ## Optional: Loop Runtime
 
 Set `loopRuntime.enabled: true` to run Loop Runtime on GKE (`cloud: google`).
-On AWS, Loop Runtime runs on ECS through the AWS Terraform module, so this
-chart rejects other clouds. Loop Runtime runs sandboxes on Sandbox Service
-workers in a separate isolated GKE cluster. Follow the
-[Loop Runtime and Sandbox Service example](examples/gke-loop-runtime/README.md)
-to create the TLS Secrets and install the worker release.
-
-The Terraform outputs this needs (`loop_runtime_service_account` and
-`gke_isolated_workers`) are not on `main` of
-`terraform-google-braintrust-data-plane` yet. They come from
+On AWS it runs on ECS through the Terraform module. Sandboxes run on Sandbox
+Service workers in a separate GKE cluster; see
+[examples/gke-loop-runtime](examples/gke-loop-runtime/README.md). The Terraform
+outputs it needs come from
 [terraform-google-braintrust-data-plane#28](https://github.com/braintrustdata/terraform-google-braintrust-data-plane/pull/28),
-which is stacked on the GKE Standard work in that repository.
-
-The runtime reads `braintrust-secrets` and the Brainstore buckets. The chart
-adds `LOOP_RUNTIME_URL` to the API and, when `virtualService.enabled` is true,
-routes `/loop/runtime` to Loop Runtime. It also creates the `<service>-egress`
-internal load balancer on the address that Terraform reserves, so sandboxes
-can reach Git through Loop Runtime's forward proxy.
+which is not merged yet.
 
 ## Azure Key Vault Driver Integration
 

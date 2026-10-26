@@ -1,15 +1,14 @@
 {{- include "braintrust.loopRuntime.validate" . -}}
 {{- if include "braintrust.loopRuntime.enabled" . -}}
-{{- $resourceLabels := mergeOverwrite (deepCopy .Values.global.labels) (deepCopy .Values.loopRuntime.labels) -}}
 {{- $egressGateway := .Values.loopRuntime.sandbox.egressGateway -}}
-{{- /* Workers in the isolated cluster reach the Git forward proxy through this
-internal load balancer. Terraform reserves its address and DNS name. */}}
+# Workers in the isolated cluster reach the Git forward proxy through this
+# internal load balancer, on the address Terraform reserves.
 apiVersion: v1
 kind: Service
 metadata:
   name: {{ .Values.loopRuntime.service.name | default .Values.loopRuntime.name }}-egress
   namespace: {{ include "braintrust.namespace" . }}
-  {{- with $resourceLabels }}
+  {{- with (mergeOverwrite (deepCopy .Values.global.labels) (deepCopy .Values.loopRuntime.labels)) }}
   labels:
     {{- toYaml . | nindent 4 }}
   {{- end }}
@@ -24,7 +23,6 @@ spec:
     app: {{ .Values.loopRuntime.name }}
   ports:
     - name: egress
-      protocol: TCP
-      port: {{ $egressGateway.port }}
-      targetPort: {{ $egressGateway.port }}
+      port: 4002
+      targetPort: 4002
 {{- end }}

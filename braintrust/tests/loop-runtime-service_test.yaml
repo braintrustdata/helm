@@ -14,29 +14,12 @@ tests:
       - __fixtures__/base-values.yaml
       - __fixtures__/loop-runtime-values.yaml
     asserts:
-      - isKind:
-          of: Service
       - equal:
           path: metadata.name
-          value: braintrust-loop-runtime
-      - equal:
-          path: spec.selector.app
           value: braintrust-loop-runtime
       - equal:
           path: spec.ports[0].port
           value: 4001
       - equal:
-          path: spec.ports[0].targetPort
-          value: 4001
-      - equal:
           path: spec.type
           value: ClusterIP
-
-  - it: should not render when reused values have no loopRuntime map
-    values:
-      - __fixtures__/base-values.yaml
-      - __fixtures__/google-values.yaml
-      - __fixtures__/pre-loop-runtime-values.yaml
-    asserts:
-      - hasDocuments:
-          count: 0

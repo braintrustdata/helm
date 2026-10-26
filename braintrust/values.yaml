@@ -309,8 +309,8 @@ api:
   extraContainers: []
   extraVolumes: []
 
-# Loop Runtime configuration (optional; cloud: google only)
-# See examples/gke-loop-runtime for the Sandbox Service worker release it needs.
+# Loop Runtime (optional, cloud: google only). Sandboxes run on Sandbox Service
+# workers in a separate GKE cluster; see examples/gke-loop-runtime.
 loopRuntime:
   enabled: false
   name: "braintrust-loop-runtime"
@@ -322,67 +322,35 @@ loopRuntime:
     service: {}
     pod: {}
     serviceaccount: {}
-  # Null, missing, or empty replicas default to 1; 0 scales to zero.
   replicas: 2
   image:
     repository: public.ecr.aws/braintrust/loop-runtime
-    # Pinned to the release tested with the Sandbox Service worker chart.
+    # Tested with the Sandbox Service worker release in the GKE example.
     tag: b96d95eaa269031cdd6f286a17b9b3e4795355d1
     pullPolicy: IfNotPresent
   service:
-    # Optional name for the Service. If empty, loopRuntime.name is used.
+    # Optional name for service object. If not specified (empty), loopRuntime.name is used.
     name: ""
     type: ClusterIP
     port: 4001
     portName: http
   serviceAccount:
     name: "braintrust-loop-runtime"
-    # Required: Terraform output loop_runtime_service_account.
+    # Terraform output loop_runtime_service_account.
     googleServiceAccount: ""
-    annotations: {}
-  # These URLs default to in-cluster services. Set them when the API, AI proxy,
-  # or Brainstore is exposed through a different service or namespace.
-  braintrustApiUrl: ""
-  aiProxyUrl: ""
-  brainstoreReaderUrl: ""
-  # Defaults to loop-runtime:<Helm release name>; set explicitly when retaining
-  # an existing Loop Runtime Redis namespace across release renames.
-  redisNamespace: ""
-  lifecycleLog: "0"
-  brainstoreDisableStatusUpdates: "false"
-  stateDir: "/mnt/tmp/loop-runtime"
-  cacheDir: "/mnt/tmp/brainstore"
-  # Bounds the Brainstore file cache in cacheDir. Keep it below cacheSizeLimit.
-  objectStoreCacheFileSize: "5Gi"
-  stateSizeLimit: "2Gi"
-  cacheSizeLimit: "6Gi"
-  # On SIGTERM the runtime drains active turns for up to 90 seconds.
-  terminationGracePeriodSeconds: 120
   resources:
     requests:
       cpu: "1"
       memory: "2Gi"
-      # State and cache emptyDirs plus container overhead.
       ephemeral-storage: "9Gi"
     limits:
       cpu: "1"
       memory: "2Gi"
       ephemeral-storage: "9Gi"
-  podSecurityContext:
-    runAsNonRoot: true
-    runAsUser: 1000
-    runAsGroup: 1000
-    fsGroup: 1000
-    seccompProfile:
-      type: RuntimeDefault
-  securityContext:
-    allowPrivilegeEscalation: false
-    capabilities:
-      drop:
-        - ALL
   livenessProbe:
     httpGet:
       path: /health/liveness
+      port: 4001
     initialDelaySeconds: 10
     periodSeconds: 30
     timeoutSeconds: 5
@@ -391,36 +359,28 @@ loopRuntime:
   readinessProbe:
     httpGet:
       path: /health/liveness
+      port: 4001
     initialDelaySeconds: 10
     periodSeconds: 10
     timeoutSeconds: 5
     failureThreshold: 3
     successThreshold: 1
+  # Values come from Terraform output gke_isolated_workers.
+  sandbox:
+    # discovery.endpoint
+    dnsUrl: ""
+    # loop_egress.address, loop_egress.source_ranges, and loop_egress.url
+    egressGateway:
+      address: ""
+      sourceRanges: []
+      url: ""
+    image: "public.ecr.aws/braintrust/codex-runtime@sha256:35db9c98d4a74e20758a29b82f8a3a6552be0002eb439c8c1a0f434ac573ee21"
+    vcpuCount: 1
+    memoryMib: 2048
+  extraEnvVars: []
   nodeSelector: {}
   tolerations: []
   affinity: {}
-  # Sandboxes run on Sandbox Service workers in the isolated GKE cluster.
-  sandbox:
-    # Required: Terraform output gke_isolated_workers.discovery.endpoint.
-    dnsUrl: ""
-    image: "public.ecr.aws/braintrust/codex-runtime@sha256:35db9c98d4a74e20758a29b82f8a3a6552be0002eb439c8c1a0f434ac573ee21"
-    # Resources requested for each sandbox; size worker capacity accordingly.
-    vcpuCount: 1
-    memoryMib: 2048
-    # Secret with client.pem, client.key, and server-ca.pem.
-    # examples/gke-loop-runtime/create-sandbox-tls.sh creates it.
-    tlsSecretName: sandbox-client-tls
-    # Git forward proxy for sandboxes, on an internal load balancer that the
-    # workers reach. Both values come from Terraform output gke_isolated_workers.
-    egressGateway:
-      port: 4002
-      # Required: reserved internal address (loop_egress.address).
-      address: ""
-      # Required: worker ranges allowed to connect (loop_egress.source_ranges).
-      sourceRanges: []
-      # Required: loop_egress.url, http://<loop_egress.hostname>:4002.
-      url: ""
-  extraEnvVars: []
   extraContainers: []
   extraVolumes: []
 

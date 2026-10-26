@@ -1,33 +1,5 @@
 # Simulate `helm upgrade --reuse-values --set loopRuntime.enabled=true` from a
-# chart that predates Loop Runtime. Explicit nulls remove the new chart
-# defaults during Helm value coalescing, leaving enabled as the only field.
+# chart that predates Loop Runtime. An explicit null removes the new defaults.
 loopRuntime:
   enabled: true
-  name: null
-  labels: null
-  podLabels: null
-  annotations: null
-  replicas: null
-  image: null
-  service: null
-  serviceAccount: null
-  braintrustApiUrl: null
-  aiProxyUrl: null
-  brainstoreReaderUrl: null
-  redisNamespace: null
-  lifecycleLog: null
-  brainstoreDisableStatusUpdates: null
-  stateDir: null
-  cacheDir: null
-  resources: null
-  podSecurityContext: null
-  securityContext: null
-  livenessProbe: null
-  readinessProbe: null
-  nodeSelector: null
-  tolerations: null
-  affinity: null
   sandbox: null
-  extraEnvVars: null
-  extraContainers: null
-  extraVolumes: null

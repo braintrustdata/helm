@@ -1,9 +1,6 @@
 #!/bin/bash
-# Creates the mutual TLS Secrets shared by Loop Runtime and Sandbox Service.
-# Run once before installing either release. Private keys stay in Kubernetes
-# Secrets and never enter Terraform state. The certificates match those the
-# AWS Terraform module creates: separate server and client CAs, P-256 keys,
-# ten-year validity.
+# Creates the mTLS Secrets for Loop Runtime and Sandbox Service, matching the
+# AWS module: separate server and client CAs, P-256 keys, ten-year validity.
 #
 # Usage: create-sandbox-tls.sh <worker hostname> <worker kube context> <runtime kube context>
 #   worker hostname: Terraform output gke_isolated_workers.discovery.hostname
@@ -20,12 +17,10 @@ WORKER_NAMESPACE="${WORKER_NAMESPACE:-braintrust-sandbox}"
 RUNTIME_NAMESPACE="${RUNTIME_NAMESPACE:-braintrust}"
 DAYS=3650
 
-# Fail before writing anything if either cluster is unreachable.
 for context in "$WORKER_CONTEXT" "$RUNTIME_CONTEXT"; do
   kubectl --context "$context" get namespaces >/dev/null
 done
-# sandbox-tls is written last, so it marks a completed run. A partial run
-# leaves only client Secrets, which a rerun replaces.
+# sandbox-tls is written last, so a failed run can be rerun.
 if kubectl --context "$WORKER_CONTEXT" -n "$WORKER_NAMESPACE" get secret sandbox-tls >/dev/null 2>&1; then
   echo "sandbox-tls already exists in $WORKER_CONTEXT/$WORKER_NAMESPACE; refusing to replace it." >&2
   exit 1

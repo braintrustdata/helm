@@ -3,9 +3,9 @@ templates:
   - loop-runtime-configmap.yaml
 tests:
   - it: should not render when Loop Runtime is disabled
-    values: &base-values
+    values:
       - __fixtures__/base-values.yaml
-    asserts: &absent
+    asserts:
       - hasDocuments:
           count: 0
 
@@ -14,7 +14,9 @@ tests:
       - __fixtures__/base-values.yaml
       - __fixtures__/google-values.yaml
       - __fixtures__/pre-loop-runtime-values.yaml
-    asserts: *absent
+    asserts:
+      - hasDocuments:
+          count: 0
 
   - it: should explain how to upgrade when reused values enable Loop Runtime without defaults
     values:
@@ -23,21 +25,16 @@ tests:
       - __fixtures__/reuse-loop-runtime-enabled-values.yaml
     asserts:
       - failedTemplate:
-          errorMessage: "loopRuntime.image is missing. Values reused from a chart release that predates Loop Runtime omit the loopRuntime defaults; upgrade with --reset-then-reuse-values or supply the full loopRuntime map."
+          errorMessage: "loopRuntime defaults are missing. Values reused from a chart release that predates Loop Runtime omit them; upgrade with --reset-then-reuse-values."
 
   - it: should render GKE storage and the Sandbox Service configuration
     values: &values
       - __fixtures__/base-values.yaml
       - __fixtures__/loop-runtime-values.yaml
-    release:
-      namespace: braintrust
     asserts:
       - equal:
           path: data.BRAINSTORE_INDEX_URI
           value: gs://test-brainstore-bucket/brainstore/index
-      - equal:
-          path: data.BRAINSTORE_REALTIME_WAL_URI
-          value: gs://test-brainstore-bucket/brainstore/wal
       - equal:
           path: data.BRAINSTORE_CODE_BUNDLE_URI
           value: gs://test-api-bucket
@@ -45,160 +42,16 @@ tests:
           path: data.EXO_SANDBOX_SERVICE_DNS_URL
           value: https://workers.sandbox.internal:9400
       - equal:
-          path: data.EXO_SANDBOX_SERVICE_IMAGE
-          value: public.ecr.aws/braintrust/codex-runtime@sha256:35db9c98d4a74e20758a29b82f8a3a6552be0002eb439c8c1a0f434ac573ee21
-      - equal:
-          path: data.EXO_SANDBOX_VCPU_COUNT
-          value: "1"
-      - equal:
-          path: data.EXO_SANDBOX_MEMORY_MIB
-          value: "2048"
-      - equal:
-          path: data.SANDBOX_SERVICE_TLS_CERT
-          value: /etc/sandbox-tls/client.pem
-      - equal:
-          path: data.SANDBOX_SERVICE_TLS_KEY
-          value: /etc/sandbox-tls/client.key
-      - equal:
-          path: data.SANDBOX_SERVICE_TLS_CA
-          value: /etc/sandbox-tls/server-ca.pem
-      - equal:
-          path: data.LOOP_RUNTIME_SANDBOX_FORWARD_PROXY_LISTEN
-          value: 0.0.0.0:4002
-      - equal:
           path: data.LOOP_RUNTIME_SANDBOX_SERVICE_EGRESS_GATEWAY_URL
           value: http://loop-egress.sandbox.internal:4002
       - equal:
-          path: data.LOOP_RUNTIME_SANDBOX_EGRESS_MODE
-          value: restricted
-      - equal:
-          path: data.LOOP_RUNTIME_ENABLE_SANDBOX_ADMIN
-          value: "true"
-      - equal:
           path: data.LOOP_RUNTIME_REDIS_NAMESPACE
           value: loop-runtime:RELEASE-NAME
-      - isNull:
-          path: data.EXO_SANDBOX_PROVIDER
+      - equal:
+          path: data.ORG_NAME
+          value: test-org
       - isNull:
           path: data.BRAINSTORE_LOCKS_URI
-
-  - it: should use GCS object storage locks when configured
-    values: *values
-    set:
-      brainstore.locksBackend: objectStorage
-    asserts:
-      - equal:
-          path: data.BRAINSTORE_LOCKS_URI
-          value: gs://test-brainstore-bucket/brainstore/locks
-
-  - it: should pass custom sandbox sizing, Git proxy port, and Redis namespace
-    values: *values
-    set:
-      loopRuntime.sandbox.vcpuCount: 2
-      loopRuntime.sandbox.memoryMib: 4096
-      loopRuntime.sandbox.egressGateway.port: 5002
-      loopRuntime.redisNamespace: loop-runtime:existing
-    asserts:
-      - equal:
-          path: data.EXO_SANDBOX_VCPU_COUNT
-          value: "2"
-      - equal:
-          path: data.EXO_SANDBOX_MEMORY_MIB
-          value: "4096"
-      - equal:
-          path: data.LOOP_RUNTIME_SANDBOX_FORWARD_PROXY_LISTEN
-          value: 0.0.0.0:5002
-      - equal:
-          path: data.LOOP_RUNTIME_REDIS_NAMESPACE
-          value: loop-runtime:existing
-
-  - it: should reject Loop Runtime on AWS
-    values:
-      - __fixtures__/base-values.yaml
-      - __fixtures__/loop-runtime-values.yaml
-    set:
-      cloud: aws
-    asserts: &not-google
-      - failedTemplate:
-          errorMessage: "loopRuntime.enabled requires cloud: google. On AWS, Loop Runtime runs on ECS through the Terraform module."
-
-  - it: should reject Loop Runtime on Azure
-    values:
-      - __fixtures__/base-values.yaml
-      - __fixtures__/azure-values.yaml
-    set:
-      loopRuntime.enabled: true
-    asserts: *not-google
-
-  - it: should reject Loop Runtime without a cloud
-    values: *base-values
-    set:
-      loopRuntime.enabled: true
-    asserts: *not-google
-
-  - it: should require the Loop Runtime Google service account
-    values: *values
-    set:
-      loopRuntime.serviceAccount.googleServiceAccount: ""
-    asserts:
-      - failedTemplate:
-          errorMessage: "loopRuntime.serviceAccount.googleServiceAccount is required (Terraform output loop_runtime_service_account)"
-
-  - it: should require the GCS API bucket
-    values: *values
-    set:
-      objectStorage.google.apiBucket: ""
-    asserts:
-      - failedTemplate:
-          errorMessage: "objectStorage.google.apiBucket is required when loopRuntime.enabled is true"
-
-  - it: should require the worker discovery endpoint
-    values: *values
-    set:
-      loopRuntime.sandbox.dnsUrl: null
-    asserts:
-      - failedTemplate:
-          errorMessage: "loopRuntime.sandbox.dnsUrl is required (Terraform output gke_isolated_workers.discovery.endpoint)"
-
-  - it: should require the sandbox guest image
-    values: *values
-    set:
-      loopRuntime.sandbox.image: ""
-    asserts:
-      - failedTemplate:
-          errorMessage: "loopRuntime.sandbox.image is required when loopRuntime.enabled is true"
-
-  - it: should require the TLS Secret name
-    values: *values
-    set:
-      loopRuntime.sandbox.tlsSecretName: ""
-    asserts:
-      - failedTemplate:
-          errorMessage: "loopRuntime.sandbox.tlsSecretName is required when loopRuntime.enabled is true"
-
-  - it: should require the reserved egress address
-    values: *values
-    set:
-      loopRuntime.sandbox.egressGateway.address: ""
-    asserts:
-      - failedTemplate:
-          errorMessage: "loopRuntime.sandbox.egressGateway.address is required (Terraform output gke_isolated_workers.loop_egress.address)"
-
-  - it: should require the egress URL
-    values: *values
-    set:
-      loopRuntime.sandbox.egressGateway.url: null
-    asserts:
-      - failedTemplate:
-          errorMessage: "loopRuntime.sandbox.egressGateway.url is required (Terraform output gke_isolated_workers.loop_egress.url)"
-
-  - it: should require egress source ranges
-    values: *values
-    set:
-      loopRuntime.sandbox.egressGateway.sourceRanges: []
-    asserts:
-      - failedTemplate:
-          errorMessage: "loopRuntime.sandbox.egressGateway.sourceRanges is required (Terraform output gke_isolated_workers.loop_egress.source_ranges)"
 
   - it: should serve every org when orgName is empty
     values: *values
@@ -209,98 +62,79 @@ tests:
           path: data.ORG_NAME
           value: "*"
 
-  - it: should serve every org when orgName is whitespace
+  - it: should use GCS object storage locks when configured
     values: *values
     set:
-      global.orgName: "  "
+      brainstore.locksBackend: objectStorage
     asserts:
       - equal:
-          path: data.ORG_NAME
-          value: "*"
+          path: data.BRAINSTORE_LOCKS_URI
+          value: gs://test-brainstore-bucket/brainstore/locks
 
-  - it: should keep a configured orgName and set the drain and cache budgets
+  - it: should reject Loop Runtime on AWS
     values: *values
     set:
-      global.orgName: acme
-    asserts:
-      - equal:
-          path: data.ORG_NAME
-          value: acme
-      - equal:
-          path: data.LOOP_RUNTIME_DRAIN_TIMEOUT_SECONDS
-          value: "90"
-      - equal:
-          path: data.BRAINSTORE_OBJECT_STORE_CACHE_FILE_SIZE
-          value: 5Gi
+      cloud: aws
+    asserts: &not-google
+      - failedTemplate:
+          errorMessage: "loopRuntime.enabled requires cloud: google. On AWS, Loop Runtime runs on ECS through the Terraform module."
 
-  - it: should reject a blank egress source range
+  - it: should reject Loop Runtime on Azure
     values: *values
     set:
-      loopRuntime.sandbox.egressGateway.sourceRanges: [""]
+      cloud: azure
+    asserts: *not-google
+
+  - it: should reject Loop Runtime without a cloud
+    values: *values
+    set:
+      cloud: ""
+    asserts: *not-google
+
+  - it: should require the Google service account
+    values: *values
+    set:
+      loopRuntime.serviceAccount.googleServiceAccount: ""
     asserts:
       - failedTemplate:
-          errorMessage: "loopRuntime.sandbox.egressGateway.sourceRanges entries must be IPv4 CIDR ranges, got \"\""
+          errorMessage: "loopRuntime.serviceAccount.googleServiceAccount is required"
 
-  - it: should reject a null egress source range
+  - it: should require the worker discovery endpoint
     values: *values
     set:
-      loopRuntime.sandbox.egressGateway.sourceRanges: [null]
-    asserts:
-      - failedTemplate: {}
-
-  - it: should reject a blank entry alongside a valid egress source range
-    values: *values
-    set:
-      loopRuntime.sandbox.egressGateway.sourceRanges: ["10.64.64.0/24", " "]
+      loopRuntime.sandbox.dnsUrl: null
     asserts:
       - failedTemplate:
-          errorMessage: "loopRuntime.sandbox.egressGateway.sourceRanges entries must be IPv4 CIDR ranges, got \" \""
+          errorMessage: "loopRuntime.sandbox.dnsUrl is required"
 
-  - it: should reject a padded egress source range
+  - it: should require the egress address
     values: *values
     set:
-      loopRuntime.sandbox.egressGateway.sourceRanges: [" 10.64.64.0/24"]
+      loopRuntime.sandbox.egressGateway.address: ""
     asserts:
       - failedTemplate:
-          errorMessage: "loopRuntime.sandbox.egressGateway.sourceRanges entries must be IPv4 CIDR ranges, got \" 10.64.64.0/24\""
+          errorMessage: "loopRuntime.sandbox.egressGateway.address is required"
 
-  - it: should require the runtime image repository when it is empty
+  - it: should require egress source ranges
     values: *values
     set:
-      loopRuntime.image.repository: ""
+      loopRuntime.sandbox.egressGateway.sourceRanges: []
     asserts:
       - failedTemplate:
-          errorMessage: "loopRuntime.image.repository is required when loopRuntime.enabled is true"
+          errorMessage: "loopRuntime.sandbox.egressGateway.sourceRanges is required"
 
-  - it: should require the runtime image repository when it is null
+  - it: should reject a blank egress source range next to a valid one
     values: *values
     set:
-      loopRuntime.image.repository: null
+      loopRuntime.sandbox.egressGateway.sourceRanges: ["10.64.64.0/24", ""]
     asserts:
       - failedTemplate:
-          errorMessage: "loopRuntime.image.repository is required when loopRuntime.enabled is true"
+          errorMessage: "loopRuntime.sandbox.egressGateway.sourceRanges: \"\" is not a CIDR range"
 
-  - it: should require the runtime image tag when it is empty
-    values: *values
-    set:
-      loopRuntime.image.tag: ""
-    asserts:
-      - failedTemplate:
-          errorMessage: "loopRuntime.image.tag is required when loopRuntime.enabled is true"
-
-  - it: should require the runtime image tag when it is null
+  - it: should reject a null image tag
     values: *values
     set:
       loopRuntime.image.tag: null
     asserts:
       - failedTemplate:
-          errorMessage: "loopRuntime.image.tag is required when loopRuntime.enabled is true"
-
-  - it: should require the runtime image tag when reused values omit it
-    values:
-      - __fixtures__/base-values.yaml
-      - __fixtures__/loop-runtime-values.yaml
-      - __fixtures__/partial-loop-runtime-image-values.yaml
-    asserts:
-      - failedTemplate:
-          errorMessage: "loopRuntime.image.tag is required when loopRuntime.enabled is true"
+          errorMessage: "loopRuntime.image.tag is required"

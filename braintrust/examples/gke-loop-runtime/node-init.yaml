@@ -1,8 +1,6 @@
-# Prepares isolated worker nodes for the Sandbox Service worker chart, which
-# expects node-local storage at /var/lib/braintrust-sandboxes/1, /run/netns, and
-# /dev/kvm. On EKS the node bootstrap does this; GKE node pools have no
-# bootstrap hook, so this DaemonSet runs the same steps in the host namespaces.
-# Apply it to the isolated worker cluster before installing the worker release.
+# GKE node pools have no bootstrap hook, so this DaemonSet does what EKS node
+# bootstrap does for the Sandbox Service worker chart: mount the local SSD at
+# /var/lib/braintrust-sandboxes, create /run/netns, and check /dev/kvm.
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -11,10 +9,8 @@ metadata:
 data:
   init.sh: |
     #!/bin/bash
-    # Formats and mounts the raw local SSDs once per boot. Local SSD contents
-    # do not survive node recreation, so there is no data to preserve.
-    # The worker's hostPath directory is created on the mounted SSD, so a
-    # worker cannot start until the mount exists (the same layout as EKS).
+    # The worker's hostPath directory (1) is created on the mounted SSD, so a
+    # worker cannot start before the mount.
     set -euo pipefail
     ROOT="${ROOT:-/var/lib/braintrust-sandboxes}"
     DEVICES="${DEVICES:-/dev/disk/by-id/google-local-nvme-ssd-*}"
@@ -73,8 +69,7 @@ spec:
       initContainers:
         - name: init
           image: ubuntu:24.04
-          # Run the script with the host's tools in the host mount namespace so
-          # kubelet and the worker Pod see the mount.
+          # Run in the host mount namespace so kubelet sees the mount.
           command:
             - nsenter
             - --target=1
