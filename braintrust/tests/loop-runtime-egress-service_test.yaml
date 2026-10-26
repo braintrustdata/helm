@@ -10,7 +10,7 @@ tests:
           count: 0
 
   - it: should expose the Git proxy on an internal load balancer at the reserved address
-    values:
+    values: &values
       - __fixtures__/base-values.yaml
       - __fixtures__/loop-runtime-values.yaml
     asserts:
@@ -28,3 +28,100 @@ tests:
       - equal:
           path: spec.ports[0].port
           value: 4002
+
+  - it: should retain IPv4 boundary ranges, host bits, and leading zeroes
+    values: *values
+    set:
+      loopRuntime.sandbox.egressGateway.sourceRanges: ["0.0.0.0/0","255.255.255.255/32","10.64.64.1/24","010.064.000.001/08"]
+    asserts:
+      - equal:
+          path: spec.loadBalancerSourceRanges
+          value: ["0.0.0.0/0","255.255.255.255/32","10.64.64.1/24","010.064.000.001/08"]
+
+  - it: should reject out of range octets
+    values: *values
+    set:
+      loopRuntime.sandbox.egressGateway.sourceRanges: ["256.0.0.1/24"]
+    asserts:
+      - failedTemplate:
+          errorMessage: "loopRuntime.sandbox.egressGateway.sourceRanges: \"256.0.0.1/24\" is not a CIDR range"
+
+  - it: should reject out of range prefixes
+    values: *values
+    set:
+      loopRuntime.sandbox.egressGateway.sourceRanges: ["10.0.0.0/33"]
+    asserts:
+      - failedTemplate:
+          errorMessage: "loopRuntime.sandbox.egressGateway.sourceRanges: \"10.0.0.0/33\" is not a CIDR range"
+
+  - it: should reject oversized octets and prefixes
+    values: *values
+    set:
+      loopRuntime.sandbox.egressGateway.sourceRanges: ["999.999.999.999/999"]
+    asserts:
+      - failedTemplate:
+          errorMessage: "loopRuntime.sandbox.egressGateway.sourceRanges: \"999.999.999.999/999\" is not a CIDR range"
+
+  - it: should reject an oversized prefix
+    values: *values
+    set:
+      loopRuntime.sandbox.egressGateway.sourceRanges: ["10.0.0.0/999"]
+    asserts:
+      - failedTemplate:
+          errorMessage: "loopRuntime.sandbox.egressGateway.sourceRanges: \"10.0.0.0/999\" is not a CIDR range"
+
+  - it: should reject missing octets
+    values: *values
+    set:
+      loopRuntime.sandbox.egressGateway.sourceRanges: ["10.0.0/24"]
+    asserts:
+      - failedTemplate:
+          errorMessage: "loopRuntime.sandbox.egressGateway.sourceRanges: \"10.0.0/24\" is not a CIDR range"
+
+  - it: should reject IPv6
+    values: *values
+    set:
+      loopRuntime.sandbox.egressGateway.sourceRanges: ["::1/128"]
+    asserts:
+      - failedTemplate:
+          errorMessage: "loopRuntime.sandbox.egressGateway.sourceRanges: \"::1/128\" is not a CIDR range"
+
+  - it: should reject a negative prefix
+    values: *values
+    set:
+      loopRuntime.sandbox.egressGateway.sourceRanges: ["10.0.0.0/-1"]
+    asserts:
+      - failedTemplate:
+          errorMessage: "loopRuntime.sandbox.egressGateway.sourceRanges: \"10.0.0.0/-1\" is not a CIDR range"
+
+  - it: should reject a padded range
+    values: *values
+    set:
+      loopRuntime.sandbox.egressGateway.sourceRanges: [" 10.0.0.0/24 "]
+    asserts:
+      - failedTemplate:
+          errorMessage: "loopRuntime.sandbox.egressGateway.sourceRanges: \" 10.0.0.0/24 \" is not a CIDR range"
+
+  - it: should reject a whitespace range
+    values: *values
+    set:
+      loopRuntime.sandbox.egressGateway.sourceRanges: [" "]
+    asserts:
+      - failedTemplate:
+          errorMessage: "loopRuntime.sandbox.egressGateway.sourceRanges: \" \" is not a CIDR range"
+
+  - it: should reject a blank range
+    values: *values
+    set:
+      loopRuntime.sandbox.egressGateway.sourceRanges: [""]
+    asserts:
+      - failedTemplate:
+          errorMessage: "loopRuntime.sandbox.egressGateway.sourceRanges: \"\" is not a CIDR range"
+
+  - it: should reject a null range
+    values: *values
+    set:
+      loopRuntime.sandbox.egressGateway.sourceRanges: [null]
+    asserts:
+      - failedTemplate:
+          errorMessage: "loopRuntime.sandbox.egressGateway.sourceRanges: \"<nil>\" is not a CIDR range"

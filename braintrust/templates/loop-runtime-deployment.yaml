@@ -69,12 +69,20 @@ spec:
           resources:
             {{- toYaml .Values.loopRuntime.resources | nindent 12 }}
           {{- with .Values.loopRuntime.livenessProbe }}
+          {{- $probe := deepCopy . -}}
+          {{- if and (kindIs "map" $probe.httpGet) (not (hasKey $probe.httpGet "port")) -}}
+          {{- $_ := set $probe.httpGet "port" $.Values.loopRuntime.service.port -}}
+          {{- end }}
           livenessProbe:
-            {{- toYaml . | nindent 12 }}
+            {{- toYaml $probe | nindent 12 }}
           {{- end }}
           {{- with .Values.loopRuntime.readinessProbe }}
+          {{- $probe := deepCopy . -}}
+          {{- if and (kindIs "map" $probe.httpGet) (not (hasKey $probe.httpGet "port")) -}}
+          {{- $_ := set $probe.httpGet "port" $.Values.loopRuntime.service.port -}}
+          {{- end }}
           readinessProbe:
-            {{- toYaml . | nindent 12 }}
+            {{- toYaml $probe | nindent 12 }}
           {{- end }}
           envFrom:
             - configMapRef:

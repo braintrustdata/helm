@@ -176,7 +176,16 @@ predates Loop Runtime have no loopRuntime map, which means disabled.
 {{- fail "loopRuntime.sandbox.egressGateway.sourceRanges is required" -}}
 {{- end -}}
 {{- range $sandbox.egressGateway.sourceRanges -}}
-{{- if not (regexMatch "^[0-9.]+/[0-9]+$" (toString .)) -}}
+{{- $cidr := toString . -}}
+{{- $valid := regexMatch "^([0-9]{1,3}\\.){3}[0-9]{1,3}/[0-9]{1,2}$" $cidr -}}
+{{- if $valid -}}
+{{- $parts := splitList "/" $cidr -}}
+{{- $valid = le (int (index $parts 1)) 32 -}}
+{{- range splitList "." (index $parts 0) -}}
+{{- $valid = and $valid (le (int .) 255) -}}
+{{- end -}}
+{{- end -}}
+{{- if not $valid -}}
 {{- fail (printf "loopRuntime.sandbox.egressGateway.sourceRanges: %q is not a CIDR range" (toString .)) -}}
 {{- end -}}
 {{- end -}}

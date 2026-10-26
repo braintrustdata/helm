@@ -1,6 +1,6 @@
 # GKE node pools have no bootstrap hook, so this DaemonSet does what EKS node
-# bootstrap does for the Sandbox Service worker chart: mount the local SSD at
-# /var/lib/braintrust-sandboxes, create /run/netns, and check /dev/kvm.
+# bootstrap does for the Sandbox Service worker chart: mount XFS at the worker's
+# state path, create /run/netns, and check /dev/kvm.
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -9,10 +9,10 @@ metadata:
 data:
   init.sh: |
     #!/bin/bash
-    # The worker's hostPath directory (1) is created on the mounted SSD, so a
-    # worker cannot start before the mount.
+    # The worker entrypoint refuses to start unless /state is an XFS filesystem
+    # root. This also keeps it off the boot disk while initialization runs.
     set -euo pipefail
-    ROOT="${ROOT:-/var/lib/braintrust-sandboxes}"
+    ROOT="${ROOT:-/var/lib/braintrust-sandboxes/1}"
     DEVICES="${DEVICES:-/dev/disk/by-id/google-local-nvme-ssd-*}"
     mkdir -p /run/netns
     modprobe kvm_intel 2>/dev/null || modprobe kvm_amd 2>/dev/null || true
@@ -36,12 +36,22 @@ data:
             --raid-devices="${#disks[@]}" "${disks[@]}"
         fi
       fi
-      blkid "$device" >/dev/null 2>&1 || mkfs.ext4 -q -F "$device"
+      fstype="$(blkid -s TYPE -o value "$device" || true)"
+      if [ -z "$fstype" ]; then
+        mkfs.xfs -q "$device"
+      elif [ "$fstype" != xfs ]; then
+        echo "$device contains $fstype; refusing to replace it with XFS" >&2
+        exit 1
+      fi
       mkdir -p "$ROOT"
       mount -o discard,defaults "$device" "$ROOT"
       echo "mounted $device at $ROOT"
     fi
-    mkdir -p "$ROOT/1"
+    if [ "$(findmnt -n -o FSTYPE -T "$ROOT")" != xfs ] ||
+       [ "$(findmnt -n -o FSROOT -T "$ROOT")" != / ]; then
+      echo "$ROOT must be the root of an XFS filesystem" >&2
+      exit 1
+    fi
 ---
 apiVersion: apps/v1
 kind: DaemonSet
