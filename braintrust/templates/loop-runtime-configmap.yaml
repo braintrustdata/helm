@@ -1,9 +1,6 @@
 {{- include "braintrust.loopRuntime.validate" . -}}
 {{- if include "braintrust.loopRuntime.enabled" . -}}
-{{- $apiUrl := default (include "braintrust.apiInternalUrl" .) .Values.loopRuntime.braintrustApiUrl -}}
-{{- $aiProxyUrl := default (include "braintrust.apiAiProxyInternalUrl" .) .Values.loopRuntime.aiProxyUrl -}}
-{{- $brainstoreReaderUrl := default (include "braintrust.brainstoreFastReaderInternalUrl" .) .Values.loopRuntime.brainstoreReaderUrl -}}
-{{- $brainstoreBucketUri := printf "gs://%s" .Values.objectStorage.google.brainstoreBucket -}}
+{{- $bucket := printf "gs://%s" .Values.objectStorage.google.brainstoreBucket -}}
 {{- $sandbox := .Values.loopRuntime.sandbox -}}
 apiVersion: v1
 kind: ConfigMap
@@ -18,45 +15,43 @@ metadata:
   annotations:
     {{- toYaml . | nindent 4 }}
   {{- end }}
+# Matches the ECS Loop Runtime environment in the AWS Terraform module.
 data:
   BRAINTRUST_LEGACY_IDS: "true"
   LOOP_RUNTIME_HOST: "0.0.0.0"
   LOOP_RUNTIME_PORT: {{ .Values.loopRuntime.service.port | quote }}
-  LOOP_RUNTIME_LIFECYCLE_LOG: {{ .Values.loopRuntime.lifecycleLog | toString | quote }}
-  LOOP_RUNTIME_REDIS_NAMESPACE: {{ include "braintrust.loopRuntimeRedisNamespace" . | quote }}
-  LOOP_RUNTIME_STATE_DIR: {{ .Values.loopRuntime.stateDir | quote }}
-  {{- /* An empty orgName serves every org, matching the API. The runtime refuses an empty ORG_NAME. */}}
-  ORG_NAME: {{ .Values.global.orgName | default "" | toString | trim | default "*" | quote }}
   LOOP_RUNTIME_DRAIN_TIMEOUT_SECONDS: "90"
-  BRAINTRUST_API_URL: {{ $apiUrl | quote }}
-  LOOP_RUNTIME_AI_PROXY_URL: {{ $aiProxyUrl | quote }}
-  LOOP_RUNTIME_BRAINSTORE_READER_URL: {{ $brainstoreReaderUrl | quote }}
+  LOOP_RUNTIME_REDIS_NAMESPACE: "loop-runtime:{{ .Release.Name }}"
+  LOOP_RUNTIME_STATE_DIR: /mnt/tmp/loop-runtime
+  {{- /* The runtime refuses an empty ORG_NAME; the API treats empty as every org. */}}
+  ORG_NAME: {{ .Values.global.orgName | default "" | toString | trim | default "*" | quote }}
+  BRAINTRUST_API_URL: {{ include "braintrust.apiInternalUrl" . | quote }}
+  LOOP_RUNTIME_AI_PROXY_URL: {{ include "braintrust.apiAiProxyInternalUrl" . | quote }}
+  LOOP_RUNTIME_BRAINSTORE_READER_URL: "http://{{ .Values.brainstore.fastreader.service.name | default .Values.brainstore.fastreader.name }}.{{ include "braintrust.namespace" . }}:{{ .Values.brainstore.fastreader.service.port }}"
   BRAINSTORE_VERBOSE: "1"
-  BRAINSTORE_INDEX_URI: "{{ $brainstoreBucketUri }}/brainstore/index"
-  BRAINSTORE_REALTIME_WAL_URI: "{{ $brainstoreBucketUri }}/brainstore/wal"
+  BRAINSTORE_INDEX_URI: "{{ $bucket }}/brainstore/index"
+  BRAINSTORE_REALTIME_WAL_URI: "{{ $bucket }}/brainstore/wal"
   BRAINSTORE_CODE_BUNDLE_URI: "gs://{{ .Values.objectStorage.google.apiBucket }}"
-  BRAINSTORE_CACHE_DIR: {{ .Values.loopRuntime.cacheDir | quote }}
-  BRAINSTORE_OBJECT_STORE_CACHE_FILE_SIZE: {{ .Values.loopRuntime.objectStoreCacheFileSize | quote }}
+  BRAINSTORE_CACHE_DIR: /mnt/tmp/brainstore
+  BRAINSTORE_OBJECT_STORE_CACHE_FILE_SIZE: 5Gi
   BRAINSTORE_CONTROL_PLANE_TELEMETRY: {{ .Values.global.controlPlaneTelemetry | quote }}
-  BRAINSTORE_DISABLE_STATUS_UPDATES: {{ .Values.loopRuntime.brainstoreDisableStatusUpdates | toString | quote }}
   NO_COLOR: "1"
-  {{- /* Matches the ECS Loop Runtime settings for the Sandbox Service in the AWS Terraform module. */}}
   EXO_SANDBOX_SERVICE_DNS_URL: {{ $sandbox.dnsUrl | quote }}
   EXO_SANDBOX_SERVICE_IMAGE: {{ $sandbox.image | quote }}
   EXO_SANDBOX_VCPU_COUNT: {{ $sandbox.vcpuCount | quote }}
   EXO_SANDBOX_MEMORY_MIB: {{ $sandbox.memoryMib | quote }}
-  SANDBOX_SERVICE_TLS_CERT: "/etc/sandbox-tls/client.pem"
-  SANDBOX_SERVICE_TLS_KEY: "/etc/sandbox-tls/client.key"
-  SANDBOX_SERVICE_TLS_CA: "/etc/sandbox-tls/server-ca.pem"
-  LOOP_RUNTIME_SANDBOX_FORWARD_PROXY_LISTEN: "0.0.0.0:{{ $sandbox.egressGateway.port }}"
+  SANDBOX_SERVICE_TLS_CERT: /etc/sandbox-tls/client.pem
+  SANDBOX_SERVICE_TLS_KEY: /etc/sandbox-tls/client.key
+  SANDBOX_SERVICE_TLS_CA: /etc/sandbox-tls/server-ca.pem
+  LOOP_RUNTIME_SANDBOX_FORWARD_PROXY_LISTEN: "0.0.0.0:4002"
   LOOP_RUNTIME_SANDBOX_SERVICE_EGRESS_GATEWAY_URL: {{ $sandbox.egressGateway.url | quote }}
-  LOOP_RUNTIME_SANDBOX_EGRESS_MODE: "restricted"
+  LOOP_RUNTIME_SANDBOX_EGRESS_MODE: restricted
   LOOP_RUNTIME_ENABLE_SANDBOX_ADMIN: "true"
   {{- with (.Values.global.allowedOrgIds | default "" | toString | trim) }}
   ALLOWED_ORG_IDS: {{ . | quote }}
   {{- end }}
   {{- if eq .Values.brainstore.locksBackend "objectStorage" }}
-  BRAINSTORE_LOCKS_URI: "{{ $brainstoreBucketUri }}/brainstore/locks"
+  BRAINSTORE_LOCKS_URI: "{{ $bucket }}/brainstore/locks"
   {{- end }}
   {{- if .Values.brainstoreWalFooterVersion }}
   BRAINSTORE_WAL_FOOTER_VERSION: {{ .Values.brainstoreWalFooterVersion | quote }}

@@ -157,32 +157,27 @@ predates Loop Runtime have no loopRuntime map, which means disabled.
 {{/* Validate the Loop Runtime configuration. */}}
 {{- define "braintrust.loopRuntime.validate" -}}
 {{- if include "braintrust.loopRuntime.enabled" . -}}
-{{- range (list "image" "service" "serviceAccount" "sandbox") -}}
-{{- if not (hasKey $.Values.loopRuntime .) -}}
-{{- fail (printf "loopRuntime.%s is missing. Values reused from a chart release that predates Loop Runtime omit the loopRuntime defaults; upgrade with --reset-then-reuse-values or supply the full loopRuntime map." .) -}}
-{{- end -}}
+{{- if not (hasKey .Values.loopRuntime "sandbox") -}}
+{{- fail "loopRuntime defaults are missing. Values reused from a chart release that predates Loop Runtime omit them; upgrade with --reset-then-reuse-values." -}}
 {{- end -}}
 {{- if ne .Values.cloud "google" -}}
 {{- fail "loopRuntime.enabled requires cloud: google. On AWS, Loop Runtime runs on ECS through the Terraform module." -}}
 {{- end -}}
 {{- $sandbox := .Values.loopRuntime.sandbox -}}
-{{- $_ := required "loopRuntime.image.repository is required when loopRuntime.enabled is true" .Values.loopRuntime.image.repository -}}
-{{- $_ := required "loopRuntime.image.tag is required when loopRuntime.enabled is true" (.Values.loopRuntime.image.tag | default "" | toString | trim) -}}
-{{- $_ := required "objectStorage.google.brainstoreBucket is required when loopRuntime.enabled is true" .Values.objectStorage.google.brainstoreBucket -}}
-{{- $_ := required "objectStorage.google.apiBucket is required when loopRuntime.enabled is true" .Values.objectStorage.google.apiBucket -}}
-{{- $_ := required "loopRuntime.serviceAccount.name is required when loopRuntime.enabled is true" .Values.loopRuntime.serviceAccount.name -}}
-{{- $_ := required "loopRuntime.serviceAccount.googleServiceAccount is required (Terraform output loop_runtime_service_account)" .Values.loopRuntime.serviceAccount.googleServiceAccount -}}
-{{- $_ := required "loopRuntime.sandbox.dnsUrl is required (Terraform output gke_isolated_workers.discovery.endpoint)" $sandbox.dnsUrl -}}
-{{- $_ := required "loopRuntime.sandbox.image is required when loopRuntime.enabled is true" $sandbox.image -}}
-{{- $_ := required "loopRuntime.sandbox.tlsSecretName is required when loopRuntime.enabled is true" $sandbox.tlsSecretName -}}
-{{- $_ := required "loopRuntime.sandbox.egressGateway.address is required (Terraform output gke_isolated_workers.loop_egress.address)" $sandbox.egressGateway.address -}}
-{{- $_ := required "loopRuntime.sandbox.egressGateway.url is required (Terraform output gke_isolated_workers.loop_egress.url)" $sandbox.egressGateway.url -}}
+{{- $_ := required "objectStorage.google.brainstoreBucket is required" .Values.objectStorage.google.brainstoreBucket -}}
+{{- $_ := required "objectStorage.google.apiBucket is required" .Values.objectStorage.google.apiBucket -}}
+{{- $_ := required "loopRuntime.image.repository is required" .Values.loopRuntime.image.repository -}}
+{{- $_ := required "loopRuntime.image.tag is required" (.Values.loopRuntime.image.tag | default "" | toString) -}}
+{{- $_ := required "loopRuntime.serviceAccount.googleServiceAccount is required" .Values.loopRuntime.serviceAccount.googleServiceAccount -}}
+{{- $_ := required "loopRuntime.sandbox.dnsUrl is required" $sandbox.dnsUrl -}}
+{{- $_ := required "loopRuntime.sandbox.egressGateway.address is required" $sandbox.egressGateway.address -}}
+{{- $_ := required "loopRuntime.sandbox.egressGateway.url is required" $sandbox.egressGateway.url -}}
 {{- if not $sandbox.egressGateway.sourceRanges -}}
-{{- fail "loopRuntime.sandbox.egressGateway.sourceRanges is required (Terraform output gke_isolated_workers.loop_egress.source_ranges)" -}}
+{{- fail "loopRuntime.sandbox.egressGateway.sourceRanges is required" -}}
 {{- end -}}
 {{- range $sandbox.egressGateway.sourceRanges -}}
-{{- if not (regexMatch "^[0-9]{1,3}(\\.[0-9]{1,3}){3}/[0-9]{1,2}$" (toString .)) -}}
-{{- fail (printf "loopRuntime.sandbox.egressGateway.sourceRanges entries must be IPv4 CIDR ranges, got %q" (toString .)) -}}
+{{- if not (regexMatch "^[0-9.]+/[0-9]+$" (toString .)) -}}
+{{- fail (printf "loopRuntime.sandbox.egressGateway.sourceRanges: %q is not a CIDR range" (toString .)) -}}
 {{- end -}}
 {{- end -}}
 {{- end -}}
@@ -191,16 +186,6 @@ predates Loop Runtime have no loopRuntime map, which means disabled.
 {{/* Internal cluster URL for the Loop Runtime service. */}}
 {{- define "braintrust.loopRuntimeInternalUrl" -}}
 http://{{ .Values.loopRuntime.service.name | default .Values.loopRuntime.name }}.{{ include "braintrust.namespace" . }}:{{ .Values.loopRuntime.service.port }}
-{{- end -}}
-
-{{/* Stable Redis key namespace for a Helm-managed Loop Runtime. */}}
-{{- define "braintrust.loopRuntimeRedisNamespace" -}}
-{{- .Values.loopRuntime.redisNamespace | default (printf "loop-runtime:%s" .Release.Name) -}}
-{{- end -}}
-
-{{/* Internal cluster URL for the Brainstore fast reader used by Loop Runtime. */}}
-{{- define "braintrust.brainstoreFastReaderInternalUrl" -}}
-http://{{ .Values.brainstore.fastreader.service.name | default .Values.brainstore.fastreader.name }}.{{ include "braintrust.namespace" . }}:{{ .Values.brainstore.fastreader.service.port }}
 {{- end -}}
 
 {{/* Product-owned Loop Runtime routes for an Istio VirtualService. */}}
