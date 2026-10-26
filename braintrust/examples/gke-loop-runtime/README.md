@@ -14,12 +14,16 @@ gke_isolated_workers = {
 `<...>` values below come from `terraform output gke_isolated_workers` and
 `terraform output loop_runtime_service_account`.
 
-1. Prepare worker nodes (mounts the local SSD the worker chart expects):
+1. Prepare worker nodes (mounts XFS directly at the worker's state path):
 
    ```sh
    kubectl --context <worker> create namespace braintrust-sandbox
    kubectl --context <worker> apply -f braintrust/examples/gke-loop-runtime/node-init.yaml
    ```
+
+   The worker image refuses to start until its state path is an XFS filesystem
+   root, including after node reboots. Node initialization preserves existing
+   XFS data and refuses to reformat disks containing another filesystem.
 
 2. Create the mTLS Secrets in both clusters:
 

@@ -31,6 +31,12 @@ tests:
       - equal:
           path: spec.template.spec.terminationGracePeriodSeconds
           value: 120
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.httpGet.port
+          value: 4001
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.httpGet.port
+          value: 4001
       - contains:
           path: spec.template.spec.containers[0].env
           content:
@@ -49,6 +55,66 @@ tests:
           path: spec.template.spec.containers[0].ports
           content:
             containerPort: 4002
+
+  - it: should follow the runtime port with a custom port name
+    template: loop-runtime-deployment.yaml
+    values: *values
+    set:
+      loopRuntime.service.port: 4888
+      loopRuntime.service.portName: runtime
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].ports
+          content:
+            name: runtime
+            containerPort: 4888
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.httpGet.port
+          value: 4888
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.httpGet.port
+          value: 4888
+
+  - it: should preserve explicit numeric and named HTTP probe ports
+    template: loop-runtime-deployment.yaml
+    values: *values
+    set:
+      loopRuntime.service.port: 4888
+      loopRuntime.service.portName: runtime
+      loopRuntime.livenessProbe.httpGet.port: 4999
+      loopRuntime.readinessProbe.httpGet.port: runtime
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.httpGet.port
+          value: 4999
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.httpGet.port
+          value: runtime
+
+  - it: should retain disabled probes
+    template: loop-runtime-deployment.yaml
+    values: *values
+    set:
+      loopRuntime.livenessProbe: null
+      loopRuntime.readinessProbe: null
+    asserts:
+      - notExists:
+          path: spec.template.spec.containers[0].livenessProbe
+      - notExists:
+          path: spec.template.spec.containers[0].readinessProbe
+
+  - it: should not add an HTTP port to an exec probe
+    template: loop-runtime-deployment.yaml
+    values: *values
+    set:
+      loopRuntime.livenessProbe.httpGet: null
+      loopRuntime.livenessProbe.exec.command: ["true"]
+    asserts:
+      - isNull:
+          path: spec.template.spec.containers[0].livenessProbe.httpGet
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.exec.command
+          value: ["true"]
 
   - it: should default null replicas to one
     template: loop-runtime-deployment.yaml
