@@ -597,18 +597,6 @@ tests:
           path: data.LOOP_RUNTIME_URL
           value: http://braintrust-loop-runtime.braintrust:4001
 
-  - it: should publish the Loop Runtime URL on GKE
-    values:
-      - __fixtures__/base-values.yaml
-      - __fixtures__/google-values.yaml
-      - __fixtures__/loop-runtime-google-values.yaml
-    release:
-      namespace: "braintrust"
-    asserts:
-      - equal:
-          path: data.LOOP_RUNTIME_URL
-          value: http://braintrust-loop-runtime.braintrust:4001
-
   - it: should omit the Loop Runtime URL when reused values have no loopRuntime map
     values:
       - __fixtures__/base-values.yaml
