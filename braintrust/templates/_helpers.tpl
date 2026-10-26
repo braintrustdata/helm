@@ -178,6 +178,11 @@ predates Loop Runtime have no loopRuntime map, which means disabled.
 {{- if not $sandbox.egressGateway.sourceRanges -}}
 {{- fail "loopRuntime.sandbox.egressGateway.sourceRanges is required (Terraform output gke_isolated_workers.loop_egress.source_ranges)" -}}
 {{- end -}}
+{{- range $sandbox.egressGateway.sourceRanges -}}
+{{- if not (regexMatch "^[0-9]{1,3}(\\.[0-9]{1,3}){3}/[0-9]{1,2}$" (toString .)) -}}
+{{- fail (printf "loopRuntime.sandbox.egressGateway.sourceRanges entries must be IPv4 CIDR ranges, got %q" (toString .)) -}}
+{{- end -}}
+{{- end -}}
 {{- end -}}
 {{- end -}}
 

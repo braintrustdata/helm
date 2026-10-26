@@ -13,37 +13,39 @@ data:
     #!/bin/bash
     # Formats and mounts the raw local SSDs once per boot. Local SSD contents
     # do not survive node recreation, so there is no data to preserve.
+    # The worker's hostPath directory is created on the mounted SSD, so a
+    # worker cannot start until the mount exists (the same layout as EKS).
     set -euo pipefail
-    MOUNT="${MOUNT:-/var/lib/braintrust-sandboxes/1}"
+    ROOT="${ROOT:-/var/lib/braintrust-sandboxes}"
     DEVICES="${DEVICES:-/dev/disk/by-id/google-local-nvme-ssd-*}"
-    mkdir -p /run/netns "$MOUNT"
+    mkdir -p /run/netns
     modprobe kvm_intel 2>/dev/null || modprobe kvm_amd 2>/dev/null || true
     test -c /dev/kvm || { echo "/dev/kvm is missing; enable nested virtualization" >&2; exit 1; }
-    if mountpoint -q "$MOUNT"; then
-      echo "$MOUNT is already mounted"
-      exit 0
-    fi
-    # shellcheck disable=SC2206
-    disks=($DEVICES)
-    [ -e "${disks[0]}" ] || { echo "no local SSD matches $DEVICES" >&2; exit 1; }
-    if [ "${#disks[@]}" -eq 1 ]; then
-      device="$(readlink -f "${disks[0]}")"
-    else
-      # Reuse an array the kernel assembled at boot; otherwise stripe the SSDs.
-      first="$(basename "$(readlink -f "${disks[0]}")")"
-      device=""
-      for slaves in /sys/block/md*/slaves; do
-        [ -e "$slaves/$first" ] && device="/dev/$(basename "$(dirname "$slaves")")"
-      done
-      if [ -z "$device" ]; then
-        device=/dev/md0
-        mdadm --create "$device" --level=0 --force --run \
-          --raid-devices="${#disks[@]}" "${disks[@]}"
+    if ! mountpoint -q "$ROOT"; then
+      # shellcheck disable=SC2206
+      disks=($DEVICES)
+      [ -e "${disks[0]}" ] || { echo "no local SSD matches $DEVICES" >&2; exit 1; }
+      if [ "${#disks[@]}" -eq 1 ]; then
+        device="$(readlink -f "${disks[0]}")"
+      else
+        # Reuse an array the kernel assembled at boot; otherwise stripe the SSDs.
+        first="$(basename "$(readlink -f "${disks[0]}")")"
+        device=""
+        for slaves in /sys/block/md*/slaves; do
+          if [ -e "$slaves/$first" ]; then device="/dev/$(basename "$(dirname "$slaves")")"; fi
+        done
+        if [ -z "$device" ]; then
+          device=/dev/md0
+          mdadm --create "$device" --level=0 --force --run \
+            --raid-devices="${#disks[@]}" "${disks[@]}"
+        fi
       fi
+      blkid "$device" >/dev/null 2>&1 || mkfs.ext4 -q -F "$device"
+      mkdir -p "$ROOT"
+      mount -o discard,defaults "$device" "$ROOT"
+      echo "mounted $device at $ROOT"
     fi
-    blkid "$device" >/dev/null 2>&1 || mkfs.ext4 -q -F "$device"
-    mount -o discard,defaults "$device" "$MOUNT"
-    echo "mounted $device at $MOUNT"
+    mkdir -p "$ROOT/1"
 ---
 apiVersion: apps/v1
 kind: DaemonSet
