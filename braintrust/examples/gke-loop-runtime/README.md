@@ -21,10 +21,6 @@ gke_isolated_workers = {
    kubectl --context <worker> apply -f braintrust/examples/gke-loop-runtime/node-init.yaml
    ```
 
-   The worker image refuses to start until its state path is an XFS filesystem
-   root, including after node reboots. Node initialization preserves existing
-   XFS data and refuses to reformat disks containing another filesystem.
-
 2. Create the mTLS Secrets in both clusters:
 
    ```sh

@@ -74,24 +74,15 @@ spec:
           operator: Equal
           value: "true"
           effect: NoSchedule
-      hostPID: true
       automountServiceAccountToken: false
       initContainers:
         - name: init
-          image: ubuntu:24.04
-          # Run in the host mount namespace so kubelet sees the mount.
-          command:
-            - nsenter
-            - --target=1
-            - --mount
-            - --uts
-            - --ipc
-            - --net
-            - --pid
-            - --
-            - bash
-            - -c
-            - "$(SCRIPT)"
+          image: alpine:3.22
+          command: [sh, -ec]
+          args:
+            - |
+              apk add --no-cache bash util-linux xfsprogs mdadm
+              exec bash -c "$SCRIPT"
           env:
             - name: SCRIPT
               valueFrom:
@@ -100,6 +91,14 @@ spec:
                   key: init.sh
           securityContext:
             privileged: true
+          volumeMounts:
+            - name: state
+              mountPath: /var/lib/braintrust-sandboxes
+              mountPropagation: Bidirectional
+            - name: devices
+              mountPath: /dev
+            - name: netns
+              mountPath: /run/netns
       containers:
         - name: pause
           image: registry.k8s.io/pause:3.10
@@ -107,3 +106,16 @@ spec:
             requests:
               cpu: 10m
               memory: 16Mi
+      volumes:
+        - name: state
+          hostPath:
+            path: /var/lib/braintrust-sandboxes
+            type: DirectoryOrCreate
+        - name: devices
+          hostPath:
+            path: /dev
+            type: Directory
+        - name: netns
+          hostPath:
+            path: /run/netns
+            type: DirectoryOrCreate
