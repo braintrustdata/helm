@@ -20,11 +20,11 @@ gke_isolated_workers = {
    braintrust/examples/gke-loop-runtime/create-sandbox-tls.sh "<discovery.hostname>" <worker> <primary>
    ```
 
-2. Install the workers. The worker release prepares local SSDs before starting Sandbox Service:
+2. Install the workers. The configured Sandbox Service image prepares local SSDs before starting the worker:
 
    ```sh
    helm --kube-context <worker> upgrade --install sandbox-service \
-     https://braintrust-cf-us-east-1.s3.amazonaws.com/sandbox-service/30a6a5e0cb7cd27783cdf18f3adaaa446dc47e5b8c94eb566af221a05ae2abb2/sandbox-service-0.1.0.tgz \
+     https://braintrust-cf-us-east-1.s3.amazonaws.com/sandbox-service/8c933b9aae1eb3985bb64fad22e7c69d7a1a477d5db603114408dba00f053a02/sandbox-service-0.1.0.tgz \
      --namespace braintrust-sandbox --values braintrust/examples/gke-loop-runtime/sandbox-service.yaml --wait
    ```
 
