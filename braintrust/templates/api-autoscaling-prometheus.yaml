@@ -1,4 +1,4 @@
-{{- if and .Values.api.autoscaling.enabled (eq .Values.cloud "aws") }}
+{{- if and .Values.api.autoscaling.enabled (or (eq .Values.cloud "aws") (eq .Values.cloud "azure")) }}
 {{- $scrapeApps := list .Values.api.name -}}
 {{- if .Values.api.workloadIsolation.enabled -}}
 {{- $scrapeApps = append $scrapeApps .Values.api.workloadIsolation.ingest.name -}}
