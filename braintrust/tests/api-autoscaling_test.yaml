@@ -2,6 +2,8 @@ suite: test API autoscaling templates
 templates:
   - api-autoscaling-metric.yaml
   - api-hpa.yaml
+  - api-autoscaling-prometheus.yaml
+  - api-autoscaling-prometheus-adapter.yaml
   - api-deployment.yaml
   - api-configmap.yaml
 capabilities:
@@ -34,18 +36,18 @@ tests:
       - hasDocuments:
           count: 0
 
-  - it: should fail when autoscaling is enabled on a non-google cloud
+  - it: should fail when autoscaling is enabled on an unsupported cloud
     template: api-hpa.yaml
     values:
       - __fixtures__/base-values.yaml
-      - __fixtures__/aws-values.yaml
+      - __fixtures__/azure-values.yaml
     set:
       api.autoscaling.enabled: true
     release:
       namespace: "braintrust"
     asserts:
       - failedTemplate:
-          errorMessage: "api.autoscaling is currently only supported when cloud is google (GKE)"
+          errorMessage: "api.autoscaling is currently only supported when cloud is google (GKE) or aws (EKS)"
 
   - it: should render AutoscalingMetric for GKE with event-loop gauges
     template: api-autoscaling-metric.yaml
@@ -435,3 +437,138 @@ tests:
       - hasDocuments:
           count: 0
           filterAware: true
+
+  - it: should not render GKE AutoscalingMetric on AWS
+    template: api-autoscaling-metric.yaml
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/aws-values.yaml
+    set:
+      api.autoscaling.enabled: true
+    release:
+      namespace: "braintrust"
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should not render Prometheus stack on GKE
+    template: api-autoscaling-prometheus.yaml
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      cloud: google
+      api.autoscaling.enabled: true
+    release:
+      namespace: "braintrust"
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should render HPA on AWS with prometheus-adapter metric names
+    template: api-hpa.yaml
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/aws-values.yaml
+    set:
+      api.autoscaling.enabled: true
+    release:
+      namespace: "braintrust"
+    asserts:
+      - isKind:
+          of: HorizontalPodAutoscaler
+      - equal:
+          path: spec.metrics[0].type
+          value: ContainerResource
+      - equal:
+          path: spec.metrics[0].containerResource.container
+          value: api
+      - equal:
+          path: spec.metrics[1].pods.metric.name
+          value: event_loop_utilization_ratio
+      - equal:
+          path: spec.metrics[1].pods.target.averageValue
+          value: "0.4"
+      - equal:
+          path: spec.metrics[2].pods.metric.name
+          value: event_loop_delay_mean_seconds
+      - equal:
+          path: spec.metrics[2].pods.target.averageValue
+          value: "0.05"
+
+  - it: should scrape health server metrics on AWS Prometheus
+    template: api-autoscaling-prometheus.yaml
+    documentSelector:
+      path: kind
+      value: ConfigMap
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/aws-values.yaml
+    set:
+      api.autoscaling.enabled: true
+    release:
+      namespace: "braintrust"
+    asserts:
+      - matchRegex:
+          path: data["prometheus.yml"]
+          pattern: ":8001"
+      - matchRegex:
+          path: data["prometheus.yml"]
+          pattern: "metrics_path: /metrics"
+      - matchRegex:
+          path: data["prometheus.yml"]
+          pattern: "regex: braintrust-api"
+
+  - it: should scrape all API pools on AWS when workload isolation is enabled
+    template: api-autoscaling-prometheus.yaml
+    documentSelector:
+      path: kind
+      value: ConfigMap
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/aws-values.yaml
+    set:
+      api.autoscaling.enabled: true
+      api.workloadIsolation.enabled: true
+    release:
+      namespace: "braintrust"
+    asserts:
+      - matchRegex:
+          path: data["prometheus.yml"]
+          pattern: "braintrust-api-ingest"
+      - matchRegex:
+          path: data["prometheus.yml"]
+          pattern: "braintrust-api-background"
+
+  - it: should render three HPAs on AWS when workload isolation is enabled
+    template: api-hpa.yaml
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/aws-values.yaml
+    set:
+      api.autoscaling.enabled: true
+      api.workloadIsolation.enabled: true
+    release:
+      namespace: "braintrust"
+    asserts:
+      - hasDocuments:
+          count: 3
+
+  - it: should render prometheus-adapter rules for event-loop gauges on AWS
+    template: api-autoscaling-prometheus-adapter.yaml
+    documentSelector:
+      path: kind
+      value: ConfigMap
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/aws-values.yaml
+    set:
+      api.autoscaling.enabled: true
+    release:
+      namespace: "braintrust"
+    asserts:
+      - matchRegex:
+          path: data["config.yaml"]
+          pattern: "braintrust_api_event_loop_delay_mean_seconds"
+      - matchRegex:
+          path: data["config.yaml"]
+          pattern: "braintrust_api_event_loop_utilization_ratio"
