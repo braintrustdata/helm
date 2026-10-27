@@ -23,7 +23,7 @@ tests:
       - __fixtures__/base-values.yaml
       - __fixtures__/google-values.yaml
       - __fixtures__/reuse-loop-runtime-enabled-values.yaml
-    asserts:
+    asserts: &missing-defaults
       - failedTemplate:
           errorMessage: "loopRuntime defaults are missing. Values reused from a chart release that predates Loop Runtime omit them; upgrade with --reset-then-reuse-values."
 
@@ -53,8 +53,65 @@ tests:
       - equal:
           path: data.ORG_NAME
           value: test-org
+      - equal:
+          path: data.LOOP_RUNTIME_ENABLE_SANDBOX_ADMIN
+          value: "false"
+      - equal:
+          path: data.BRAINSTORE_OBJECT_STORE_CACHE_MEMORY_LIMIT
+          value: 256Mi
+      - equal:
+          path: data.LOOP_RUNTIME_MAX_CLAIMED_CONVERSATIONS
+          value: "2"
       - isNull:
           path: data.BRAINSTORE_LOCKS_URI
+
+  - it: should allow sandbox administration only when opted in
+    values: *values
+    set:
+      loopRuntime.enableSandboxAdmin: true
+    asserts:
+      - equal:
+          path: data.LOOP_RUNTIME_ENABLE_SANDBOX_ADMIN
+          value: "true"
+
+  - it: should keep sandbox administration disabled for retained null values
+    values: *values
+    set:
+      loopRuntime.enableSandboxAdmin: null
+    asserts:
+      - equal:
+          path: data.LOOP_RUNTIME_ENABLE_SANDBOX_ADMIN
+          value: "false"
+
+  - it: should explain reused values with sandbox overrides but no image defaults
+    values: *values
+    set:
+      loopRuntime.image: null
+    asserts: *missing-defaults
+
+  - it: should explain reused values without service defaults
+    values: *values
+    set:
+      loopRuntime.service: null
+    asserts: *missing-defaults
+
+  - it: should explain reused values without service account defaults
+    values: *values
+    set:
+      loopRuntime.serviceAccount: null
+    asserts: *missing-defaults
+
+  - it: should explain reused values without resource defaults
+    values: *values
+    set:
+      loopRuntime.resources: null
+    asserts: *missing-defaults
+
+  - it: should explain reused values without annotation defaults
+    values: *values
+    set:
+      loopRuntime.annotations: null
+    asserts: *missing-defaults
 
   - it: should use the configured egress URL for Git authorization and sandbox traffic
     values: *values
@@ -126,6 +183,14 @@ tests:
     values: *values
     set:
       loopRuntime.sandbox.egressGateway.address: ""
+    asserts:
+      - failedTemplate:
+          errorMessage: "loopRuntime.sandbox.egressGateway.address is required"
+
+  - it: should explain a missing egress map
+    values: *values
+    set:
+      loopRuntime.sandbox.egressGateway: null
     asserts:
       - failedTemplate:
           errorMessage: "loopRuntime.sandbox.egressGateway.address is required"

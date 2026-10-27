@@ -34,6 +34,8 @@ data:
   BRAINSTORE_CODE_BUNDLE_URI: "gs://{{ .Values.objectStorage.google.apiBucket }}"
   BRAINSTORE_CACHE_DIR: /mnt/tmp/brainstore
   BRAINSTORE_OBJECT_STORE_CACHE_FILE_SIZE: 5Gi
+  BRAINSTORE_OBJECT_STORE_CACHE_MEMORY_LIMIT: 256Mi
+  LOOP_RUNTIME_MAX_CLAIMED_CONVERSATIONS: "2"
   BRAINSTORE_CONTROL_PLANE_TELEMETRY: {{ .Values.global.controlPlaneTelemetry | quote }}
   NO_COLOR: "1"
   EXO_SANDBOX_SERVICE_DNS_URL: {{ $sandbox.dnsUrl | quote }}
@@ -47,7 +49,7 @@ data:
   LOOP_RUNTIME_SANDBOX_EGRESS_GATEWAY_URL: {{ $sandbox.egressGateway.url | quote }}
   LOOP_RUNTIME_SANDBOX_SERVICE_EGRESS_GATEWAY_URL: {{ $sandbox.egressGateway.url | quote }}
   LOOP_RUNTIME_SANDBOX_EGRESS_MODE: restricted
-  LOOP_RUNTIME_ENABLE_SANDBOX_ADMIN: "true"
+  LOOP_RUNTIME_ENABLE_SANDBOX_ADMIN: {{ .Values.loopRuntime.enableSandboxAdmin | default false | quote }}
   {{- with (.Values.global.allowedOrgIds | default "" | toString | trim) }}
   ALLOWED_ORG_IDS: {{ . | quote }}
   {{- end }}

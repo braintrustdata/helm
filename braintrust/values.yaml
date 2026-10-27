@@ -313,6 +313,8 @@ api:
 # workers in a separate GKE cluster; see examples/gke-loop-runtime.
 loopRuntime:
   enabled: false
+  # Allow Braintrust staff sysadmins to inspect and terminate sandboxes.
+  enableSandboxAdmin: false
   name: "braintrust-loop-runtime"
   labels: {}
   podLabels: {}

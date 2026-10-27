@@ -157,25 +157,28 @@ predates Loop Runtime have no loopRuntime map, which means disabled.
 {{/* Validate the Loop Runtime configuration. */}}
 {{- define "braintrust.loopRuntime.validate" -}}
 {{- if include "braintrust.loopRuntime.enabled" . -}}
-{{- if not (hasKey .Values.loopRuntime "sandbox") -}}
+{{- range $key := list "sandbox" "image" "service" "serviceAccount" "resources" "annotations" -}}
+{{- if not (kindIs "map" (get $.Values.loopRuntime $key)) -}}
 {{- fail "loopRuntime defaults are missing. Values reused from a chart release that predates Loop Runtime omit them; upgrade with --reset-then-reuse-values." -}}
+{{- end -}}
 {{- end -}}
 {{- if ne .Values.cloud "google" -}}
 {{- fail "loopRuntime.enabled requires cloud: google. On AWS, Loop Runtime runs on ECS through the Terraform module." -}}
 {{- end -}}
 {{- $sandbox := .Values.loopRuntime.sandbox -}}
+{{- $egress := $sandbox.egressGateway | default dict -}}
 {{- $_ := required "objectStorage.google.brainstoreBucket is required" .Values.objectStorage.google.brainstoreBucket -}}
 {{- $_ := required "objectStorage.google.apiBucket is required" .Values.objectStorage.google.apiBucket -}}
 {{- $_ := required "loopRuntime.image.repository is required" .Values.loopRuntime.image.repository -}}
 {{- $_ := required "loopRuntime.image.tag is required" (.Values.loopRuntime.image.tag | default "" | toString) -}}
 {{- $_ := required "loopRuntime.serviceAccount.googleServiceAccount is required" .Values.loopRuntime.serviceAccount.googleServiceAccount -}}
 {{- $_ := required "loopRuntime.sandbox.dnsUrl is required" $sandbox.dnsUrl -}}
-{{- $_ := required "loopRuntime.sandbox.egressGateway.address is required" $sandbox.egressGateway.address -}}
-{{- $_ := required "loopRuntime.sandbox.egressGateway.url is required" $sandbox.egressGateway.url -}}
-{{- if not $sandbox.egressGateway.sourceRanges -}}
+{{- $_ := required "loopRuntime.sandbox.egressGateway.address is required" $egress.address -}}
+{{- $_ := required "loopRuntime.sandbox.egressGateway.url is required" $egress.url -}}
+{{- if not $egress.sourceRanges -}}
 {{- fail "loopRuntime.sandbox.egressGateway.sourceRanges is required" -}}
 {{- end -}}
-{{- range $sandbox.egressGateway.sourceRanges -}}
+{{- range $egress.sourceRanges -}}
 {{- $cidr := toString . -}}
 {{- $valid := regexMatch "^((0|[1-9][0-9]{0,2})\\.){3}(0|[1-9][0-9]{0,2})/(0|[1-9][0-9]?)$" $cidr -}}
 {{- if $valid -}}
