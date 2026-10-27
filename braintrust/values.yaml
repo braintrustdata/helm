@@ -328,7 +328,7 @@ loopRuntime:
   image:
     repository: public.ecr.aws/braintrust/loop-runtime
     # Tested with the Sandbox Service worker release in the GKE example.
-    tag: b96d95eaa269031cdd6f286a17b9b3e4795355d1
+    tag: 38b05599cdc5e4c3a213bbf0718211b397183a7a
     pullPolicy: IfNotPresent
   service:
     # Optional name for service object. If not specified (empty), loopRuntime.name is used.
@@ -374,7 +374,7 @@ loopRuntime:
       address: ""
       sourceRanges: []
       url: ""
-    image: "public.ecr.aws/braintrust/codex-runtime@sha256:35db9c98d4a74e20758a29b82f8a3a6552be0002eb439c8c1a0f434ac573ee21"
+    image: "public.ecr.aws/braintrust/codex-runtime@sha256:490ab364fd6a787f73957d3d46bc5e173fb418c47d53bcf7a2d3afba8b419049"
     vcpuCount: 1
     memoryMib: 2048
   extraEnvVars: []

@@ -24,7 +24,7 @@ gke_isolated_workers = {
 
    ```sh
    helm --kube-context <worker> upgrade --install sandbox-service \
-     https://braintrust-cf-us-east-1.s3.amazonaws.com/sandbox-service/8c933b9aae1eb3985bb64fad22e7c69d7a1a477d5db603114408dba00f053a02/sandbox-service-0.1.0.tgz \
+     https://braintrust-cf-us-east-1.s3.amazonaws.com/sandbox-service/1f4b6826c61064575b3db956b67625133257bd8a6e49e4ea86cdb55012dd53a7/sandbox-service-0.1.0.tgz \
      --namespace braintrust-sandbox --values braintrust/examples/gke-loop-runtime/sandbox-service.yaml --wait
    ```
 
