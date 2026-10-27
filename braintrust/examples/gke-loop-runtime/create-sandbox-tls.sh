@@ -55,9 +55,10 @@ for purpose in server client; do
 done
 
 apply_secret() {
-  kubectl --context "$1" create namespace "$2" --dry-run=client -o yaml | kubectl --context "$1" apply -f - >/dev/null
+  kubectl --context "$1" create namespace "$2" --dry-run=client -o yaml | kubectl --context "$1" apply --server-side -f - >/dev/null
   kubectl --context "$1" -n "$2" create secret generic "$3" "${@:4}" --dry-run=client -o yaml |
-    kubectl --context "$1" apply -f -
+    kubectl --context "$1" apply --server-side -f -
+  kubectl --context "$1" -n "$2" annotate secret "$3" kubectl.kubernetes.io/last-applied-configuration-
 }
 
 # The worker controller and Loop Runtime present the client certificate and trust the server CA.
