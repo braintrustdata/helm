@@ -62,7 +62,7 @@ spec:
         target:
           type: AverageValue
           averageValue: {{ $api.autoscaling.eventLoopDelayMean.targetAverageValue | quote }}
-    {{- else if eq $root.Values.cloud "aws" }}
+    {{- else if or (eq $root.Values.cloud "aws") (eq $root.Values.cloud "azure") }}
     - type: Pods
       pods:
         metric:
