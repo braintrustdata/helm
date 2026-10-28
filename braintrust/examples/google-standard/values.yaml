@@ -94,10 +94,10 @@ brainstore:
     resources:
       requests:
         cpu: "16"
-        memory: "32Gi"
+        memory: "64Gi"
       limits:
         cpu: "16"
-        memory: "32Gi"
+        memory: "64Gi"
     affinity:     # Prevent readers and writers from sharing nodes
          podAntiAffinity:
            requiredDuringSchedulingIgnoredDuringExecution:
@@ -143,10 +143,10 @@ brainstore:
     resources:
       requests:
         cpu: "32"
-        memory: "64Gi"
+        memory: "128Gi"
       limits:
         cpu: "32"
-        memory: "64Gi"
+        memory: "128Gi"
     affinity:     # Prevent readers and writers from sharing nodes
       podAntiAffinity:
         requiredDuringSchedulingIgnoredDuringExecution:

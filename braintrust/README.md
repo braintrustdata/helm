@@ -121,14 +121,14 @@ brainstore:
     resources:
       requests:
         cpu: "8"
-        memory: "16Gi"
+        memory: "32Gi"
   writer:
     volume:
       size: "375Gi"
     resources:
       requests:
         cpu: "32"
-        memory: "64Gi"
+        memory: "128Gi"
 ```
 
 **What happens:**
@@ -294,7 +294,7 @@ route these paths:
 | --- | --- |
 | `braintrust-api` (default) | All requests not matched by an explicit ingest or background route |
 | `braintrust-api-ingest` | `POST /logs3`, `POST /otel/v1/traces`, `POST /attachment`, `POST /attachment/status` |
-| `braintrust-api-background` | `POST /v1/eval`, `POST /v1/eval/*`, `POST /function/eval`, `POST /function/sandbox`, `POST /function/use`, `POST /function/invoke-async-batch`, `POST /function/insert-functions`, `POST /automation/logs/trigger`; all methods for `/v1/proxy/chat/completions`, `/v1/proxy/responses` |
+| `braintrust-api-background` | `POST /v1/eval`, `POST /v1/eval/*`, `POST /function/eval`, `POST /function/sandbox`, `POST /function/use`, `POST /function/invoke-async-batch`, `POST /function/insert-functions`, `POST /automation/logs/trigger`, `POST /automation/trigger`; all methods for `/v1/proxy/chat/completions`, `/v1/proxy/responses` |
 
 By default, Brainstore's internal `BRAINSTORE_AI_PROXY_URL` targets the
 background Service while isolation is enabled. For an existing deployment,
@@ -325,8 +325,8 @@ let each pool scale independently instead.
 
 ## Brainstore Rollout Controls
 
-Brainstore readers, fast readers, and writers have independently configurable
-Deployment strategies and readiness dwell times. These controls let operators
+Brainstore readers, fast readers, writers, and automation writers have
+independently configurable Deployment strategies and readiness dwell times. These controls let operators
 limit how many replacement pods start together and require replacements to
 remain Ready before an upgrade continues. This can reduce simultaneous cache
 warm-up, object-storage, scheduling, and compaction pressure in cache-heavy or
@@ -436,6 +436,57 @@ GKE requires deletion protection on the source pool before a replacement, and it
 2. Enable GKE deletion protection on existing pools in a separate Terraform apply before hardware changes.
 3. Verify sufficient replicas and replacement capacity.
 
+
+## Brainstore Automation Writer pool
+
+The Automation Writer pool (`brainstore.automationwriter`) is an optional,
+dedicated Brainstore writer pool for the automations writer loop and the
+queries needed for automation processing.
+The writer nodes partition the loops through `BRAINSTORE_WRITER_LOOP_CONFIG`:
+
+- Automation writer nodes run `BRAINSTORE_WRITER_LOOP_CONFIG=include:automations`.
+- When `brainstore.automationwriter.replicas > 0`, the regular writer pool is
+  automatically set to `BRAINSTORE_WRITER_LOOP_CONFIG=exclude:automations`.
+- When the pool is disabled (`replicas: 0`, the default), no
+  `BRAINSTORE_WRITER_LOOP_CONFIG` is set and the writer pool handles every
+  writer loop, including automations — so existing deployments are unaffected.
+- A null or missing `replicas` renders as 0. An empty replica count would
+  otherwise make Kubernetes run 1 pod, so both pools would process automations.
+
+With replicas above zero, the chart creates an internal Service.
+`brainstore.automationwriter.service.port` (default 4000) controls the listener, container port, probes, Service port, and API URL.
+The API receives
+`BRAINSTORE_AUTOMATION_WRITER_URL` whenever the pool has replicas. A compatible
+API release decides which queries use this endpoint. With no replicas, the URL
+is omitted and the API falls back to the regular writers.
+The API startup gate covers readers, writers, and fast readers.
+
+The include/exclude split follows `brainstore.automationwriter.replicas` in the
+Helm values. `kubectl scale` or an autoscaler changes the live pod count only;
+it does not move automations between pools.
+
+Ensure the pool and Service are ready before
+deploying an API release that uses the endpoint. Coordinate API routing changes
+before scaling the pool to zero: running API processes retain their endpoint
+until restarted. The regular writers keep `exclude:automations` until their
+rollout finishes, so automations pause until those new writer pods are Ready.
+Turning the pool on briefly runs automations on both pools until the regular
+writers roll.
+
+The pool requires Brainstore `v2.16.0` or newer. That is the first image that
+honors `BRAINSTORE_WRITER_LOOP_CONFIG`. When `brainstore.image.tag` is a release
+tag (`vX.Y.Z`), setting `replicas` above 0 fails the render unless the tag is
+`v2.16.0` or newer. Commit SHAs and other custom tags carry no version, so the
+chart does not check them; make sure such an image includes `v2.16.0`.
+
+`helm upgrade --reuse-values` does not add this pool's default values. If the
+installed release has no `brainstore.automationwriter` map, the pool stays off.
+`--set brainstore.automationwriter.replicas=1` on that upgrade still renders:
+missing pool fields are filled from the chart defaults. Set
+`brainstore.image.tag` to `v2.16.0` or newer in the same upgrade.
+
+This option is not recommended for most deployments; enable it only with
+guidance from Braintrust support.
 
 ## Testing
 

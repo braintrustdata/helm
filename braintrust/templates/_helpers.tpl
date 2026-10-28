@@ -188,3 +188,99 @@ and normal writable-layer/log overhead.
 {{- end -}}
 {{- toYaml $resources -}}
 {{- end -}}
+
+{{/*
+Defaults for the optional automation writer pool.
+
+helm upgrade --reuse-values does not merge new chart defaults. Enabling the
+pool with only --set brainstore.automationwriter.replicas=1 leaves every other
+field unset. Keep this map aligned with brainstore.automationwriter in values.yaml.
+*/}}
+{{- define "braintrust.automationWriter.defaults" -}}
+name: brainstore-automationwriter
+labels: {}
+podLabels: {}
+annotations:
+  configmap: {}
+  deployment: {}
+  service: {}
+  pod: {}
+replicas: 0
+minReadySeconds: 0
+progressDeadlineSeconds: 600
+strategy:
+  type: RollingUpdate
+  rollingUpdate:
+    maxSurge: "100%"
+    maxUnavailable: 0
+service:
+  name: ""
+  type: ClusterIP
+  port: 4000
+  portName: http
+resources:
+  requests:
+    cpu: "32"
+    memory: "128Gi"
+  limits:
+    cpu: "32"
+    memory: "128Gi"
+cacheDir: /mnt/tmp/brainstore
+objectStoreCacheMemoryLimit: 1Gi
+objectStoreCacheFileSize: 1000Gi
+verbose: true
+volume:
+  size: ""
+  sizeLimit: ""
+ephemeralStorage:
+  request: ""
+  limit: ""
+tmpVolume:
+  enabled: false
+  sizeLimit: ""
+extraEnvVars: []
+nodeSelector: {}
+tolerations: []
+affinity: {}
+extraContainers: []
+extraVolumes: []
+{{- end -}}
+
+{{/*
+Replica count for the automation writer pool. Null and missing both mean 0.
+An empty replicas field would make Kubernetes run 1 pod.
+*/}}
+{{- define "braintrust.automationWriter.replicas" -}}
+{{- int ((dig "automationwriter" "replicas" 0 .Values.brainstore) | default 0) -}}
+{{- end -}}
+
+{{/*
+Resolved automation writer config: chart defaults overlaid with user values.
+A null replica count is 0. An empty replicas field would make Kubernetes run 1 pod.
+*/}}
+{{- define "braintrust.automationWriter.config" -}}
+{{- include "braintrust.automationWriter.validate" . -}}
+{{- $defaults := include "braintrust.automationWriter.defaults" . | fromYaml -}}
+{{- $provided := deepCopy (.Values.brainstore.automationwriter | default dict) -}}
+{{- $pool := mergeOverwrite (deepCopy $defaults) $provided -}}
+{{- $_ := set $pool "replicas" (int (include "braintrust.automationWriter.replicas" .)) -}}
+{{- toYaml $pool -}}
+{{- end -}}
+
+{{/*
+BRAINSTORE_WRITER_LOOP_CONFIG is ignored before brainstore v2.16.0. Enabling
+the pool on an older image adds writers that still run every writer loop.
+Only stable release tags (vX.Y.Z) are checked. Commit SHAs and other custom
+tags carry no version, so the operator is responsible for compatibility.
+*/}}
+{{- define "braintrust.automationWriter.validate" -}}
+{{- $replicas := int (include "braintrust.automationWriter.replicas" .) -}}
+{{- if gt $replicas 0 -}}
+{{- $tag := .Values.brainstore.image.tag | toString -}}
+{{- if regexMatch "^v?(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$" $tag -}}
+{{- if not (semverCompare ">=2.16.0" $tag) -}}
+{{- fail (printf "brainstore.automationwriter requires brainstore image v2.16.0 or newer. brainstore.image.tag is %q, which does not implement BRAINSTORE_WRITER_LOOP_CONFIG." $tag) -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}

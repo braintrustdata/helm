@@ -49,6 +49,9 @@ pools:
       - path: /automation/logs/trigger
         pathType: exact
         method: POST
+      - path: /automation/trigger
+        pathType: exact
+        method: POST
       - path: /v1/proxy/chat/completions
         pathType: exact
       - path: /v1/proxy/responses

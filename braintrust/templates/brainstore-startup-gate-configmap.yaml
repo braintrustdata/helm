@@ -1,0 +1,15 @@
+{{- $gate := include "braintrust.brainstoreStartupGate.config" . | fromYaml -}}
+{{- if $gate.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "braintrust.brainstoreStartupGate.name" . }}
+  namespace: {{ include "braintrust.namespace" . }}
+  {{- with (mergeOverwrite (deepCopy .Values.global.labels) (deepCopy .Values.api.labels)) }}
+  labels:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+data:
+  gate.py: |
+    {{- .Files.Get "files/brainstore-startup-gate.py" | nindent 4 }}
+{{- end }}

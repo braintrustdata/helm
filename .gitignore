@@ -33,3 +33,7 @@ test-output/
 manifests/
 rendered/
 debug/
+
+# Python helper tests
+__pycache__/
+*.pyc

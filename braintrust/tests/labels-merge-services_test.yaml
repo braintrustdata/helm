@@ -4,6 +4,7 @@ templates:
   - brainstore-reader-service.yaml
   - brainstore-writer-service.yaml
   - brainstore-fastreader-service.yaml
+  - brainstore-automationwriter-service.yaml
 tests:
   # These tests verify the deepCopy fix for services.
   # Without deepCopy, labels would bleed between components due to merge mutation.
@@ -12,6 +13,9 @@ tests:
     values:
       - __fixtures__/base-values.yaml
     set:
+      brainstore.image.tag: v2.17.0
+      brainstore.automationwriter.replicas: 1
+      brainstore.automationwriter.labels.automationwriter-specific: automationwriter-svc
       global.labels.shared: "global-service"
       global.labels.environment: "production"
       api.labels.component: "api"
@@ -26,6 +30,8 @@ tests:
       namespace: "braintrust"
     template: api-service.yaml
     asserts:
+      - isNull:
+          path: metadata.labels["automationwriter-specific"]
       - equal:
           path: metadata.labels.shared
           value: global-service
@@ -46,6 +52,9 @@ tests:
     values:
       - __fixtures__/base-values.yaml
     set:
+      brainstore.image.tag: v2.17.0
+      brainstore.automationwriter.replicas: 1
+      brainstore.automationwriter.labels.automationwriter-specific: automationwriter-svc
       global.labels.shared: "global-service"
       api.labels.api-specific: "api-svc"
       brainstore.reader.labels.reader-specific: "reader-svc"
@@ -55,6 +64,8 @@ tests:
       namespace: "braintrust"
     template: brainstore-reader-service.yaml
     asserts:
+      - isNull:
+          path: metadata.labels["automationwriter-specific"]
       - equal:
           path: metadata.labels.shared
           value: global-service
@@ -72,6 +83,9 @@ tests:
     values:
       - __fixtures__/base-values.yaml
     set:
+      brainstore.image.tag: v2.17.0
+      brainstore.automationwriter.replicas: 1
+      brainstore.automationwriter.labels.automationwriter-specific: automationwriter-svc
       global.labels.shared: "global-service"
       api.labels.api-specific: "api-svc"
       brainstore.reader.labels.reader-specific: "reader-svc"
@@ -81,6 +95,8 @@ tests:
       namespace: "braintrust"
     template: brainstore-writer-service.yaml
     asserts:
+      - isNull:
+          path: metadata.labels["automationwriter-specific"]
       - equal:
           path: metadata.labels.shared
           value: global-service
@@ -96,6 +112,9 @@ tests:
     values:
       - __fixtures__/base-values.yaml
     set:
+      brainstore.image.tag: v2.17.0
+      brainstore.automationwriter.replicas: 1
+      brainstore.automationwriter.labels.automationwriter-specific: automationwriter-svc
       global.labels.shared: "global-service"
       api.labels.api-specific: "api-svc"
       brainstore.reader.labels.reader-specific: "reader-svc"
@@ -105,6 +124,8 @@ tests:
       namespace: "braintrust"
     template: brainstore-fastreader-service.yaml
     asserts:
+      - isNull:
+          path: metadata.labels["automationwriter-specific"]
       - equal:
           path: metadata.labels.shared
           value: global-service
@@ -117,3 +138,29 @@ tests:
           path: metadata.labels["reader-specific"]
       - isNull:
           path: metadata.labels["writer-specific"]
+
+  - it: should give Automationwriter service only its own and global labels
+    set:
+      brainstore.automationwriter.replicas: 1
+      global.labels.shared: global-service
+      api.labels.api-specific: api-svc
+      brainstore.reader.labels.reader-specific: reader-svc
+      brainstore.writer.labels.writer-specific: writer-svc
+      brainstore.fastreader.labels.fastreader-specific: fastreader-svc
+      brainstore.automationwriter.labels.automationwriter-specific: automationwriter-svc
+    template: brainstore-automationwriter-service.yaml
+    asserts:
+      - equal:
+          path: metadata.labels.shared
+          value: global-service
+      - equal:
+          path: metadata.labels["automationwriter-specific"]
+          value: automationwriter-svc
+      - isNull:
+          path: metadata.labels["api-specific"]
+      - isNull:
+          path: metadata.labels["reader-specific"]
+      - isNull:
+          path: metadata.labels["writer-specific"]
+      - isNull:
+          path: metadata.labels["fastreader-specific"]

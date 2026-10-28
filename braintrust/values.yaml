@@ -102,6 +102,26 @@ btqlAuditLogsBestEffortOrgIds: []
 
 api:
   name: "braintrust-api"
+  # Experimental: hold new API processes until compatible Brainstore capacity
+  # is available. Shared by all API pools. Enable for a canary before promotion.
+  # Requires stable release tags (vX.Y.Z); opaque custom tags cannot prove compatibility.
+  # Only the init container mounts a Kubernetes API token when enabled; custom
+  # sidecars needing Kubernetes API access must project their own token.
+  brainstoreStartupGate:
+    enabled: true
+    # Empty derives the floor from each pool's api.image.tag. Kept in each API Pod so
+    # older APIs can restart against newer Brainstore releases in the same major.
+    minimumVersion: ""
+    image: "python:3.13-alpine@sha256:79e7a9b9ff1cbceff819f856fb374477792a5967759d94df266de7b7b4120e6f"
+    timeoutSeconds: 1200
+    pollIntervalSeconds: 15
+    resources:
+      requests:
+        cpu: "25m"
+        memory: "32Mi"
+      limits:
+        cpu: "100m"
+        memory: "128Mi"
   labels: {}
   podLabels: {}
   annotations:
@@ -184,7 +204,7 @@ api:
         maxReplicas: 50
   image:
     repository: public.ecr.aws/braintrust/standalone-api
-    tag: v2.13.0
+    tag: v2.20.0
     pullPolicy: IfNotPresent
   service:
     # Optional name for service object. If not specified (empty), the api.name
@@ -307,7 +327,7 @@ aiGateway:
   replicas: 2
   image:
     repository: public.ecr.aws/braintrust/gateway
-    tag: v2.13.0
+    tag: v2.20.0
     pullPolicy: IfNotPresent
   service:
     # Optional name for service object. If not specified (empty), aiGateway.name is used.
@@ -352,7 +372,7 @@ aiGateway:
   extraContainers: []
   extraVolumes: []
 
-# Brainstore configuration (split into reader/fastreader/writer)
+# Brainstore configuration (split into reader/fastreader/writer/automationwriter)
 brainstore:
   # Shared configuration
   labels: {}
@@ -365,7 +385,7 @@ brainstore:
   # Shared image configuration
   image:
     repository: public.ecr.aws/braintrust/brainstore
-    tag: v2.13.0
+    tag: v2.20.0
     pullPolicy: IfNotPresent
   # Locks backend configuration
   # Options: "redis" (default) or "objectStorage"
@@ -374,7 +394,9 @@ brainstore:
   # WARNING: If you have an existing deployment, DO NOT change this setting.
   # Changing the locks backend on an existing deployment could cause data corruption at this time.
   locksBackend: "redis"
-  # Health check probes (applies to both reader and writer)
+  # Health check probes for reader, fastreader, and writer.
+  # The automation writer uses these timings and paths. Its httpGet.port uses
+  # brainstore.automationwriter.service.port to match BRAINSTORE_PORT.
   livenessProbe:
     httpGet:
       path: /
@@ -424,10 +446,10 @@ brainstore:
     resources:
       requests:
         cpu: "16"
-        memory: "32Gi"
+        memory: "64Gi"
       limits:
         cpu: "16"
-        memory: "32Gi"
+        memory: "64Gi"
     cacheDir: "/mnt/tmp/brainstore"
     objectStoreCacheMemoryLimit: "1Gi"
     objectStoreCacheFileSize: "1000Gi"
@@ -485,10 +507,10 @@ brainstore:
     resources:
       requests:
         cpu: "16"
-        memory: "32Gi"
+        memory: "64Gi"
       limits:
         cpu: "16"
-        memory: "32Gi"
+        memory: "64Gi"
     cacheDir: "/mnt/tmp/brainstore"
     objectStoreCacheMemoryLimit: "1Gi"
     objectStoreCacheFileSize: "1000Gi"
@@ -546,10 +568,86 @@ brainstore:
     resources:
       requests:
         cpu: "32"
-        memory: "64Gi"
+        memory: "128Gi"
       limits:
         cpu: "32"
-        memory: "64Gi"
+        memory: "128Gi"
+    cacheDir: "/mnt/tmp/brainstore"
+    objectStoreCacheMemoryLimit: "1Gi"
+    objectStoreCacheFileSize: "1000Gi"
+    verbose: true
+    # Optional: Volume configuration for cache storage
+    # When not set, uses default emptyDir: {} (backward compatible)
+    volume:
+      # Storage size for ephemeral storage requests
+      # Used with GKE Autopilot local SSDs and Azure Container Storage CSI
+      size: ""
+      # Optional emptyDir size limit for CEL policy compliance
+      sizeLimit: ""
+    ephemeralStorage:
+      # Total pod-local storage budget for ephemeral-storage requests.
+      # Size this for cache emptyDir, optional /tmp emptyDir, and writable layer/log overhead.
+      # On GKE Autopilot, volume.size is still used as the fallback request when this is unset.
+      request: ""
+      # Optional total pod-local storage limit.
+      limit: ""
+    tmpVolume:
+      enabled: false
+      sizeLimit: ""
+    extraEnvVars: []
+    # Example:
+    # - name: MY_ENV_VAR
+    #   value: "my-value"
+    # - name: ANOTHER_VAR
+    #   value: "another-value"
+    nodeSelector: {}
+    tolerations: []
+    affinity: {}
+    extraContainers: []
+    extraVolumes: []
+
+  # Brainstore Automation Writer configuration
+  # An optional, dedicated Brainstore writer pool that handles only the
+  # automations writer loop (BRAINSTORE_WRITER_LOOP_CONFIG=include:automations).
+  # Requires brainstore image v2.16.0 or newer. Older images ignore that
+  # variable, so the chart rejects replicas > 0 when brainstore.image.tag is a
+  # release tag (vX.Y.Z) older than v2.16.0. Commit SHAs and other custom tags
+  # are not checked; make sure such an image includes v2.16.0.
+  # When enabled (replicas > 0), the regular writer pool is automatically
+  # configured to exclude automations, and the API receives this pool's query
+  # endpoint. A compatible API release decides which queries use the endpoint.
+  # Disabled by default (replicas: 0), preserving existing deployments.
+  # This option is not recommended for most
+  # deployments; enable it only with guidance from Braintrust support.
+  automationwriter:
+    name: "brainstore-automationwriter"
+    labels: {}
+    podLabels: {}
+    annotations:
+      configmap: {}
+      deployment: {}
+      service: {}
+      pod: {}
+    replicas: 0
+    minReadySeconds: 0
+    progressDeadlineSeconds: 600
+    strategy:
+      type: RollingUpdate
+      rollingUpdate:
+        maxSurge: 100%
+        maxUnavailable: 0
+    service:
+      name: ""
+      type: ClusterIP
+      port: 4000
+      portName: http
+    resources:
+      requests:
+        cpu: "32"
+        memory: "128Gi"
+      limits:
+        cpu: "32"
+        memory: "128Gi"
     cacheDir: "/mnt/tmp/brainstore"
     objectStoreCacheMemoryLimit: "1Gi"
     objectStoreCacheFileSize: "1000Gi"

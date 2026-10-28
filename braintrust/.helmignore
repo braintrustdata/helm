@@ -1,0 +1,3 @@
+# Python bytecode from local helper tests is not part of the runtime artifact.
+__pycache__
+*.pyc

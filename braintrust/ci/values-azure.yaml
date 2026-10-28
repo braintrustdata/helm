@@ -87,6 +87,9 @@ brainstore:
   fastreader:
     volume:
       size: "100Gi"
+  automationwriter:
+    volume:
+      size: "200Gi"
   writer:
     name: "brainstore-writer"
     replicas: 1

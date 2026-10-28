@@ -82,10 +82,10 @@ brainstore:
     resources:
       requests:
         cpu: "16"
-        memory: "32Gi"
+        memory: "64Gi"
       limits:
         cpu: "16"
-        memory: "32Gi"
+        memory: "64Gi"
     cacheDir: "/mnt/tmp/brainstore"
     objectStoreCacheMemoryLimit: "1Gi"
     objectStoreCacheFileSize: "900Gi"
@@ -115,10 +115,10 @@ brainstore:
     resources:
       requests:
         cpu: "16"
-        memory: "32Gi"
+        memory: "64Gi"
       limits:
         cpu: "16"
-        memory: "32Gi"
+        memory: "64Gi"
     cacheDir: "/mnt/tmp/brainstore"
     objectStoreCacheMemoryLimit: "1Gi"
     objectStoreCacheFileSize: "900Gi"
@@ -148,10 +148,46 @@ brainstore:
     resources:
       requests:
         cpu: "32"
-        memory: "64Gi"
+        memory: "128Gi"
       limits:
         cpu: "32"
-        memory: "64Gi"
+        memory: "128Gi"
+    cacheDir: "/mnt/tmp/brainstore"
+    objectStoreCacheMemoryLimit: "1Gi"
+    objectStoreCacheFileSize: "900Gi"
+    verbose: true
+    securityContext:
+      readOnlyRootFilesystem: true
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop:
+          - ALL
+    volume:
+      size: "1000Gi"
+      sizeLimit: "900Gi"
+    tmpVolume:
+      enabled: true
+      sizeLimit: "1Gi"
+    extraEnvVars:
+
+  # Brainstore Automation Writer configuration
+  # Optional, dedicated automations writer pool with an internal Service when enabled.
+  # Disabled by default (replicas: 0); scale up to opt in.
+  automationwriter:
+    name: "brainstore-automationwriter"
+    replicas: 0
+    service:
+      name: ""
+      type: ClusterIP
+      port: 4000
+      portName: http
+    resources:
+      requests:
+        cpu: "32"
+        memory: "128Gi"
+      limits:
+        cpu: "32"
+        memory: "128Gi"
     cacheDir: "/mnt/tmp/brainstore"
     objectStoreCacheMemoryLimit: "1Gi"
     objectStoreCacheFileSize: "900Gi"
