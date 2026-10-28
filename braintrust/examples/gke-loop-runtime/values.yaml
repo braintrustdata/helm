@@ -1,5 +1,9 @@
 # Layer on top of your existing GKE values (for example, ../google-autopilot/values.yaml).
-# Every value below comes from the GCP Terraform module outputs.
+# The sandbox and service-account values come from the GCP Terraform module outputs.
+aiGateway:
+  enabled: true
+  useGateway: true
+
 loopRuntime:
   enabled: true
   serviceAccount:

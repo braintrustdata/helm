@@ -14,6 +14,13 @@ gke_isolated_workers = {
 `<...>` values below come from `terraform output gke_isolated_workers` and
 `terraform output loop_runtime_service_account`.
 
+Use compatible API, Brainstore, and AI Gateway images for the runtime build.
+The API must report `ff_version` 82 or newer, and the Rust gateway must support
+`x-bt-provider-model-map`; the chart's default API image `v2.18.0` is too old.
+Deploy the gateway with `aiGateway.enabled=true` first and wait for it to become
+ready before applying this example, which turns on `aiGateway.useGateway`.
+The TypeScript API proxy alone cannot restore the provider model IDs sent by Codex.
+
 1. Create the mTLS Secrets in both clusters:
 
    ```sh
