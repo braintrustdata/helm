@@ -154,8 +154,9 @@ brainstore:
 
 The Terraform module creates separate services and Brainstore pools. Brainstore uses a bundled Local SSD machine type without a disk count input.
 
-The stable `braintrust/node-pool` label connects Helm selectors to replacement pools with generated GKE names.
-The Terraform map key sets the label. The `services` and `brainstore` keys match the selectors below.
+The stable `braintrust/workload` label connects Helm selectors to Terraform pools, including replacement pools with generated GKE names.
+The Terraform map key sets the label unless the pool sets `workload`. The `services` and `brainstore` values match the selectors below.
+A replacement pool with `workload = "brainstore"` receives Brainstore pods before the source pool is deleted.
 
 The example enables PDBs for node eviction. Existing pools need deletion protection before a hardware replacement.
 See [Optional disruption budgets](#optional-disruption-budgets) for the preparation sequence and limits.
@@ -172,11 +173,11 @@ See [Optional disruption budgets](#optional-disruption-budgets) for the preparat
        enabled: true
        maxUnavailable: 1
      nodeSelector:
-       braintrust/node-pool: "services"
+       braintrust/workload: "services"
 
    aiGateway:
      nodeSelector:
-       braintrust/node-pool: "services"
+       braintrust/workload: "services"
 
    brainstore:
      reader:
@@ -184,7 +185,7 @@ See [Optional disruption budgets](#optional-disruption-budgets) for the preparat
          enabled: true
          maxUnavailable: 1
        nodeSelector:
-         braintrust/node-pool: "brainstore"
+         braintrust/workload: "brainstore"
        resources:
          requests:
            cpu: "44"
@@ -206,13 +207,13 @@ See [Optional disruption budgets](#optional-disruption-budgets) for the preparat
          enabled: true
          maxUnavailable: 1
        nodeSelector:
-         braintrust/node-pool: "brainstore"
+         braintrust/workload: "brainstore"
      writer:
        podDisruptionBudget:
          enabled: true
          maxUnavailable: 1
        nodeSelector:
-         braintrust/node-pool: "brainstore"
+         braintrust/workload: "brainstore"
        resources:
          requests:
            cpu: "44"

@@ -121,8 +121,9 @@ The GKE Standard example enables separate budgets for the API and all Brainstore
 A single writer can stop briefly during eviction. With multiple writers, the budget permits one unavailable replica.
 Each role has an independent budget, so different roles can lose a replica simultaneously.
 Readiness probes determine healthy replicas. Deployment rollout settings and `minReadySeconds` do not control node eviction.
-Stable `braintrust/node-pool` labels connect Helm selectors to Terraform pools.
-The Terraform pool map key sets this label. Automatic replacement preserves the label.
+Stable `braintrust/workload` labels connect Helm selectors to Terraform pools.
+The Terraform pool map key sets this label unless the pool sets `workload`. Replacement pools and automatic replacement preserve it.
+Do not select on `braintrust/node-pool` or `cloud.google.com/gke-nodepool`. Neither matches a replacement pool.
 GKE deletion protection must exist on the source pool before hardware replacement. Its PDB protection expires after one hour.
 
 - Keep PDB templates cloud-independent and disabled by default.

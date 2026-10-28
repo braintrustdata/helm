@@ -48,7 +48,7 @@ api:
   # Native GCS authentication via Workload Identity. Set to true to use GCS natively instead of S3-compatible access.
   enableGcsAuth: false
   nodeSelector:
-    braintrust/node-pool: "services"
+    braintrust/workload: "services"
   resources:
     requests:
       cpu: "4"
@@ -63,7 +63,7 @@ api:
 
 aiGateway:
   nodeSelector:
-    braintrust/node-pool: "services"
+    braintrust/workload: "services"
 
 # Brainstore configuration (split into reader and writer)
 brainstore:
@@ -90,7 +90,7 @@ brainstore:
       port: 4000
       portName: http
     nodeSelector:
-         braintrust/node-pool: "brainstore"
+         braintrust/workload: "brainstore"
     resources:
       requests:
         cpu: "16"
@@ -123,7 +123,7 @@ brainstore:
       enabled: true
       maxUnavailable: 1
     nodeSelector:
-      braintrust/node-pool: "brainstore"
+      braintrust/workload: "brainstore"
 
   # Brainstore Writer configuration
   # One writer can stop briefly during a node drain.
@@ -139,7 +139,7 @@ brainstore:
       port: 4000
       portName: http
     nodeSelector:
-         braintrust/node-pool: "brainstore"
+         braintrust/workload: "brainstore"
     resources:
       requests:
         cpu: "32"
