@@ -221,10 +221,10 @@ service:
 resources:
   requests:
     cpu: "32"
-    memory: "64Gi"
+    memory: "128Gi"
   limits:
     cpu: "32"
-    memory: "64Gi"
+    memory: "128Gi"
 cacheDir: /mnt/tmp/brainstore
 objectStoreCacheMemoryLimit: 1Gi
 objectStoreCacheFileSize: 1000Gi
