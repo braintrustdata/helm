@@ -49,7 +49,6 @@ Workers run at a fixed count. One `c4-standard-8-lssd` worker holds about seven
 `CapacityExhausted`. Raise `replicas` in `sandbox-service.yaml` to add workers.
 
 Each runtime pod claims at most two conversations and has a 256Mi in-memory cache budget.
-A two-turn GKE smoke run using Git, SQL, and shell tools peaked at 329MiB; the pod retains a 2Gi limit.
 Sandbox administration is disabled by default. Set `loopRuntime.enableSandboxAdmin: true`
 to allow authorized sysadmins to inspect and terminate sandboxes.
 
