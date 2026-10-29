@@ -68,21 +68,15 @@ spec:
             - containerPort: 4002
           resources:
             {{- toYaml .Values.loopRuntime.resources | nindent 12 }}
-          {{- with .Values.loopRuntime.livenessProbe }}
+          {{- range $name := list "livenessProbe" "readinessProbe" }}
+          {{- with index $.Values.loopRuntime $name }}
           {{- $probe := deepCopy . -}}
           {{- if and (kindIs "map" $probe.httpGet) (not (hasKey $probe.httpGet "port")) -}}
           {{- $_ := set $probe.httpGet "port" $.Values.loopRuntime.service.port -}}
           {{- end }}
-          livenessProbe:
+          {{ $name }}:
             {{- toYaml $probe | nindent 12 }}
           {{- end }}
-          {{- with .Values.loopRuntime.readinessProbe }}
-          {{- $probe := deepCopy . -}}
-          {{- if and (kindIs "map" $probe.httpGet) (not (hasKey $probe.httpGet "port")) -}}
-          {{- $_ := set $probe.httpGet "port" $.Values.loopRuntime.service.port -}}
-          {{- end }}
-          readinessProbe:
-            {{- toYaml $probe | nindent 12 }}
           {{- end }}
           envFrom:
             - configMapRef:

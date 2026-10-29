@@ -526,39 +526,16 @@ tests:
     template: loop-runtime-deployment.yaml
     asserts:
       - equal:
-          path: metadata.labels.shared
-          value: global-loop
+          path: metadata.labels
+          value: &loopLabels
+            shared: global-loop
+            environment: production
+            component: loop-runtime
+            loop-specific: loop-only
       - equal:
-          path: metadata.labels.environment
-          value: production
-      - equal:
-          path: metadata.labels.component
-          value: loop-runtime
-      - equal:
-          path: metadata.labels["loop-specific"]
-          value: loop-only
-      - isNull:
-          path: metadata.labels["api-specific"]
-      - isNull:
-          path: metadata.labels["reader-specific"]
-      - isNull:
-          path: metadata.labels["writer-specific"]
-      - isNull:
-          path: metadata.labels["fastreader-specific"]
-      - equal:
-          path: spec.template.metadata.labels.shared
-          value: global-loop
-      - equal:
-          path: spec.template.metadata.labels["loop-specific"]
-          value: loop-only
-      - equal:
-          path: spec.template.metadata.labels["pod-specific"]
-          value: pod-only
-      - isNull:
-          path: spec.template.metadata.labels["api-specific"]
-      - isNull:
-          path: spec.template.metadata.labels["reader-specific"]
-      - isNull:
-          path: spec.template.metadata.labels["writer-specific"]
-      - isNull:
-          path: spec.template.metadata.labels["fastreader-specific"]
+          path: spec.template.metadata.labels
+          value:
+            <<: *loopLabels
+            pod-specific: pod-only
+            app: braintrust-loop-runtime
+            gke-workload-identity/use: "true"
