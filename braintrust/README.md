@@ -469,3 +469,18 @@ Example values files for different cloud providers and configurations are locate
 - `examples/google-autopilot-cel/values.yaml`: GKE Autopilot deployment with CEL-friendly security settings.
 - `examples/google-api-isolation-autoscaling/values.yaml`: Minimal example for API workload isolation and per-pool autoscaling on GKE (combine with an Autopilot or Standard values file).
 - `examples/google-standard/values.yaml`: GKE Standard deployment.
+
+## API container CPU metrics
+
+Compatible API images collect container CPU time on Linux when `ENABLE_CONTAINER_CPU_METRICS=true`, which this chart sets for every API pool. The `api.container.cpu.time` counter measures CPU seconds across all processes in the API container using cgroup v1 or v2 accounting. Metrics use the existing OTEL exporter and require metrics telemetry to be enabled. Older API images ignore the setting.
+
+To disable collection, set:
+
+```yaml
+api:
+  extraEnvVars:
+    - name: ENABLE_CONTAINER_CPU_METRICS
+      value: "false"
+```
+
+Remove this override to enable collection again. Existing `extraEnvVars` entries should be retained when adding the override.
