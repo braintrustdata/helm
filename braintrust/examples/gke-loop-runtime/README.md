@@ -35,7 +35,9 @@ The TypeScript API proxy alone cannot restore the provider model IDs sent by Cod
      --namespace braintrust-sandbox --values braintrust/examples/gke-loop-runtime/sandbox-service.yaml --wait
    ```
 
-3. Install this chart with your GKE values plus `values.yaml` from this directory:
+3. Install this chart with your GKE values plus `values.yaml` from this directory.
+   For a Standard primary cluster, set `loopRuntime.nodeSelector` to
+   `{"braintrust/workload": "services"}` to use the services pool:
 
    ```sh
    helm --kube-context <primary> upgrade --install braintrust ./braintrust --namespace braintrust \
