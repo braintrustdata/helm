@@ -1,8 +1,13 @@
 {{- $root := . -}}
 {{- $rendered := 0 -}}
 {{- range $role := list "reader" "fastreader" "writer" -}}
-{{- $config := index $root.Values.brainstore $role -}}
-{{- if $config.podDisruptionBudget.enabled }}
+{{- $config := index $root.Values.brainstore $role | default dict -}}
+{{- $pdb := $config.podDisruptionBudget | default dict -}}
+{{- $maxUnavailable := 1 -}}
+{{- if and (hasKey $pdb "maxUnavailable") (not (kindIs "invalid" $pdb.maxUnavailable)) -}}
+{{- $maxUnavailable = $pdb.maxUnavailable -}}
+{{- end -}}
+{{- if $pdb.enabled }}
 {{- if gt $rendered 0 }}
 ---
 {{- end }}
@@ -16,7 +21,7 @@ metadata:
     {{- toYaml . | nindent 4 }}
   {{- end }}
 spec:
-  maxUnavailable: {{ $config.podDisruptionBudget.maxUnavailable | toYaml | trim }}
+  maxUnavailable: {{ $maxUnavailable | toYaml | trim }}
   selector:
     matchLabels:
       app: {{ $config.name }}

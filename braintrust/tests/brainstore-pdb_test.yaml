@@ -31,6 +31,63 @@ tests:
           value: 0
       - notExists:
           path: spec.minAvailable
+  - it: omits budgets when reused values have no budget maps
+    template: brainstore-pdb.yaml
+    values:
+      - __fixtures__/pre-brainstore-pdb-values.yaml
+    asserts:
+      - hasDocuments:
+          count: 0
+  - it: omits budgets for reused values on aws
+    template: brainstore-pdb.yaml
+    values:
+      - __fixtures__/pre-brainstore-pdb-values.yaml
+    set:
+      cloud: aws
+    asserts:
+      - hasDocuments:
+          count: 0
+  - it: omits budgets for reused values on azure
+    template: brainstore-pdb.yaml
+    values:
+      - __fixtures__/pre-brainstore-pdb-values.yaml
+    set:
+      cloud: azure
+    asserts:
+      - hasDocuments:
+          count: 0
+  - it: omits budgets for reused values on google
+    template: brainstore-pdb.yaml
+    values:
+      - __fixtures__/pre-brainstore-pdb-values.yaml
+    set:
+      cloud: google
+    asserts:
+      - hasDocuments:
+          count: 0
+  - it: defaults maxUnavailable for a partial budget on reused values
+    template: brainstore-pdb.yaml
+    values:
+      - __fixtures__/pre-brainstore-pdb-values.yaml
+    set:
+      brainstore.reader.podDisruptionBudget.enabled: true
+    asserts:
+      - hasDocuments:
+          count: 1
+      - equal:
+          path: spec.maxUnavailable
+          value: 1
+  - it: defaults a null maxUnavailable
+    template: brainstore-pdb.yaml
+    set:
+      brainstore.writer.podDisruptionBudget.enabled: true
+      brainstore.writer.podDisruptionBudget.maxUnavailable: null
+    asserts:
+      - hasDocuments:
+          count: 1
+      - equal:
+          path: spec.maxUnavailable
+          value: 1
   - it: keeps labels isolated between roles
     template: brainstore-pdb.yaml
     set:
