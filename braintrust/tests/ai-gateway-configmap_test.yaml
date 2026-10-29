@@ -49,7 +49,7 @@ tests:
           path: data.BRAINTRUST_URL_SECURITY_ALLOW_CIDRS
       - equal:
           path: data.OTLP_HTTP_ENDPOINT
-          value: "https://www.braintrust.dev/api/pulse/otel"
+          value: "https://pulse.braintrust.dev/otel"
 
   - it: should include URL security env vars when configured
     values:
@@ -124,6 +124,19 @@ tests:
     asserts:
       - isNull:
           path: data.OTLP_HTTP_ENDPOINT
+
+  - it: should send OTLP directly to Pulse for the default app URL with trailing slash
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      aiGateway.enabled: true
+      aiGateway.braintrustAppUrl: "https://www.braintrust.dev/"
+    release:
+      namespace: "braintrust"
+    asserts:
+      - equal:
+          path: data.OTLP_HTTP_ENDPOINT
+          value: "https://pulse.braintrust.dev/otel"
 
   - it: should derive OTLP_HTTP_ENDPOINT from braintrustAppUrl
     values:
