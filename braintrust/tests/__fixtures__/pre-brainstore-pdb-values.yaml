@@ -1,0 +1,12 @@
+# Simulate values retained by `helm upgrade --reuse-values` from a chart release
+# that predates Brainstore disruption budgets. An explicit null removes the new
+# chart default during Helm value coalescing.
+api:
+  podDisruptionBudget: null
+brainstore:
+  reader:
+    podDisruptionBudget: null
+  fastreader:
+    podDisruptionBudget: null
+  writer:
+    podDisruptionBudget: null
