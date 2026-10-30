@@ -172,10 +172,10 @@ brainstore:
 
   # Brainstore Automation Writer configuration
   # Optional, dedicated automations writer pool with an internal Service when enabled.
-  # Disabled by default (replicas: 0); scale up to opt in.
+  # Defaults to two replicas; set replicas: 0 to use regular writers.
   automationwriter:
     name: "brainstore-automationwriter"
-    replicas: 0
+    replicas: 2
     service:
       name: ""
       type: ClusterIP

@@ -3,6 +3,8 @@ templates:
   - brainstore-automationwriter-service.yaml
 tests:
   - it: should omit the service when the pool is disabled
+    set:
+      brainstore.automationwriter.replicas: 0
     asserts: &absent
       - hasDocuments:
           count: 0
