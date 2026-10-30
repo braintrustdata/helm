@@ -38,64 +38,11 @@ tests:
           path: spec.loadBalancerSourceRanges
           value: ["0.0.0.0/0","255.255.255.255/32","10.64.64.0/24"]
 
-  - it: should reject out of range octets
+  - it: should pass supplied ranges through for Kubernetes validation
     values: *values
     set:
-      loopRuntime.sandbox.egressGateway.sourceRanges: ["256.0.0.1/24"]
-    asserts: &invalid-range
-      - failedTemplate:
-          errorPattern: "is not a CIDR range$"
-
-  - it: should reject out of range prefixes
-    values: *values
-    set:
-      loopRuntime.sandbox.egressGateway.sourceRanges: ["10.0.0.0/33"]
-    asserts: *invalid-range
-
-  - it: should reject oversized octets and prefixes
-    values: *values
-    set:
-      loopRuntime.sandbox.egressGateway.sourceRanges: ["999.999.999.999/999"]
-    asserts: *invalid-range
-
-  - it: should reject an oversized prefix
-    values: *values
-    set:
-      loopRuntime.sandbox.egressGateway.sourceRanges: ["10.0.0.0/999"]
-    asserts: *invalid-range
-
-  - it: should reject missing octets
-    values: *values
-    set:
-      loopRuntime.sandbox.egressGateway.sourceRanges: ["10.0.0/24"]
-    asserts: *invalid-range
-
-  - it: should reject a padded range
-    values: *values
-    set:
-      loopRuntime.sandbox.egressGateway.sourceRanges: [" 10.0.0.0/24 "]
-    asserts: *invalid-range
-
-  - it: should reject a null range
-    values: *values
-    set:
-      loopRuntime.sandbox.egressGateway.sourceRanges: [null]
-    asserts: *invalid-range
-
-  - it: should reject zero-padded octets
-    values: *values
-    set:
-      loopRuntime.sandbox.egressGateway.sourceRanges: ["010.064.000.000/8"]
-    asserts: *invalid-range
-
-  - it: should reject zero-padded prefixes
-    values: *values
-    set:
-      loopRuntime.sandbox.egressGateway.sourceRanges: ["10.0.0.0/08"]
-    asserts: *invalid-range
-
-  - it: should reject host bits beyond the prefix
-    values: *values
-    set:
-      loopRuntime.sandbox.egressGateway.sourceRanges: ["10.64.64.1/24"]
-    asserts: *invalid-range
+      loopRuntime.sandbox.egressGateway.sourceRanges: ["not-a-cidr", "2001:db8::/64"]
+    asserts:
+      - equal:
+          path: spec.loadBalancerSourceRanges
+          value: ["not-a-cidr", "2001:db8::/64"]

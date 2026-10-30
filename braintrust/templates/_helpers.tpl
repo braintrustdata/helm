@@ -173,34 +173,11 @@ predates Loop Runtime have no loopRuntime map, which means disabled.
 {{- $_ := required "loopRuntime.image.tag is required" (.Values.loopRuntime.image.tag | default "" | toString) -}}
 {{- $_ := required "loopRuntime.serviceAccount.googleServiceAccount is required" .Values.loopRuntime.serviceAccount.googleServiceAccount -}}
 {{- $_ := required "loopRuntime.sandbox.dnsUrl is required" $sandbox.dnsUrl -}}
+{{- $_ := required "loopRuntime.sandbox.image is required" $sandbox.image -}}
 {{- $_ := required "loopRuntime.sandbox.egressGateway.address is required" $egress.address -}}
 {{- $_ := required "loopRuntime.sandbox.egressGateway.url is required" $egress.url -}}
 {{- if not $egress.sourceRanges -}}
 {{- fail "loopRuntime.sandbox.egressGateway.sourceRanges is required" -}}
-{{- end -}}
-{{- range $egress.sourceRanges -}}
-{{- $cidr := toString . -}}
-{{- $valid := regexMatch "^((0|[1-9][0-9]{0,2})\\.){3}(0|[1-9][0-9]{0,2})/(0|[1-9][0-9]?)$" $cidr -}}
-{{- if $valid -}}
-{{- $parts := splitList "/" $cidr -}}
-{{- $prefix := int (index $parts 1) -}}
-{{- $valid = le $prefix 32 -}}
-{{- $address := 0 -}}
-{{- range splitList "." (index $parts 0) -}}
-{{- $valid = and $valid (le (int .) 255) -}}
-{{- $address = add (mul $address 256) (int .) -}}
-{{- end -}}
-{{- if $valid -}}
-{{- $blockSize := 1 -}}
-{{- range until (int (sub 32 $prefix)) -}}
-{{- $blockSize = mul $blockSize 2 -}}
-{{- end -}}
-{{- $valid = eq (mod $address $blockSize) 0 -}}
-{{- end -}}
-{{- end -}}
-{{- if not $valid -}}
-{{- fail (printf "loopRuntime.sandbox.egressGateway.sourceRanges: %q is not a CIDR range" (toString .)) -}}
-{{- end -}}
 {{- end -}}
 {{- end -}}
 {{- end -}}
