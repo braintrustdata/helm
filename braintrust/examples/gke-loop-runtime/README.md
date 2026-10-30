@@ -6,8 +6,9 @@ GCP Terraform module with:
 
 ```hcl
 gke_isolated_workers = {
-  network_cidr = "10.64.0.0/16" # must not overlap existing ranges
-  discovery    = { dns_name = "sandbox.<deployment>.internal" }
+  network_cidr     = "10.64.0.0/16" # must not overlap existing ranges
+  authorized_cidrs = ["192.0.2.10/32"] # replace with operator and CI egress ranges
+  discovery        = { dns_name = "sandbox.<deployment>.internal" }
 }
 ```
 
@@ -16,7 +17,7 @@ gke_isolated_workers = {
 
 Use compatible API, Brainstore, and AI Gateway images for the runtime build.
 The API must report `ff_version` 82 or newer, and the Rust gateway must support
-`x-bt-provider-model-map`; the chart's default API image `v2.18.0` is too old.
+`x-bt-provider-model-map`.
 Deploy the gateway with `aiGateway.enabled=true` first and wait for it to become
 ready before applying this example, which turns on `aiGateway.useGateway`.
 The TypeScript API proxy alone cannot restore the provider model IDs sent by Codex.

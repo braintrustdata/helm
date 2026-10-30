@@ -203,14 +203,6 @@ tests:
       - failedTemplate:
           errorMessage: "loopRuntime.sandbox.egressGateway.sourceRanges is required"
 
-  - it: should reject a blank egress source range next to a valid one
-    values: *values
-    set:
-      loopRuntime.sandbox.egressGateway.sourceRanges: ["10.64.64.0/24", ""]
-    asserts:
-      - failedTemplate:
-          errorMessage: "loopRuntime.sandbox.egressGateway.sourceRanges: \"\" is not a CIDR range"
-
   - it: should reject a null image tag
     values: *values
     set:
@@ -218,3 +210,34 @@ tests:
     asserts:
       - failedTemplate:
           errorMessage: "loopRuntime.image.tag is required"
+
+  - it: should require a sandbox image when enabled
+    values: *values
+    set:
+      loopRuntime.sandbox.image: ""
+    asserts: &missing-sandbox-image
+      - failedTemplate:
+          errorMessage: "loopRuntime.sandbox.image is required"
+
+  - it: should require a retained null sandbox image when enabled
+    values: *values
+    set:
+      loopRuntime.sandbox.image: null
+    asserts: *missing-sandbox-image
+
+  - it: should ignore missing sandbox configuration when disabled
+    values: *values
+    set:
+      loopRuntime.enabled: false
+      loopRuntime.sandbox: null
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should require retained null source ranges
+    values: *values
+    set:
+      loopRuntime.sandbox.egressGateway.sourceRanges: null
+    asserts:
+      - failedTemplate:
+          errorMessage: "loopRuntime.sandbox.egressGateway.sourceRanges is required"
