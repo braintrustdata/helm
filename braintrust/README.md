@@ -356,7 +356,7 @@ Slow rollouts extend the period during which old and new Brainstore versions
 run together. Follow version-specific upgrade guidance and do not change
 `brainstoreWalFooterVersion` in the same upgrade as an image version bump,
 except where the documented data plane 2.0 upgrade sequence explicitly permits
-it. See the [data plane 2.0 upgrade guide](https://www.braintrust.dev/docs/admin/self-hosting/upgrade/v2).
+it. See the [data plane 2.0 upgrade guide](https://docs.braintrust.dev/admin/self-hosting/upgrade/v2).
 
 Setting `strategy.type: Recreate` stops all pods in that Brainstore role before
 creating replacements. This causes a complete role outage and, with the default
