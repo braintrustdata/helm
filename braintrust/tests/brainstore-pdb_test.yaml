@@ -157,6 +157,82 @@ tests:
           value: 2
       - notExists:
           path: spec.maxUnavailable
+  - it: omits the API budget when its map is absent from reused values
+    template: api-pdb.yaml
+    set:
+      api.podDisruptionBudget: null
+    asserts:
+      - hasDocuments:
+          count: 0
+  - it: falls back to the API minimum when maxUnavailable is null
+    template: api-pdb.yaml
+    set:
+      cloud: google
+      api.podDisruptionBudget.enabled: true
+      api.podDisruptionBudget.minAvailable: 2
+      api.podDisruptionBudget.maxUnavailable: null
+    asserts:
+      - equal:
+          path: spec.minAvailable
+          value: 2
+      - notExists:
+          path: spec.maxUnavailable
+  - it: preserves an explicit zero API maximum over the minimum
+    template: api-pdb.yaml
+    set:
+      cloud: aws
+      api.podDisruptionBudget.enabled: true
+      api.podDisruptionBudget.maxUnavailable: 0
+    asserts:
+      - equal:
+          path: spec.maxUnavailable
+          value: 0
+      - notExists:
+          path: spec.minAvailable
+  - it: preserves percentage API maximums
+    template: api-pdb.yaml
+    set:
+      cloud: azure
+      api.podDisruptionBudget.enabled: true
+      api.podDisruptionBudget.maxUnavailable: "25%"
+    asserts:
+      - equal:
+          path: spec.maxUnavailable
+          value: "25%"
+      - notExists:
+          path: spec.minAvailable
+  - it: leaves an empty API maximum for Kubernetes to validate
+    template: api-pdb.yaml
+    set:
+      api.podDisruptionBudget.enabled: true
+      api.podDisruptionBudget.maxUnavailable: ""
+    asserts:
+      - equal:
+          path: spec.maxUnavailable
+          value: ""
+      - notExists:
+          path: spec.minAvailable
+  - it: lets an isolated pool clear an inherited API maximum
+    template: api-pdb.yaml
+    set:
+      api.podDisruptionBudget.maxUnavailable: 1
+      api.workloadIsolation.enabled: true
+      api.workloadIsolation.background.podDisruptionBudget.maxUnavailable: null
+      api.workloadIsolation.background.podDisruptionBudget.minAvailable: 2
+    asserts:
+      - hasDocuments:
+          count: 2
+      - equal:
+          path: spec.maxUnavailable
+          value: 1
+        documentIndex: 0
+      - equal:
+          path: spec.minAvailable
+          value: 2
+        documentIndex: 1
+      - notExists:
+          path: spec.maxUnavailable
+        documentIndex: 1
   - it: supports optional budgets on aws
     template: brainstore-pdb.yaml
     set:

@@ -3,7 +3,8 @@
 {{- $rendered := 0 -}}
 {{- range $pool := $pools -}}
 {{- $api := $pool.config -}}
-{{- if $api.podDisruptionBudget.enabled }}
+{{- $pdb := $api.podDisruptionBudget | default dict -}}
+{{- if $pdb.enabled }}
 {{- if gt $rendered 0 }}
 ---
 {{- end }}
@@ -18,10 +19,10 @@ metadata:
     {{- toYaml . | nindent 4 }}
   {{- end }}
 spec:
-  {{- if hasKey $api.podDisruptionBudget "maxUnavailable" }}
-  maxUnavailable: {{ $api.podDisruptionBudget.maxUnavailable | toYaml | trim }}
+  {{- if ne $pdb.maxUnavailable nil }}
+  maxUnavailable: {{ $pdb.maxUnavailable | toYaml | trim }}
   {{- else }}
-  minAvailable: {{ $api.podDisruptionBudget.minAvailable }}
+  minAvailable: {{ $pdb.minAvailable }}
   {{- end }}
   selector:
     matchLabels:
