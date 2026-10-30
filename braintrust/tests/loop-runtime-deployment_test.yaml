@@ -1,0 +1,143 @@
+suite: test Loop Runtime Deployment template
+templates:
+  - loop-runtime-deployment.yaml
+  - loop-runtime-configmap.yaml
+tests:
+  - it: should not render when Loop Runtime is disabled
+    values:
+      - __fixtures__/base-values.yaml
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should render the runtime pod with workload identity, secrets, and the client TLS Secret
+    template: loop-runtime-deployment.yaml
+    values: &values
+      - __fixtures__/base-values.yaml
+      - __fixtures__/loop-runtime-values.yaml
+    asserts:
+      - equal:
+          path: spec.replicas
+          value: 2
+      - equal:
+          path: spec.template.metadata.labels["gke-workload-identity/use"]
+          value: "true"
+      - equal:
+          path: spec.template.metadata.annotations["iam.gke.io/gcp-service-account"]
+          value: braintrust-loop@test-project.iam.gserviceaccount.com
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: test/loop-runtime:v1.0.0
+      - equal:
+          path: spec.template.spec.terminationGracePeriodSeconds
+          value: 120
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.httpGet.port
+          value: 4001
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.httpGet.port
+          value: 4001
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: FUNCTION_SECRET_KEY
+            valueFrom:
+              secretKeyRef:
+                name: braintrust-secrets
+                key: FUNCTION_SECRET_KEY
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: sandbox-tls
+            secret:
+              secretName: sandbox-client-tls
+      - contains:
+          path: spec.template.spec.containers[0].ports
+          content:
+            containerPort: 4002
+
+  - it: should follow the runtime port with a custom port name
+    template: loop-runtime-deployment.yaml
+    values: *values
+    set:
+      loopRuntime.service.port: 4888
+      loopRuntime.service.portName: runtime
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.httpGet.port
+          value: 4888
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.httpGet.port
+          value: 4888
+
+  - it: should preserve explicit numeric and named HTTP probe ports
+    template: loop-runtime-deployment.yaml
+    values: *values
+    set:
+      loopRuntime.service.port: 4888
+      loopRuntime.service.portName: runtime
+      loopRuntime.livenessProbe.httpGet.port: 4999
+      loopRuntime.readinessProbe.httpGet.port: runtime
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.httpGet.port
+          value: 4999
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.httpGet.port
+          value: runtime
+
+  - it: should retain disabled and non-HTTP probes
+    template: loop-runtime-deployment.yaml
+    values: *values
+    set:
+      loopRuntime.livenessProbe: null
+      loopRuntime.readinessProbe.httpGet: null
+      loopRuntime.readinessProbe.exec.command: ["true"]
+    asserts:
+      - notExists:
+          path: spec.template.spec.containers[0].livenessProbe
+      - isNull:
+          path: spec.template.spec.containers[0].readinessProbe.httpGet
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.exec.command
+          value: ["true"]
+
+  - it: should default null replicas to one
+    template: loop-runtime-deployment.yaml
+    values: *values
+    set:
+      loopRuntime.replicas: null
+    asserts:
+      - equal:
+          path: spec.replicas
+          value: 1
+
+  - it: should default empty replicas to one
+    template: loop-runtime-deployment.yaml
+    values: *values
+    set:
+      loopRuntime.replicas: ""
+    asserts:
+      - equal:
+          path: spec.replicas
+          value: 1
+
+  - it: should scale to zero
+    template: loop-runtime-deployment.yaml
+    values: *values
+    set:
+      loopRuntime.replicas: 0
+    asserts:
+      - equal:
+          path: spec.replicas
+          value: 0
+
+  - it: should render an all-digit short SHA tag
+    template: loop-runtime-deployment.yaml
+    values: *values
+    set:
+      loopRuntime.image.tag: "1234567"
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: test/loop-runtime:1234567

@@ -147,6 +147,61 @@ http://{{ .Values.aiGateway.service.name | default .Values.aiGateway.name }}.{{ 
 {{- end -}}
 
 {{/*
+Whether Loop Runtime is enabled. Values reused from a chart release that
+predates Loop Runtime have no loopRuntime map, which means disabled.
+*/}}
+{{- define "braintrust.loopRuntime.enabled" -}}
+{{- if (.Values.loopRuntime | default dict).enabled -}}true{{- end -}}
+{{- end -}}
+
+{{/* Validate the Loop Runtime configuration. */}}
+{{- define "braintrust.loopRuntime.validate" -}}
+{{- if include "braintrust.loopRuntime.enabled" . -}}
+{{- range $key := list "sandbox" "image" "service" "serviceAccount" "resources" "annotations" -}}
+{{- if not (kindIs "map" (get $.Values.loopRuntime $key)) -}}
+{{- fail "loopRuntime defaults are missing. Values reused from a chart release that predates Loop Runtime omit them; upgrade with --reset-then-reuse-values." -}}
+{{- end -}}
+{{- end -}}
+{{- if ne .Values.cloud "google" -}}
+{{- fail "loopRuntime.enabled requires cloud: google. On AWS, Loop Runtime runs on ECS through the Terraform module." -}}
+{{- end -}}
+{{- $sandbox := .Values.loopRuntime.sandbox -}}
+{{- $egress := $sandbox.egressGateway | default dict -}}
+{{- $_ := required "objectStorage.google.brainstoreBucket is required" .Values.objectStorage.google.brainstoreBucket -}}
+{{- $_ := required "objectStorage.google.apiBucket is required" .Values.objectStorage.google.apiBucket -}}
+{{- $_ := required "loopRuntime.image.repository is required" .Values.loopRuntime.image.repository -}}
+{{- $_ := required "loopRuntime.image.tag is required" (.Values.loopRuntime.image.tag | default "" | toString) -}}
+{{- $_ := required "loopRuntime.serviceAccount.googleServiceAccount is required" .Values.loopRuntime.serviceAccount.googleServiceAccount -}}
+{{- $_ := required "loopRuntime.sandbox.dnsUrl is required" $sandbox.dnsUrl -}}
+{{- $_ := required "loopRuntime.sandbox.image is required" $sandbox.image -}}
+{{- $_ := required "loopRuntime.sandbox.egressGateway.address is required" $egress.address -}}
+{{- $_ := required "loopRuntime.sandbox.egressGateway.url is required" $egress.url -}}
+{{- if not $egress.sourceRanges -}}
+{{- fail "loopRuntime.sandbox.egressGateway.sourceRanges is required" -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
+
+{{/* Internal cluster URL for the Loop Runtime service. */}}
+{{- define "braintrust.loopRuntimeInternalUrl" -}}
+http://{{ .Values.loopRuntime.service.name | default .Values.loopRuntime.name }}.{{ include "braintrust.namespace" . }}:{{ .Values.loopRuntime.service.port }}
+{{- end -}}
+
+{{/* Product-owned Loop Runtime routes for an Istio VirtualService. */}}
+{{- define "braintrust.loopRuntimeVirtualServiceRoutes" -}}
+- match:
+    - uri:
+        exact: /loop/runtime
+    - uri:
+        prefix: /loop/runtime/
+  route:
+    - destination:
+        host: {{ .Values.loopRuntime.service.name | default .Values.loopRuntime.name }}
+        port:
+          number: {{ .Values.loopRuntime.service.port }}
+{{- end -}}
+
+{{/*
 Validate API autoscaling prerequisites (GKE + AutoscalingMetric CRD).
 */}}
 {{- define "braintrust.apiAutoscaling.validate" -}}

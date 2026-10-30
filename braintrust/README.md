@@ -18,6 +18,16 @@ The `braintrust-secrets` secret must contain the following keys:
 | `GCS_ACCESS_KEY_ID` | Google HMAC Access ID string | Valid S3 API Key Id (only required if `cloud` is `google` and if `enableGcsAuth` is `false`) |
 | `GCS_SECRET_ACCESS_KEY` | Google HMAC Secret string | Valid S3 Secret string (only required if `cloud` is `google` and if `enableGcsAuth` is `false`) |
 
+## Optional: Loop Runtime
+
+Set `loopRuntime.enabled: true` to run Loop Runtime on GKE (`cloud: google`).
+On AWS it runs on ECS through the Terraform module. Sandboxes run on Sandbox
+Service workers in a separate GKE cluster; see
+[examples/gke-loop-runtime](examples/gke-loop-runtime/README.md). The Terraform
+outputs it needs come from
+[terraform-google-braintrust-data-plane#28](https://github.com/braintrustdata/terraform-google-braintrust-data-plane/pull/28),
+which is not merged yet.
+
 ## Azure Key Vault Driver Integration
 
 If you're using Azure, the Azure Key Vault CSI driver is default enabled and will automatically sync secrets from Azure Key Vault into Kubernetes. This eliminates the need to manually create and manage the `braintrust-secrets` Kubernetes secret.

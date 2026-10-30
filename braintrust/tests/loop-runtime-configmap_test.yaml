@@ -1,0 +1,243 @@
+suite: test Loop Runtime ConfigMap template
+templates:
+  - loop-runtime-configmap.yaml
+tests:
+  - it: should not render when Loop Runtime is disabled
+    values:
+      - __fixtures__/base-values.yaml
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should not render when reused values have no loopRuntime map
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/google-values.yaml
+      - __fixtures__/pre-loop-runtime-values.yaml
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should explain how to upgrade when reused values enable Loop Runtime without defaults
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/google-values.yaml
+      - __fixtures__/reuse-loop-runtime-enabled-values.yaml
+    asserts: &missing-defaults
+      - failedTemplate:
+          errorMessage: "loopRuntime defaults are missing. Values reused from a chart release that predates Loop Runtime omit them; upgrade with --reset-then-reuse-values."
+
+  - it: should render GKE storage and the Sandbox Service configuration
+    values: &values
+      - __fixtures__/base-values.yaml
+      - __fixtures__/loop-runtime-values.yaml
+    asserts:
+      - equal:
+          path: data.BRAINSTORE_INDEX_URI
+          value: gs://test-brainstore-bucket/brainstore/index
+      - equal:
+          path: data.BRAINSTORE_CODE_BUNDLE_URI
+          value: gs://test-api-bucket
+      - equal:
+          path: data.EXO_SANDBOX_SERVICE_DNS_URL
+          value: https://workers.sandbox.internal:9400
+      - equal:
+          path: data.LOOP_RUNTIME_SANDBOX_SERVICE_EGRESS_GATEWAY_URL
+          value: http://loop-egress.sandbox.internal:4002
+      - equal:
+          path: data.LOOP_RUNTIME_SANDBOX_EGRESS_GATEWAY_URL
+          value: http://loop-egress.sandbox.internal:4002
+      - equal:
+          path: data.LOOP_RUNTIME_REDIS_NAMESPACE
+          value: loop-runtime:RELEASE-NAME
+      - equal:
+          path: data.ORG_NAME
+          value: test-org
+      - equal:
+          path: data.LOOP_RUNTIME_ENABLE_SANDBOX_ADMIN
+          value: "false"
+      - equal:
+          path: data.BRAINSTORE_OBJECT_STORE_CACHE_MEMORY_LIMIT
+          value: 256Mi
+      - equal:
+          path: data.LOOP_RUNTIME_MAX_CLAIMED_CONVERSATIONS
+          value: "2"
+      - isNull:
+          path: data.BRAINSTORE_LOCKS_URI
+
+  - it: should allow sandbox administration only when opted in
+    values: *values
+    set:
+      loopRuntime.enableSandboxAdmin: true
+    asserts:
+      - equal:
+          path: data.LOOP_RUNTIME_ENABLE_SANDBOX_ADMIN
+          value: "true"
+
+  - it: should keep sandbox administration disabled for retained null values
+    values: *values
+    set:
+      loopRuntime.enableSandboxAdmin: null
+    asserts:
+      - equal:
+          path: data.LOOP_RUNTIME_ENABLE_SANDBOX_ADMIN
+          value: "false"
+
+  - it: should explain reused values with sandbox overrides but no image defaults
+    values: *values
+    set:
+      loopRuntime.image: null
+    asserts: *missing-defaults
+
+  - it: should explain reused values without service defaults
+    values: *values
+    set:
+      loopRuntime.service: null
+    asserts: *missing-defaults
+
+  - it: should explain reused values without service account defaults
+    values: *values
+    set:
+      loopRuntime.serviceAccount: null
+    asserts: *missing-defaults
+
+  - it: should explain reused values without resource defaults
+    values: *values
+    set:
+      loopRuntime.resources: null
+    asserts: *missing-defaults
+
+  - it: should explain reused values without annotation defaults
+    values: *values
+    set:
+      loopRuntime.annotations: null
+    asserts: *missing-defaults
+
+  - it: should use the configured egress URL for Git authorization and sandbox traffic
+    values: *values
+    set:
+      loopRuntime.sandbox.egressGateway.url: http://custom-egress.internal:4002
+    asserts:
+      - equal:
+          path: data.LOOP_RUNTIME_SANDBOX_EGRESS_GATEWAY_URL
+          value: http://custom-egress.internal:4002
+      - equal:
+          path: data.LOOP_RUNTIME_SANDBOX_SERVICE_EGRESS_GATEWAY_URL
+          value: http://custom-egress.internal:4002
+
+  - it: should serve every org when orgName is empty
+    values: *values
+    set:
+      global.orgName: ""
+    asserts:
+      - equal:
+          path: data.ORG_NAME
+          value: "*"
+
+  - it: should use GCS object storage locks when configured
+    values: *values
+    set:
+      brainstore.locksBackend: objectStorage
+    asserts:
+      - equal:
+          path: data.BRAINSTORE_LOCKS_URI
+          value: gs://test-brainstore-bucket/brainstore/locks
+
+  - it: should reject Loop Runtime on AWS
+    values: *values
+    set:
+      cloud: aws
+    asserts: &not-google
+      - failedTemplate:
+          errorMessage: "loopRuntime.enabled requires cloud: google. On AWS, Loop Runtime runs on ECS through the Terraform module."
+
+  - it: should reject Loop Runtime on Azure
+    values: *values
+    set:
+      cloud: azure
+    asserts: *not-google
+
+  - it: should reject Loop Runtime without a cloud
+    values: *values
+    set:
+      cloud: ""
+    asserts: *not-google
+
+  - it: should require the Google service account
+    values: *values
+    set:
+      loopRuntime.serviceAccount.googleServiceAccount: ""
+    asserts:
+      - failedTemplate:
+          errorMessage: "loopRuntime.serviceAccount.googleServiceAccount is required"
+
+  - it: should require the worker discovery endpoint
+    values: *values
+    set:
+      loopRuntime.sandbox.dnsUrl: null
+    asserts:
+      - failedTemplate:
+          errorMessage: "loopRuntime.sandbox.dnsUrl is required"
+
+  - it: should require the egress address
+    values: *values
+    set:
+      loopRuntime.sandbox.egressGateway.address: ""
+    asserts:
+      - failedTemplate:
+          errorMessage: "loopRuntime.sandbox.egressGateway.address is required"
+
+  - it: should explain a missing egress map
+    values: *values
+    set:
+      loopRuntime.sandbox.egressGateway: null
+    asserts:
+      - failedTemplate:
+          errorMessage: "loopRuntime.sandbox.egressGateway.address is required"
+
+  - it: should require egress source ranges
+    values: *values
+    set:
+      loopRuntime.sandbox.egressGateway.sourceRanges: []
+    asserts:
+      - failedTemplate:
+          errorMessage: "loopRuntime.sandbox.egressGateway.sourceRanges is required"
+
+  - it: should reject a null image tag
+    values: *values
+    set:
+      loopRuntime.image.tag: null
+    asserts:
+      - failedTemplate:
+          errorMessage: "loopRuntime.image.tag is required"
+
+  - it: should require a sandbox image when enabled
+    values: *values
+    set:
+      loopRuntime.sandbox.image: ""
+    asserts: &missing-sandbox-image
+      - failedTemplate:
+          errorMessage: "loopRuntime.sandbox.image is required"
+
+  - it: should require a retained null sandbox image when enabled
+    values: *values
+    set:
+      loopRuntime.sandbox.image: null
+    asserts: *missing-sandbox-image
+
+  - it: should ignore missing sandbox configuration when disabled
+    values: *values
+    set:
+      loopRuntime.enabled: false
+      loopRuntime.sandbox: null
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should require retained null source ranges
+    values: *values
+    set:
+      loopRuntime.sandbox.egressGateway.sourceRanges: null
+    asserts:
+      - failedTemplate:
+          errorMessage: "loopRuntime.sandbox.egressGateway.sourceRanges is required"

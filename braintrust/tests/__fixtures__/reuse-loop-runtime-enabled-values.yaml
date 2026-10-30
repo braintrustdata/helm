@@ -1,0 +1,5 @@
+# Simulate `helm upgrade --reuse-values --set loopRuntime.enabled=true` from a
+# chart that predates Loop Runtime. An explicit null removes the new defaults.
+loopRuntime:
+  enabled: true
+  sandbox: null
