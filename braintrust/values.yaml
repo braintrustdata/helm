@@ -2,7 +2,7 @@
 global:
   orgName: "<your org name on Braintrust>"
   # Required when orgName is empty or "*" unless PRIMARY_ORG_NAME is supplied
-  # via api.extraEnvVars. Used to authorize self-hosted service-token management.
+  # via api.platformEnvVars or api.extraEnvVars. Used to authorize self-hosted service-token management.
   primaryOrgName: ""
   # Optional comma-separated Braintrust Org ID allowlist (IDs, not org names).
   # Do not include spaces. If orgName is a specific name, that org is included
@@ -273,6 +273,9 @@ api:
   # validation may allow even if private or reserved. Hard-blocked metadata,
   # link-local, multicast, unspecified, and future-use ranges remain blocked.
   urlSecurityAllowCidrs: ""
+  # Reserved for the installer (the Terraform module). Hand-edited values belong in extraEnvVars.
+  # Setting platformEnvVars by hand replaces the platform list.
+  platformEnvVars: []
   extraEnvVars:
     # Example:
     # - name: MY_ENV_VAR
@@ -364,6 +367,9 @@ aiGateway:
     timeoutSeconds: 5
     failureThreshold: 3
     successThreshold: 1
+  # Reserved for the installer (the Terraform module). Hand-edited values belong in extraEnvVars.
+  # Setting platformEnvVars by hand replaces the platform list.
+  platformEnvVars: []
   extraEnvVars: []
   nodeSelector: {}
   tolerations: []
@@ -467,6 +473,9 @@ brainstore:
     tmpVolume:
       enabled: false
       sizeLimit: ""
+    # Reserved for the installer (the Terraform module). Hand-edited values belong in extraEnvVars.
+    # Setting platformEnvVars by hand replaces the platform list.
+    platformEnvVars: []
     extraEnvVars: []
     nodeSelector: {}
     tolerations: []
@@ -525,6 +534,9 @@ brainstore:
     tmpVolume:
       enabled: false
       sizeLimit: ""
+    # Reserved for the installer (the Terraform module). Hand-edited values belong in extraEnvVars.
+    # Setting platformEnvVars by hand replaces the platform list.
+    platformEnvVars: []
     extraEnvVars: []
     nodeSelector: {}
     tolerations: []
@@ -584,6 +596,9 @@ brainstore:
     tmpVolume:
       enabled: false
       sizeLimit: ""
+    # Reserved for the installer (the Terraform module). Hand-edited values belong in extraEnvVars.
+    # Setting platformEnvVars by hand replaces the platform list.
+    platformEnvVars: []
     extraEnvVars: []
     # Example:
     # - name: MY_ENV_VAR
@@ -660,6 +675,9 @@ brainstore:
     tmpVolume:
       enabled: false
       sizeLimit: ""
+    # Reserved for the installer (the Terraform module). Hand-edited values belong in extraEnvVars.
+    # Setting platformEnvVars by hand replaces the platform list.
+    platformEnvVars: []
     extraEnvVars: []
     # Example:
     # - name: MY_ENV_VAR

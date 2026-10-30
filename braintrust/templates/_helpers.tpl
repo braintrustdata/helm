@@ -65,16 +65,23 @@ http://{{ .Values.api.service.name | default .Values.api.name }}.{{ include "bra
 
 {{/*
 Build one API pool from the shared api values plus pool-specific overrides.
-Pool extraEnvVars are appended so shared provider configuration is retained.
+Pool platformEnvVars and extraEnvVars are appended so shared provider
+configuration is retained. platformEnvVars stay ahead of extraEnvVars.
+The kubelet keeps the last duplicate env name, so a user extraEnvVars
+entry overrides a platformEnvVars entry of the same name.
 */}}
 {{- define "braintrust.apiPoolConfig" -}}
 {{- $base := deepCopy .root.Values.api -}}
 {{- $_ := unset $base "workloadIsolation" -}}
 {{- $overrides := deepCopy (.overrides | default dict) -}}
+{{- $basePlatformEnvVars := get $base "platformEnvVars" | default (list) -}}
+{{- $poolPlatformEnvVars := get $overrides "platformEnvVars" | default (list) -}}
+{{- $_ := unset $overrides "platformEnvVars" -}}
 {{- $baseExtraEnvVars := get $base "extraEnvVars" | default (list) -}}
 {{- $poolExtraEnvVars := get $overrides "extraEnvVars" | default (list) -}}
 {{- $_ := unset $overrides "extraEnvVars" -}}
 {{- $pool := mergeOverwrite $base $overrides -}}
+{{- $_ := set $pool "platformEnvVars" (concat $basePlatformEnvVars $poolPlatformEnvVars) -}}
 {{- $_ := set $pool "extraEnvVars" (concat $baseExtraEnvVars $poolExtraEnvVars) -}}
 {{- toYaml $pool -}}
 {{- end -}}
@@ -238,6 +245,7 @@ ephemeralStorage:
 tmpVolume:
   enabled: false
   sizeLimit: ""
+platformEnvVars: []
 extraEnvVars: []
 nodeSelector: {}
 tolerations: []
