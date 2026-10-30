@@ -606,9 +606,7 @@ brainstore:
   # When enabled (replicas > 0), the regular writer pool is automatically
   # configured to exclude automations, and the API receives this pool's query
   # endpoint. A compatible API release decides which queries use the endpoint.
-  # Disabled by default (replicas: 0), preserving existing deployments.
-  # This option is not recommended for most
-  # deployments; enable it only with guidance from Braintrust support.
+  # Defaults to two replicas. Set replicas: 0 to run automations on regular writers.
   automationwriter:
     name: "brainstore-automationwriter"
     labels: {}
@@ -618,7 +616,7 @@ brainstore:
       deployment: {}
       service: {}
       pod: {}
-    replicas: 0
+    replicas: 2
     minReadySeconds: 0
     progressDeadlineSeconds: 600
     strategy:

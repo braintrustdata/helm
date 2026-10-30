@@ -46,6 +46,8 @@ api:
   affinity: {}
 
 brainstore:
+  automationwriter:
+    replicas: 0
   serviceAccount:
     name: "brainstore"
     awsRoleArn: "arn:aws:iam::123456789012:role/test-role"

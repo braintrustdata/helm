@@ -1,0 +1,33 @@
+suite: test default automation writer isolation
+templates:
+  - brainstore-automationwriter-deployment.yaml
+  - brainstore-automationwriter-configmap.yaml
+  - brainstore-writer-configmap.yaml
+  - api-configmap.yaml
+tests:
+  - it: should run two dedicated automation writers by default
+    template: brainstore-automationwriter-deployment.yaml
+    asserts:
+      - equal:
+          path: spec.replicas
+          value: 2
+  - it: should run only automations on the dedicated pool by default
+    template: brainstore-automationwriter-configmap.yaml
+    asserts:
+      - equal:
+          path: data.BRAINSTORE_WRITER_LOOP_CONFIG
+          value: include:automations
+  - it: should exclude automations from regular writers by default
+    template: brainstore-writer-configmap.yaml
+    asserts:
+      - equal:
+          path: data.BRAINSTORE_WRITER_LOOP_CONFIG
+          value: exclude:automations
+  - it: should route automation queries to the dedicated pool by default
+    template: api-configmap.yaml
+    release:
+      namespace: braintrust
+    asserts:
+      - equal:
+          path: data.BRAINSTORE_AUTOMATION_WRITER_URL
+          value: http://brainstore-automationwriter.braintrust:4000

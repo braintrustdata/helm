@@ -39,6 +39,8 @@ api:
   affinity: {}
 
 brainstore:
+  automationwriter:
+    replicas: 0
   serviceAccount:
     name: "brainstore"
     annotations: {}

@@ -5,6 +5,8 @@ templates:
   - brainstore-startup-gate-rbac.yaml
 tests:
   - it: should preserve writer fallback when the pool is disabled
+    set:
+      brainstore.automationwriter.replicas: 0
     template: api-configmap.yaml
     asserts: &fallback
       - isNull:
