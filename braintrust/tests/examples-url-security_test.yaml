@@ -1,0 +1,50 @@
+suite: examples start on reject URL-security mode
+templates:
+  - api-configmap.yaml
+  - ai-gateway-configmap.yaml
+tests:
+  - it: google-standard example renders reject
+    template: api-configmap.yaml
+    values:
+      - ../examples/google-standard/values.yaml
+    release:
+      namespace: "braintrust"
+    asserts:
+      - equal:
+          path: data.BRAINTRUST_UNSAFE_URL_REQUEST_MODE
+          value: "reject"
+
+  - it: google-autopilot example renders reject
+    template: api-configmap.yaml
+    values:
+      - ../examples/google-autopilot/values.yaml
+    release:
+      namespace: "braintrust"
+    asserts:
+      - equal:
+          path: data.BRAINTRUST_UNSAFE_URL_REQUEST_MODE
+          value: "reject"
+
+  - it: google-autopilot-cel example renders reject
+    template: api-configmap.yaml
+    values:
+      - ../examples/google-autopilot-cel/values.yaml
+    release:
+      namespace: "braintrust"
+    asserts:
+      - equal:
+          path: data.BRAINTRUST_UNSAFE_URL_REQUEST_MODE
+          value: "reject"
+
+  - it: AI Gateway uses the same mode when enabled on an example
+    template: ai-gateway-configmap.yaml
+    values:
+      - ../examples/google-autopilot/values.yaml
+    set:
+      aiGateway.enabled: true
+    release:
+      namespace: "braintrust"
+    asserts:
+      - equal:
+          path: data.BRAINTRUST_UNSAFE_URL_REQUEST_MODE
+          value: "reject"

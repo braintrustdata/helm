@@ -57,6 +57,13 @@ api:
   tmpVolume:
     enabled: true
     sizeLimit: "1Gi"
+  # Block user-supplied URLs that resolve to private or reserved addresses,
+  # including in-cluster Services and Brainstore. Leaving this empty uses the
+  # application default of "warn", which logs and allows them. If users need a
+  # private destination such as a self-hosted model, expose it through a GKE
+  # internal load balancer and allow-list that IP as a /32 in
+  # urlSecurityAllowCidrs. Never allow-list Pod, Service, or Brainstore ranges.
+  unsafeUrlRequestMode: "reject"
   extraEnvVars:
     - name: AWS_REGION
       value: "us-central1"
