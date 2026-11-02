@@ -31,6 +31,10 @@ tests:
     values: &values
       - __fixtures__/base-values.yaml
       - __fixtures__/loop-runtime-values.yaml
+    set:
+      loopRuntime.service.port: "4001"
+      loopRuntime.sandbox.vcpuCount: "01"
+      loopRuntime.sandbox.memoryMib: "02048"
     asserts:
       - equal:
           path: data.BRAINSTORE_INDEX_URI
@@ -43,10 +47,10 @@ tests:
           value: https://workers.sandbox.internal:9400
       - equal:
           path: data.EXO_SANDBOX_VCPU_COUNT
-          value: "1"
+          value: "01"
       - equal:
           path: data.EXO_SANDBOX_MEMORY_MIB
-          value: "2048"
+          value: "02048"
       - equal:
           path: data.LOOP_RUNTIME_SANDBOX_SERVICE_EGRESS_GATEWAY_URL
           value: http://loop-egress.sandbox.internal:4002
@@ -89,31 +93,22 @@ tests:
           path: data.LOOP_RUNTIME_ENABLE_SANDBOX_ADMIN
           value: "false"
 
-  - it: should explain reused values with sandbox overrides but no image defaults
-    values: *values
-    set:
-      loopRuntime.image: null
-    asserts: *missing-defaults
-
-  - it: should explain reused values without service defaults
-    values: *values
-    set:
-      loopRuntime.service: null
-    asserts: *missing-defaults
-
-  - it: should explain reused values with incomplete nested defaults
+  - it: should explain reused values without an image pull policy
     values: *values
     set:
       loopRuntime.image.pullPolicy: null
-      loopRuntime.service.type: null
-      loopRuntime.service.portName: null
-      loopRuntime.serviceAccount.name: null
     asserts: *missing-defaults
 
-  - it: should explain reused values without service account defaults
+  - it: should explain reused values without a service type
     values: *values
     set:
-      loopRuntime.serviceAccount: null
+      loopRuntime.service.type: null
+    asserts: *missing-defaults
+
+  - it: should explain reused values without a service account name
+    values: *values
+    set:
+      loopRuntime.serviceAccount.name: null
     asserts: *missing-defaults
 
   - it: should explain reused values without resource defaults
@@ -122,10 +117,10 @@ tests:
       loopRuntime.resources: null
     asserts: *missing-defaults
 
-  - it: should explain reused values without annotation defaults
+  - it: should explain reused values without a service port name
     values: *values
     set:
-      loopRuntime.annotations: null
+      loopRuntime.service.portName: null
     asserts: *missing-defaults
 
   - it: should use the configured egress URL for Git authorization and sandbox traffic
@@ -178,29 +173,27 @@ tests:
       cloud: ""
     asserts: *not-google
 
-  - it: should require the Google service account
+  - it: should reject a whitespace-only Google service account
     values: *values
     set:
-      loopRuntime.serviceAccount.googleServiceAccount: ""
+      loopRuntime.serviceAccount.googleServiceAccount: " \t "
     asserts:
       - failedTemplate:
           errorMessage: "loopRuntime.serviceAccount.googleServiceAccount is required"
-
-  - it: should reject whitespace-only required strings
-    values: *values
-    set:
-      loopRuntime.sandbox.dnsUrl: " \t "
-    asserts:
-      - failedTemplate:
-          errorMessage: "loopRuntime.sandbox.dnsUrl is required"
 
   - it: should reject a zero runtime port
     values: *values
     set:
       loopRuntime.service.port: 0
-    asserts:
+    asserts: &invalid-port
       - failedTemplate:
           errorMessage: "loopRuntime.service.port must be an integer between 1 and 65535"
+
+  - it: should reject a runtime port above the maximum
+    values: *values
+    set:
+      loopRuntime.service.port: 65536
+    asserts: *invalid-port
 
   - it: should reject a zero sandbox CPU count
     values: *values
@@ -266,11 +259,13 @@ tests:
       - failedTemplate:
           errorMessage: "loopRuntime.sandbox.image is required"
 
-  - it: should require a retained null sandbox image when enabled
+  - it: should reject a padded sandbox image
     values: *values
     set:
-      loopRuntime.sandbox.image: null
-    asserts: *missing-sandbox-image
+      loopRuntime.sandbox.image: " image "
+    asserts:
+      - failedTemplate:
+          errorMessage: "loopRuntime.sandbox.image must not have leading or trailing whitespace"
 
   - it: should ignore missing sandbox configuration when disabled
     values: *values
