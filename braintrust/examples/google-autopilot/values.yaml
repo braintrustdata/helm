@@ -61,6 +61,7 @@ api:
     limits:
       cpu: "4"
       memory: "8Gi"
+  unsafeUrlRequestMode: "reject"
   extraEnvVars:
     # For S3-compatible GCS Storage, set the AWS_REGION environment variable to the region of your GCS bucket
     - name: AWS_REGION

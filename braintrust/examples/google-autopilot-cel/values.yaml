@@ -57,6 +57,7 @@ api:
   tmpVolume:
     enabled: true
     sizeLimit: "1Gi"
+  unsafeUrlRequestMode: "reject"
   extraEnvVars:
     - name: AWS_REGION
       value: "us-central1"
