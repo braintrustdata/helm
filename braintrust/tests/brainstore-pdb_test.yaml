@@ -1,0 +1,214 @@
+suite: API and Brainstore disruption budgets
+templates:
+  - brainstore-pdb.yaml
+  - api-pdb.yaml
+tests:
+  - it: leaves all PDBs absent by default
+    asserts: &absent
+      - hasDocuments:
+          count: 0
+  - it: enables only the selected role and preserves a zero budget
+    template: brainstore-pdb.yaml
+    release:
+      namespace: custom-namespace
+    set:
+      brainstore.writer.name: custom-writer
+      brainstore.writer.podDisruptionBudget.enabled: true
+      brainstore.writer.podDisruptionBudget.maxUnavailable: 0
+      global.namespace: custom-namespace
+    asserts:
+      - hasDocuments:
+          count: 1
+      - equal:
+          path: metadata.namespace
+          value: custom-namespace
+      - equal:
+          path: spec.selector.matchLabels.app
+          value: custom-writer
+      - equal:
+          path: spec.maxUnavailable
+          value: 0
+      - notExists:
+          path: spec.minAvailable
+  - it: omits budgets when reused values have no budget maps
+    values: &reused-values
+      - __fixtures__/pre-brainstore-pdb-values.yaml
+    asserts: *absent
+  - it: omits budgets for reused values on aws
+    values: *reused-values
+    set:
+      cloud: aws
+    asserts: *absent
+  - it: omits budgets for reused values on azure
+    values: *reused-values
+    set:
+      cloud: azure
+    asserts: *absent
+  - it: omits budgets for reused values on google
+    values: *reused-values
+    set:
+      cloud: google
+    asserts: *absent
+  - it: defaults maxUnavailable for a partial budget on reused values
+    template: brainstore-pdb.yaml
+    values: *reused-values
+    set:
+      brainstore.reader.podDisruptionBudget.enabled: true
+    asserts: &one-unavailable
+      - hasDocuments:
+          count: 1
+      - equal:
+          path: spec.maxUnavailable
+          value: 1
+  - it: defaults a null maxUnavailable
+    template: brainstore-pdb.yaml
+    set:
+      brainstore.writer.podDisruptionBudget.enabled: true
+      brainstore.writer.podDisruptionBudget.maxUnavailable: null
+    asserts: *one-unavailable
+  - it: keeps labels isolated between roles
+    template: brainstore-pdb.yaml
+    set:
+      global.labels.shared: global
+      brainstore.reader.labels.readerOnly: reader
+      brainstore.writer.labels.writerOnly: writer
+      brainstore.reader.podDisruptionBudget.enabled: true
+      brainstore.writer.podDisruptionBudget.enabled: true
+    asserts:
+      - hasDocuments:
+          count: 2
+      - equal:
+          path: metadata.labels.readerOnly
+          value: reader
+        documentIndex: 0
+      - notExists:
+          path: metadata.labels.writerOnly
+        documentIndex: 0
+      - equal:
+          path: metadata.labels.writerOnly
+          value: writer
+        documentIndex: 1
+      - notExists:
+          path: metadata.labels.readerOnly
+        documentIndex: 1
+      - equal:
+          path: metadata.labels.shared
+          value: global
+        documentIndex: 1
+  - it: enables all roles in the GKE Standard example
+    template: brainstore-pdb.yaml
+    values:
+      - ../examples/google-standard/values.yaml
+    asserts:
+      - hasDocuments:
+          count: 3
+      - equal:
+          path: spec.maxUnavailable
+          value: 1
+        documentIndex: 0
+      - equal:
+          path: spec.maxUnavailable
+          value: 1
+        documentIndex: 1
+      - equal:
+          path: spec.maxUnavailable
+          value: 1
+        documentIndex: 2
+  - it: uses the API maximum budget in the GKE Standard example
+    template: api-pdb.yaml
+    values:
+      - ../examples/google-standard/values.yaml
+    asserts:
+      - equal:
+          path: spec.maxUnavailable
+          value: 1
+      - notExists:
+          path: spec.minAvailable
+  - it: preserves the existing API minimum budget
+    template: api-pdb.yaml
+    set:
+      api.podDisruptionBudget.enabled: true
+      api.podDisruptionBudget.minAvailable: 2
+    asserts: &api-minimum
+      - equal:
+          path: spec.minAvailable
+          value: 2
+      - notExists:
+          path: spec.maxUnavailable
+  - it: falls back to the API minimum when maxUnavailable is null
+    template: api-pdb.yaml
+    set:
+      cloud: google
+      api.podDisruptionBudget.enabled: true
+      api.podDisruptionBudget.minAvailable: 2
+      api.podDisruptionBudget.maxUnavailable: null
+    asserts: *api-minimum
+  - it: preserves an explicit zero API maximum over the minimum
+    template: api-pdb.yaml
+    set:
+      cloud: aws
+      api.podDisruptionBudget.enabled: true
+      api.podDisruptionBudget.maxUnavailable: 0
+    asserts:
+      - equal:
+          path: spec.maxUnavailable
+          value: 0
+      - notExists:
+          path: spec.minAvailable
+  - it: leaves an empty API maximum for Kubernetes to validate
+    template: api-pdb.yaml
+    set:
+      api.podDisruptionBudget.enabled: true
+      api.podDisruptionBudget.maxUnavailable: ""
+    asserts:
+      - equal:
+          path: spec.maxUnavailable
+          value: ""
+      - notExists:
+          path: spec.minAvailable
+  - it: lets an isolated pool clear an inherited API maximum
+    template: api-pdb.yaml
+    set:
+      api.podDisruptionBudget.maxUnavailable: 1
+      api.workloadIsolation.enabled: true
+      api.workloadIsolation.background.podDisruptionBudget.maxUnavailable: null
+      api.workloadIsolation.background.podDisruptionBudget.minAvailable: 2
+    asserts:
+      - hasDocuments:
+          count: 2
+      - equal:
+          path: spec.maxUnavailable
+          value: 1
+        documentIndex: 0
+      - equal:
+          path: spec.minAvailable
+          value: 2
+        documentIndex: 1
+      - notExists:
+          path: spec.maxUnavailable
+        documentIndex: 1
+  - it: supports optional budgets on aws
+    set: &percentage-budgets
+      cloud: aws
+      brainstore.reader.podDisruptionBudget.enabled: true
+      brainstore.reader.podDisruptionBudget.maxUnavailable: "25%"
+      api.podDisruptionBudget.enabled: true
+      api.podDisruptionBudget.maxUnavailable: "25%"
+    asserts: &percentage
+      - hasDocuments:
+          count: 1
+      - equal:
+          path: spec.maxUnavailable
+          value: "25%"
+      - notExists:
+          path: spec.minAvailable
+  - it: supports optional budgets on azure
+    set:
+      <<: *percentage-budgets
+      cloud: azure
+    asserts: *percentage
+  - it: supports optional budgets on google
+    set:
+      <<: *percentage-budgets
+      cloud: google
+    asserts: *percentage
