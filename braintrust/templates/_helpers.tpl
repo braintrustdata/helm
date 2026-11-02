@@ -157,25 +157,52 @@ predates Loop Runtime have no loopRuntime map, which means disabled.
 {{/* Validate the Loop Runtime configuration. */}}
 {{- define "braintrust.loopRuntime.validate" -}}
 {{- if include "braintrust.loopRuntime.enabled" . -}}
-{{- range $key := list "sandbox" "image" "service" "serviceAccount" "resources" "annotations" -}}
-{{- if not (kindIs "map" (get $.Values.loopRuntime $key)) -}}
-{{- fail "loopRuntime defaults are missing. Values reused from a chart release that predates Loop Runtime omit them; upgrade with --reset-then-reuse-values." -}}
+{{- $runtime := .Values.loopRuntime -}}
+{{- $missingDefaults := "loopRuntime defaults are missing. Values reused from a chart release that predates Loop Runtime omit them; upgrade with --reset-then-reuse-values." -}}
+{{- range $key := list "sandbox" "image" "service" "serviceAccount" "resources" "annotations" "labels" "podLabels" -}}
+{{- if not (kindIs "map" (get $runtime $key)) -}}
+{{- fail $missingDefaults -}}
 {{- end -}}
 {{- end -}}
 {{- if ne .Values.cloud "google" -}}
 {{- fail "loopRuntime.enabled requires cloud: google. On AWS, Loop Runtime runs on ECS through the Terraform module." -}}
 {{- end -}}
-{{- $sandbox := .Values.loopRuntime.sandbox -}}
+{{- /* Reused values can provide each outer map while still omitting nested defaults. */ -}}
+{{- range $value := list $runtime.name $runtime.image.pullPolicy $runtime.service.type $runtime.service.portName $runtime.serviceAccount.name -}}
+{{- if or (not (kindIs "string" $value)) (eq (trim (toString $value)) "") (ne (toString $value) (trim (toString $value))) -}}
+{{- fail $missingDefaults -}}
+{{- end -}}
+{{- end -}}
+{{- $port := toString $runtime.service.port -}}
+{{- if or (not (regexMatch "^[1-9][0-9]{0,4}$" $port)) (gt (int $port) 65535) -}}
+{{- fail "loopRuntime.service.port must be an integer between 1 and 65535" -}}
+{{- end -}}
+{{- $sandbox := $runtime.sandbox -}}
+{{- range $field := list "vcpuCount" "memoryMib" -}}
+{{- if not (regexMatch "^0*[1-9][0-9]*$" (toString (index $sandbox $field))) -}}
+{{- fail (printf "loopRuntime.sandbox.%s must be a positive integer" $field) -}}
+{{- end -}}
+{{- end -}}
 {{- $egress := $sandbox.egressGateway | default dict -}}
 {{- $_ := required "objectStorage.google.brainstoreBucket is required" .Values.objectStorage.google.brainstoreBucket -}}
 {{- $_ := required "objectStorage.google.apiBucket is required" .Values.objectStorage.google.apiBucket -}}
-{{- $_ := required "loopRuntime.image.repository is required" .Values.loopRuntime.image.repository -}}
-{{- $_ := required "loopRuntime.image.tag is required" (.Values.loopRuntime.image.tag | default "" | toString) -}}
-{{- $_ := required "loopRuntime.serviceAccount.googleServiceAccount is required" .Values.loopRuntime.serviceAccount.googleServiceAccount -}}
-{{- $_ := required "loopRuntime.sandbox.dnsUrl is required" $sandbox.dnsUrl -}}
-{{- $_ := required "loopRuntime.sandbox.image is required" $sandbox.image -}}
-{{- $_ := required "loopRuntime.sandbox.egressGateway.address is required" $egress.address -}}
-{{- $_ := required "loopRuntime.sandbox.egressGateway.url is required" $egress.url -}}
+{{- range $path, $value := dict
+  "loopRuntime.image.repository" $runtime.image.repository
+  "loopRuntime.image.tag" ($runtime.image.tag | default "" | toString)
+  "loopRuntime.serviceAccount.googleServiceAccount" $runtime.serviceAccount.googleServiceAccount
+  "loopRuntime.sandbox.dnsUrl" $sandbox.dnsUrl
+  "loopRuntime.sandbox.image" $sandbox.image
+  "loopRuntime.sandbox.egressGateway.address" $egress.address
+  "loopRuntime.sandbox.egressGateway.url" $egress.url
+-}}
+{{- if or (not (kindIs "string" $value)) (eq (trim (toString $value)) "") -}}
+{{- fail (printf "%s is required" $path) -}}
+{{- end -}}
+{{- /* Padding would otherwise be rendered into identities and endpoints unchanged. */ -}}
+{{- if ne $value (trim $value) -}}
+{{- fail (printf "%s must not have leading or trailing whitespace" $path) -}}
+{{- end -}}
+{{- end -}}
 {{- if not $egress.sourceRanges -}}
 {{- fail "loopRuntime.sandbox.egressGateway.sourceRanges is required" -}}
 {{- end -}}

@@ -42,6 +42,12 @@ tests:
           path: data.EXO_SANDBOX_SERVICE_DNS_URL
           value: https://workers.sandbox.internal:9400
       - equal:
+          path: data.EXO_SANDBOX_VCPU_COUNT
+          value: "1"
+      - equal:
+          path: data.EXO_SANDBOX_MEMORY_MIB
+          value: "2048"
+      - equal:
           path: data.LOOP_RUNTIME_SANDBOX_SERVICE_EGRESS_GATEWAY_URL
           value: http://loop-egress.sandbox.internal:4002
       - equal:
@@ -93,6 +99,15 @@ tests:
     values: *values
     set:
       loopRuntime.service: null
+    asserts: *missing-defaults
+
+  - it: should explain reused values with incomplete nested defaults
+    values: *values
+    set:
+      loopRuntime.image.pullPolicy: null
+      loopRuntime.service.type: null
+      loopRuntime.service.portName: null
+      loopRuntime.serviceAccount.name: null
     asserts: *missing-defaults
 
   - it: should explain reused values without service account defaults
@@ -171,6 +186,38 @@ tests:
       - failedTemplate:
           errorMessage: "loopRuntime.serviceAccount.googleServiceAccount is required"
 
+  - it: should reject whitespace-only required strings
+    values: *values
+    set:
+      loopRuntime.sandbox.dnsUrl: " \t "
+    asserts:
+      - failedTemplate:
+          errorMessage: "loopRuntime.sandbox.dnsUrl is required"
+
+  - it: should reject a zero runtime port
+    values: *values
+    set:
+      loopRuntime.service.port: 0
+    asserts:
+      - failedTemplate:
+          errorMessage: "loopRuntime.service.port must be an integer between 1 and 65535"
+
+  - it: should reject a zero sandbox CPU count
+    values: *values
+    set:
+      loopRuntime.sandbox.vcpuCount: 0
+    asserts:
+      - failedTemplate:
+          errorMessage: "loopRuntime.sandbox.vcpuCount must be a positive integer"
+
+  - it: should reject a zero sandbox memory size
+    values: *values
+    set:
+      loopRuntime.sandbox.memoryMib: 0
+    asserts:
+      - failedTemplate:
+          errorMessage: "loopRuntime.sandbox.memoryMib must be a positive integer"
+
   - it: should require the worker discovery endpoint
     values: *values
     set:
@@ -230,6 +277,9 @@ tests:
     set:
       loopRuntime.enabled: false
       loopRuntime.sandbox: null
+      loopRuntime.service.port: 0
+      loopRuntime.image.pullPolicy: null
+      loopRuntime.serviceAccount.googleServiceAccount: " "
     asserts:
       - hasDocuments:
           count: 0

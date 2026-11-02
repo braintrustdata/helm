@@ -9,17 +9,19 @@ tests:
       - hasDocuments:
           count: 0
 
-  - it: should expose the runtime port through a ClusterIP service
+  - it: should expose the minimum runtime port through a ClusterIP service
     values:
       - __fixtures__/base-values.yaml
       - __fixtures__/loop-runtime-values.yaml
+    set:
+      loopRuntime.service.port: 1
     asserts:
       - equal:
           path: metadata.name
           value: braintrust-loop-runtime
       - equal:
           path: spec.ports[0].port
-          value: 4001
+          value: 1
       - equal:
           path: spec.type
           value: ClusterIP

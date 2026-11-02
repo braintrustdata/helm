@@ -60,15 +60,15 @@ tests:
     template: loop-runtime-deployment.yaml
     values: *values
     set:
-      loopRuntime.service.port: 4888
+      loopRuntime.service.port: 65535
       loopRuntime.service.portName: runtime
     asserts:
       - equal:
           path: spec.template.spec.containers[0].livenessProbe.httpGet.port
-          value: 4888
+          value: 65535
       - equal:
           path: spec.template.spec.containers[0].readinessProbe.httpGet.port
-          value: 4888
+          value: 65535
 
   - it: should preserve explicit numeric and named HTTP probe ports
     template: loop-runtime-deployment.yaml
