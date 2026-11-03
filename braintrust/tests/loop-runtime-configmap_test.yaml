@@ -78,6 +78,38 @@ tests:
       - isNull:
           path: data.BRAINSTORE_LOCKS_URI
 
+  - it: should enable runtime metrics and traces with the chart telemetry defaults
+    values:
+      - __fixtures__/loop-runtime-values.yaml
+    asserts:
+      - equal:
+          path: data.BRAINSTORE_CONTROL_PLANE_TELEMETRY
+          value: status,metrics,usage,metrics,traces
+
+  - it: should preserve custom telemetry signals alongside runtime metrics and traces
+    values: *values
+    set:
+      global.controlPlaneTelemetry: status,logs
+    asserts:
+      - equal:
+          path: data.BRAINSTORE_CONTROL_PLANE_TELEMETRY
+          value: status,logs,metrics,traces
+
+  - it: should enable runtime metrics and traces when global telemetry is empty
+    values: *values
+    set:
+      global.controlPlaneTelemetry: ""
+    asserts: &runtime-telemetry
+      - equal:
+          path: data.BRAINSTORE_CONTROL_PLANE_TELEMETRY
+          value: metrics,traces
+
+  - it: should enable runtime metrics and traces when retained global telemetry is null
+    values: *values
+    set:
+      global.controlPlaneTelemetry: null
+    asserts: *runtime-telemetry
+
   - it: should allow sandbox administration only when opted in
     values: *values
     set:

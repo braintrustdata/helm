@@ -39,7 +39,7 @@ data:
   BRAINSTORE_OBJECT_STORE_CACHE_FILE_SIZE: 5Gi
   BRAINSTORE_OBJECT_STORE_CACHE_MEMORY_LIMIT: 256Mi
   LOOP_RUNTIME_MAX_CLAIMED_CONVERSATIONS: "2"
-  BRAINSTORE_CONTROL_PLANE_TELEMETRY: {{ .Values.global.controlPlaneTelemetry | quote }}
+  BRAINSTORE_CONTROL_PLANE_TELEMETRY: {{ list .Values.global.controlPlaneTelemetry "metrics" "traces" | compact | join "," | quote }}
   NO_COLOR: "1"
   EXO_SANDBOX_SERVICE_DNS_URL: {{ $sandbox.dnsUrl | quote }}
   EXO_SANDBOX_SERVICE_IMAGE: {{ $sandbox.image | quote }}
