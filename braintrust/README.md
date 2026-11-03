@@ -280,20 +280,9 @@ When enabled for a pool, that pool's `replicas` setting is ignored and the HPA c
 
 ## AI Gateway Autoscaling
 
-When the AI Gateway is enabled, it autoscales by default. An HPA scales the `ai-gateway` container on CPU and memory with the same defaults as the AWS module: 2-6 replicas at 70% CPU and 75% memory.
+The AI Gateway autoscales by default. An HPA runs 2-6 replicas at 70% CPU and 75% memory, the same as the AWS module. It needs metrics-server, which GKE and AKS include; without it the gateway stays at 2. Set `aiGateway.autoscaling.enabled: false` to use a fixed `aiGateway.replicas`.
 
-The HPA needs metrics-server. GKE and AKS include it; on EKS, [install it](https://github.com/kubernetes-sigs/metrics-server). Without it, the gateway stays at `minReplicas`.
-
-```yaml
-aiGateway:
-  autoscaling:
-    minReplicas: 2
-    maxReplicas: 6
-```
-
-The targets are percentages of `aiGateway.resources.requests`, so the chart requires CPU and memory requests while autoscaling is on. Set `aiGateway.autoscaling.enabled: false` to use a fixed `aiGateway.replicas` instead.
-
-On a release that already runs the gateway, the upgrade that turns on autoscaling drops the gateway to 1 replica for about 15 seconds until the HPA scales it back up.
+Turning on autoscaling for a running gateway briefly drops it to 1 replica until the HPA scales it back up.
 
 ## API workload isolation
 

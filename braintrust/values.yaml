@@ -326,9 +326,7 @@ aiGateway:
     pod: {}
   # Ignored when autoscaling.enabled is true.
   replicas: 2
-  # HPA on ai-gateway container CPU and memory, matching the AWS module's
-  # gateway ECS service. Needs metrics-server; without it the HPA holds
-  # minReplicas.
+  # Needs metrics-server; without it the HPA holds minReplicas.
   autoscaling:
     enabled: true
     minReplicas: 2
