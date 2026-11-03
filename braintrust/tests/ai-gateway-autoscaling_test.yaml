@@ -1,0 +1,375 @@
+suite: AI Gateway autoscaling and disruption budget
+templates:
+  - ai-gateway-hpa.yaml
+  - ai-gateway-pdb.yaml
+  - ai-gateway-deployment.yaml
+  - ai-gateway-configmap.yaml
+values:
+  - __fixtures__/base-values.yaml
+release:
+  namespace: braintrust
+tests:
+  - it: renders no HPA or PDB when the gateway is disabled, even if both are enabled
+    set:
+      aiGateway.autoscaling.enabled: true
+      aiGateway.podDisruptionBudget.enabled: true
+    template: ai-gateway-hpa.yaml
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: renders no PDB when the gateway is disabled
+    set:
+      aiGateway.podDisruptionBudget.enabled: true
+    template: ai-gateway-pdb.yaml
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: renders no HPA by default
+    set:
+      aiGateway.enabled: true
+    template: ai-gateway-hpa.yaml
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: renders no PDB by default
+    set:
+      aiGateway.enabled: true
+    template: ai-gateway-pdb.yaml
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: keeps fixed replicas on the deployment by default
+    set:
+      aiGateway.enabled: true
+      aiGateway.replicas: 3
+    template: ai-gateway-deployment.yaml
+    asserts:
+      - equal:
+          path: spec.replicas
+          value: 3
+
+  - it: renders an HPA with AWS-parity defaults when enabled
+    set:
+      aiGateway.enabled: true
+      aiGateway.autoscaling.enabled: true
+    template: ai-gateway-hpa.yaml
+    asserts:
+      - hasDocuments:
+          count: 1
+      - isKind:
+          of: HorizontalPodAutoscaler
+      - isAPIVersion:
+          of: autoscaling/v2
+      - equal:
+          path: metadata.name
+          value: braintrust-ai-gateway
+      - equal:
+          path: metadata.namespace
+          value: braintrust
+      - equal:
+          path: spec.scaleTargetRef
+          value:
+            apiVersion: apps/v1
+            kind: Deployment
+            name: braintrust-ai-gateway
+      - equal:
+          path: spec.minReplicas
+          value: 2
+      - equal:
+          path: spec.maxReplicas
+          value: 6
+      - equal:
+          path: spec.metrics
+          value:
+            - type: ContainerResource
+              containerResource:
+                name: cpu
+                container: ai-gateway
+                target:
+                  type: Utilization
+                  averageUtilization: 70
+            - type: ContainerResource
+              containerResource:
+                name: memory
+                container: ai-gateway
+                target:
+                  type: Utilization
+                  averageUtilization: 75
+      - equal:
+          path: spec.behavior
+          value:
+            scaleDown:
+              stabilizationWindowSeconds: 300
+            scaleUp:
+              stabilizationWindowSeconds: 60
+      - notExists:
+          path: metadata.annotations
+
+  - it: omits fixed replicas from the deployment when autoscaling is enabled
+    set:
+      aiGateway.enabled: true
+      aiGateway.autoscaling.enabled: true
+    template: ai-gateway-deployment.yaml
+    asserts:
+      - notExists:
+          path: spec.replicas
+
+  - it: applies custom bounds, targets, behavior, names, labels, and annotations
+    set:
+      aiGateway.enabled: true
+      aiGateway.name: custom-gateway
+      aiGateway.labels:
+        team: gateway
+      global.labels:
+        env: test
+      aiGateway.annotations.hpa:
+        example.com/owner: gateway
+      aiGateway.autoscaling:
+        enabled: true
+        minReplicas: 4
+        maxReplicas: 40
+        cpu:
+          targetAverageUtilization: 60
+        memory:
+          targetAverageUtilization: 80
+        behavior:
+          scaleUp:
+            stabilizationWindowSeconds: 0
+    template: ai-gateway-hpa.yaml
+    asserts:
+      - equal:
+          path: metadata.name
+          value: custom-gateway
+      - equal:
+          path: spec.scaleTargetRef.name
+          value: custom-gateway
+      - equal:
+          path: metadata.labels
+          value:
+            team: gateway
+            env: test
+      - equal:
+          path: metadata.annotations
+          value:
+            example.com/owner: gateway
+      - equal:
+          path: spec.minReplicas
+          value: 4
+      - equal:
+          path: spec.maxReplicas
+          value: 40
+      - equal:
+          path: spec.metrics[0].containerResource.target.averageUtilization
+          value: 60
+      - equal:
+          path: spec.metrics[1].containerResource.target.averageUtilization
+          value: 80
+      - equal:
+          path: spec.behavior.scaleUp.stabilizationWindowSeconds
+          value: 0
+
+  - it: uses the managed namespace when the chart creates it
+    set:
+      aiGateway.enabled: true
+      aiGateway.autoscaling.enabled: true
+      global.createNamespace: true
+      global.namespace: custom-namespace
+    template: ai-gateway-hpa.yaml
+    asserts:
+      - equal:
+          path: metadata.namespace
+          value: custom-namespace
+
+  - it: rejects zero minReplicas
+    set:
+      aiGateway.enabled: true
+      aiGateway.autoscaling.enabled: true
+      aiGateway.autoscaling.minReplicas: 0
+    template: ai-gateway-hpa.yaml
+    asserts:
+      - failedTemplate:
+          errorMessage: "aiGateway.autoscaling.minReplicas must be at least 1"
+
+  - it: rejects maxReplicas below minReplicas
+    set:
+      aiGateway.enabled: true
+      aiGateway.autoscaling.enabled: true
+      aiGateway.autoscaling.minReplicas: 4
+      aiGateway.autoscaling.maxReplicas: 3
+    template: ai-gateway-hpa.yaml
+    asserts:
+      - failedTemplate:
+          errorMessage: "aiGateway.autoscaling.maxReplicas must be greater than or equal to aiGateway.autoscaling.minReplicas"
+
+  - it: does not validate bounds while autoscaling is disabled
+    set:
+      aiGateway.enabled: true
+      aiGateway.autoscaling.minReplicas: 0
+    template: ai-gateway-deployment.yaml
+    asserts:
+      - equal:
+          path: spec.replicas
+          value: 2
+
+  - it: keeps fixed replicas and no HPA for reused values from an older chart
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/pre-ai-gateway-autoscaling-values.yaml
+    template: ai-gateway-deployment.yaml
+    asserts:
+      - equal:
+          path: spec.replicas
+          value: 2
+
+  - it: renders no HPA for reused values from an older chart
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/pre-ai-gateway-autoscaling-values.yaml
+    template: ai-gateway-hpa.yaml
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: renders no PDB for reused values from an older chart
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/pre-ai-gateway-autoscaling-values.yaml
+    template: ai-gateway-pdb.yaml
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: fills defaults for a partial autoscaling --set on reused values
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/pre-ai-gateway-autoscaling-values.yaml
+    set:
+      aiGateway.autoscaling.enabled: true
+    template: ai-gateway-hpa.yaml
+    asserts:
+      - equal:
+          path: spec.minReplicas
+          value: 2
+      - equal:
+          path: spec.maxReplicas
+          value: 6
+      - equal:
+          path: spec.metrics[1].containerResource.target.averageUtilization
+          value: 75
+      - equal:
+          path: spec.behavior.scaleDown.stabilizationWindowSeconds
+          value: 300
+      - notExists:
+          path: metadata.annotations
+
+  - it: defaults minAvailable for a partial PDB --set on reused values
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/pre-ai-gateway-autoscaling-values.yaml
+    set:
+      aiGateway.podDisruptionBudget.enabled: true
+    template: ai-gateway-pdb.yaml
+    asserts:
+      - equal:
+          path: spec.minAvailable
+          value: 1
+
+  - it: renders the HPA on aws
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/aws-values.yaml
+    set:
+      aiGateway.enabled: true
+      aiGateway.autoscaling.enabled: true
+    template: ai-gateway-hpa.yaml
+    asserts:
+      - isKind:
+          of: HorizontalPodAutoscaler
+
+  - it: renders the HPA on azure
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/azure-values.yaml
+    set:
+      aiGateway.enabled: true
+      aiGateway.autoscaling.enabled: true
+    template: ai-gateway-hpa.yaml
+    asserts:
+      - isKind:
+          of: HorizontalPodAutoscaler
+
+  - it: renders the HPA on google without the AutoscalingMetric API
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/google-values.yaml
+    set:
+      aiGateway.enabled: true
+      aiGateway.autoscaling.enabled: true
+    template: ai-gateway-hpa.yaml
+    asserts:
+      - isKind:
+          of: HorizontalPodAutoscaler
+
+  - it: renders a PDB with minAvailable 1 when enabled
+    set:
+      aiGateway.enabled: true
+      aiGateway.podDisruptionBudget.enabled: true
+    template: ai-gateway-pdb.yaml
+    asserts:
+      - isKind:
+          of: PodDisruptionBudget
+      - equal:
+          path: metadata.name
+          value: braintrust-ai-gateway
+      - equal:
+          path: metadata.namespace
+          value: braintrust
+      - equal:
+          path: spec.minAvailable
+          value: 1
+      - notExists:
+          path: spec.maxUnavailable
+      - equal:
+          path: spec.selector.matchLabels.app
+          value: braintrust-ai-gateway
+
+  - it: preserves a zero minAvailable
+    set:
+      aiGateway.enabled: true
+      aiGateway.podDisruptionBudget.enabled: true
+      aiGateway.podDisruptionBudget.minAvailable: 0
+    template: ai-gateway-pdb.yaml
+    asserts:
+      - equal:
+          path: spec.minAvailable
+          value: 0
+
+  - it: prefers an explicit maxUnavailable
+    set:
+      aiGateway.enabled: true
+      aiGateway.podDisruptionBudget.enabled: true
+      aiGateway.podDisruptionBudget.maxUnavailable: 1
+    template: ai-gateway-pdb.yaml
+    asserts:
+      - equal:
+          path: spec.maxUnavailable
+          value: 1
+      - notExists:
+          path: spec.minAvailable
+
+  - it: preserves a zero maxUnavailable
+    set:
+      aiGateway.enabled: true
+      aiGateway.podDisruptionBudget.enabled: true
+      aiGateway.podDisruptionBudget.maxUnavailable: 0
+    template: ai-gateway-pdb.yaml
+    asserts:
+      - equal:
+          path: spec.maxUnavailable
+          value: 0
+      - notExists:
+          path: spec.minAvailable

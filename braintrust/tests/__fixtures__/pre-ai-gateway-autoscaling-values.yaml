@@ -1,0 +1,9 @@
+# Simulate values retained by `helm upgrade --reuse-values` from a chart release
+# that predates AI Gateway autoscaling and disruption budgets. An explicit null
+# removes the new chart default during Helm value coalescing.
+aiGateway:
+  enabled: true
+  annotations:
+    hpa: null
+  autoscaling: null
+  podDisruptionBudget: null

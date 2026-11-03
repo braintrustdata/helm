@@ -1,0 +1,26 @@
+{{- if .Values.aiGateway.enabled }}
+{{- $pdb := .Values.aiGateway.podDisruptionBudget | default dict }}
+{{- if $pdb.enabled }}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ .Values.aiGateway.name }}
+  namespace: {{ include "braintrust.namespace" . }}
+  {{- with (merge (deepCopy .Values.aiGateway.labels) .Values.global.labels) }}
+  labels:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- if ne $pdb.maxUnavailable nil }}
+  maxUnavailable: {{ $pdb.maxUnavailable | toYaml | trim }}
+  {{- else if ne $pdb.minAvailable nil }}
+  minAvailable: {{ $pdb.minAvailable | toYaml | trim }}
+  {{- else }}
+  minAvailable: 1
+  {{- end }}
+  selector:
+    matchLabels:
+      app: {{ .Values.aiGateway.name }}
+{{- end }}
+{{- end }}

@@ -278,6 +278,26 @@ api:
 
 When enabled for a pool, that pool's `replicas` setting is ignored and the HPA controls the replica count. With `api.workloadIsolation.enabled`, ingest and background pools inherit these settings and can override `minReplicas` / `maxReplicas` under `api.workloadIsolation.<pool>.autoscaling`.
 
+## AI Gateway Autoscaling
+
+The AI Gateway can autoscale with a standard `autoscaling/v2` Horizontal Pod Autoscaler on CPU and memory, scoped to the `ai-gateway` container. The defaults match the gateway ECS service in the AWS Terraform module: 2-6 replicas, 70% CPU, 75% memory, a 60 second scale-up window, and a 300 second scale-down window.
+
+The HPA reads the Kubernetes resource metrics API. GKE and AKS provide it. On EKS, install [metrics-server](https://github.com/kubernetes-sigs/metrics-server) first.
+
+```yaml
+aiGateway:
+  enabled: true
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 6
+  podDisruptionBudget:
+    enabled: true
+    minAvailable: 1
+```
+
+When enabled, `aiGateway.replicas` is ignored and the HPA controls the replica count. Turning autoscaling on for a running gateway removes `replicas` from the Deployment. Kubernetes then resets the Deployment to 1 replica until the HPA raises it to `minReplicas`, usually within one HPA sync period (15 seconds by default).
+
 ## API workload isolation
 
 `api.workloadIsolation.enabled` creates fixed-capacity `braintrust-api-ingest`
@@ -425,8 +445,13 @@ api:
   podDisruptionBudget:
     enabled: true
     maxUnavailable: 1
+aiGateway:
+  podDisruptionBudget:
+    enabled: true
+    minAvailable: 1
 ```
 
+The AI Gateway budget defaults to `minAvailable: 1` and renders only when `aiGateway.enabled` is true.
 The API retains its existing `minAvailable` behavior unless `maxUnavailable` is set. An explicit maximum takes precedence over the inherited minimum.
 Each role has an independent budget. Evictions can proceed simultaneously across roles.
 Readiness probes determine healthy replicas for PDBs. Deployment `minReadySeconds` does not delay PDB eviction permission.
