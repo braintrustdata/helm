@@ -324,14 +324,11 @@ aiGateway:
     deployment: {}
     service: {}
     pod: {}
-    hpa: {}
-  # Ignored when autoscaling.enabled is true; the HPA controls the replica count.
+  # Ignored when autoscaling.enabled is true.
   replicas: 2
-  # Horizontal Pod Autoscaler on CPU and memory, scoped to the ai-gateway
-  # container. Defaults mirror the AWS module's gateway ECS service.
-  # Scaling reads the Kubernetes resource metrics API (metrics-server). GKE and
-  # AKS provide it; on EKS, install metrics-server. Without it, the HPA holds
-  # the gateway at minReplicas.
+  # HPA on ai-gateway container CPU and memory, matching the AWS module's
+  # gateway ECS service. Needs metrics-server; without it the HPA holds
+  # minReplicas.
   autoscaling:
     enabled: true
     minReplicas: 2
@@ -340,15 +337,6 @@ aiGateway:
       targetAverageUtilization: 70
     memory:
       targetAverageUtilization: 75
-    behavior:
-      scaleDown:
-        stabilizationWindowSeconds: 300
-      scaleUp:
-        stabilizationWindowSeconds: 60
-  podDisruptionBudget:
-    enabled: false
-    # An explicit maxUnavailable overrides this minimum.
-    minAvailable: 1
   image:
     repository: public.ecr.aws/braintrust/gateway
     tag: v2.21.0

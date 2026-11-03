@@ -147,47 +147,6 @@ http://{{ .Values.aiGateway.service.name | default .Values.aiGateway.name }}.{{ 
 {{- end -}}
 
 {{/*
-AI Gateway autoscaling defaults. `helm upgrade --reuse-values` from a chart
-that predates gateway autoscaling retains no aiGateway.autoscaling map, and a
-partial --set on top of those values would otherwise render empty fields.
-*/}}
-{{- define "braintrust.aiGateway.autoscaling.defaults" -}}
-enabled: true
-minReplicas: 2
-maxReplicas: 6
-cpu:
-  targetAverageUtilization: 70
-memory:
-  targetAverageUtilization: 75
-behavior:
-  scaleDown:
-    stabilizationWindowSeconds: 300
-  scaleUp:
-    stabilizationWindowSeconds: 60
-{{- end -}}
-
-{{/*
-Effective AI Gateway autoscaling settings: template defaults merged with any
-provided values, validated when enabled.
-*/}}
-{{- define "braintrust.aiGateway.autoscaling" -}}
-{{- $defaults := include "braintrust.aiGateway.autoscaling.defaults" . | fromYaml -}}
-{{- $provided := deepCopy (.Values.aiGateway.autoscaling | default dict) -}}
-{{- $autoscaling := mergeOverwrite (deepCopy $defaults) $provided -}}
-{{- if $autoscaling.enabled -}}
-{{- $min := int $autoscaling.minReplicas -}}
-{{- $max := int $autoscaling.maxReplicas -}}
-{{- if lt $min 1 -}}
-{{- fail "aiGateway.autoscaling.minReplicas must be at least 1" -}}
-{{- end -}}
-{{- if lt $max $min -}}
-{{- fail "aiGateway.autoscaling.maxReplicas must be greater than or equal to aiGateway.autoscaling.minReplicas" -}}
-{{- end -}}
-{{- end -}}
-{{- toYaml $autoscaling -}}
-{{- end -}}
-
-{{/*
 Validate API autoscaling prerequisites (GKE + AutoscalingMetric CRD).
 */}}
 {{- define "braintrust.apiAutoscaling.validate" -}}

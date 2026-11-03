@@ -280,24 +280,20 @@ When enabled for a pool, that pool's `replicas` setting is ignored and the HPA c
 
 ## AI Gateway Autoscaling
 
-When `aiGateway.enabled` is true, the AI Gateway autoscales by default. It uses a standard `autoscaling/v2` Horizontal Pod Autoscaler on CPU and memory, scoped to the `ai-gateway` container. The defaults match the gateway ECS service in the AWS Terraform module: 2-6 replicas, 70% CPU, 75% memory, a 60 second scale-up window, and a 300 second scale-down window.
+When the AI Gateway is enabled, it autoscales by default. An HPA scales the `ai-gateway` container on CPU and memory with the same defaults as the AWS module: 2-6 replicas at 70% CPU and 75% memory.
 
-The HPA reads the Kubernetes resource metrics API. GKE and AKS provide it. On EKS, install [metrics-server](https://github.com/kubernetes-sigs/metrics-server); without it, the HPA cannot read utilization and holds the gateway at `minReplicas`.
+The HPA needs metrics-server. GKE and AKS include it; on EKS, [install it](https://github.com/kubernetes-sigs/metrics-server). Without it, the gateway stays at `minReplicas`.
 
 ```yaml
 aiGateway:
-  enabled: true
   autoscaling:
     minReplicas: 2
     maxReplicas: 6
-  podDisruptionBudget:
-    enabled: true
-    minAvailable: 1
 ```
 
-While autoscaling is enabled, `aiGateway.replicas` is ignored and the HPA controls the replica count. Set `aiGateway.autoscaling.enabled: false` to keep a fixed `aiGateway.replicas` count.
+Set `aiGateway.autoscaling.enabled: false` to use a fixed `aiGateway.replicas` instead.
 
-Upgrading a release that already runs the gateway with a fixed replica count removes `replicas` from the Deployment. Kubernetes then resets the Deployment to 1 replica until the HPA raises it to `minReplicas`, usually within one HPA sync period (15 seconds by default). To avoid the dip, set `aiGateway.autoscaling.enabled: false` for that upgrade, or schedule it outside peak traffic.
+On a release that already runs the gateway, the upgrade that turns on autoscaling drops the gateway to 1 replica for about 15 seconds until the HPA scales it back up.
 
 ## API workload isolation
 
@@ -446,13 +442,8 @@ api:
   podDisruptionBudget:
     enabled: true
     maxUnavailable: 1
-aiGateway:
-  podDisruptionBudget:
-    enabled: true
-    minAvailable: 1
 ```
 
-The AI Gateway budget defaults to `minAvailable: 1` and renders only when `aiGateway.enabled` is true.
 The API retains its existing `minAvailable` behavior unless `maxUnavailable` is set. An explicit maximum takes precedence over the inherited minimum.
 Each role has an independent budget. Evictions can proceed simultaneously across roles.
 Readiness probes determine healthy replicas for PDBs. Deployment `minReadySeconds` does not delay PDB eviction permission.

@@ -1,6 +1,5 @@
-{{- if .Values.aiGateway.enabled }}
-{{- $autoscaling := include "braintrust.aiGateway.autoscaling" . | fromYaml }}
-{{- if $autoscaling.enabled }}
+{{- $autoscaling := .Values.aiGateway.autoscaling | default dict }}
+{{- if and .Values.aiGateway.enabled (dig "enabled" true $autoscaling) }}
 ---
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
@@ -11,37 +10,31 @@ metadata:
   labels:
     {{- toYaml . | nindent 4 }}
   {{- end }}
-  {{- with (dig "hpa" dict (.Values.aiGateway.annotations | default dict)) }}
-  annotations:
-    {{- toYaml . | nindent 4 }}
-  {{- end }}
 spec:
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
     name: {{ .Values.aiGateway.name }}
-  minReplicas: {{ $autoscaling.minReplicas }}
-  maxReplicas: {{ $autoscaling.maxReplicas }}
+  minReplicas: {{ dig "minReplicas" 2 $autoscaling }}
+  maxReplicas: {{ dig "maxReplicas" 6 $autoscaling }}
   metrics:
-    # ContainerResource scopes utilization to the ai-gateway container so
-    # sidecars / extraContainers do not skew it.
     - type: ContainerResource
       containerResource:
         name: cpu
         container: ai-gateway
         target:
           type: Utilization
-          averageUtilization: {{ $autoscaling.cpu.targetAverageUtilization }}
+          averageUtilization: {{ dig "cpu" "targetAverageUtilization" 70 $autoscaling }}
     - type: ContainerResource
       containerResource:
         name: memory
         container: ai-gateway
         target:
           type: Utilization
-          averageUtilization: {{ $autoscaling.memory.targetAverageUtilization }}
-  {{- with $autoscaling.behavior }}
+          averageUtilization: {{ dig "memory" "targetAverageUtilization" 75 $autoscaling }}
   behavior:
-    {{- toYaml . | nindent 4 }}
-  {{- end }}
-{{- end }}
+    scaleUp:
+      stabilizationWindowSeconds: 60
+    scaleDown:
+      stabilizationWindowSeconds: 300
 {{- end }}

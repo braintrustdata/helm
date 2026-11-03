@@ -1,5 +1,4 @@
 {{- if .Values.aiGateway.enabled }}
-{{- $autoscaling := include "braintrust.aiGateway.autoscaling" . | fromYaml }}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -15,7 +14,7 @@ metadata:
     {{- toYaml . | nindent 4 }}
   {{- end }}
 spec:
-  {{- if not $autoscaling.enabled }}
+  {{- if not (dig "enabled" true (.Values.aiGateway.autoscaling | default dict)) }}
   replicas: {{ .Values.aiGateway.replicas }}
   {{- end }}
   strategy:
