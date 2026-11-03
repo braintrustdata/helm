@@ -24,9 +24,8 @@ Set `loopRuntime.enabled: true` to run Loop Runtime on GKE (`cloud: google`).
 On AWS it runs on ECS through the Terraform module. Sandboxes run on Sandbox
 Service workers in a separate GKE cluster; see
 [examples/gke-loop-runtime](examples/gke-loop-runtime/README.md). The Terraform
-outputs it needs come from
-[terraform-google-braintrust-data-plane#28](https://github.com/braintrustdata/terraform-google-braintrust-data-plane/pull/28),
-which is not merged yet.
+outputs `gke_isolated_workers` and `loop_runtime_service_account` require GCP
+data-plane module v2.0.0 or newer.
 
 ## Azure Key Vault Driver Integration
 
