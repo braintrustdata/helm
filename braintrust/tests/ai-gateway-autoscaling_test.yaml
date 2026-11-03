@@ -77,6 +77,51 @@ tests:
           path: spec.metrics[1].containerResource.target.averageUtilization
           value: 80
 
+  - it: rejects zero minReplicas
+    set:
+      aiGateway.enabled: true
+      aiGateway.autoscaling.minReplicas: 0
+    template: ai-gateway-hpa.yaml
+    asserts:
+      - failedTemplate:
+          errorMessage: aiGateway.autoscaling needs 1 <= minReplicas <= maxReplicas, positive CPU and memory targets, and aiGateway.resources.requests for CPU and memory
+
+  - it: rejects maxReplicas below minReplicas
+    set:
+      aiGateway.enabled: true
+      aiGateway.autoscaling.maxReplicas: 1
+    template: ai-gateway-hpa.yaml
+    asserts:
+      - failedTemplate:
+          errorMessage: aiGateway.autoscaling needs 1 <= minReplicas <= maxReplicas, positive CPU and memory targets, and aiGateway.resources.requests for CPU and memory
+
+  - it: rejects an empty CPU target
+    set:
+      aiGateway.enabled: true
+      aiGateway.autoscaling.cpu.targetAverageUtilization: ""
+    template: ai-gateway-hpa.yaml
+    asserts:
+      - failedTemplate:
+          errorMessage: aiGateway.autoscaling needs 1 <= minReplicas <= maxReplicas, positive CPU and memory targets, and aiGateway.resources.requests for CPU and memory
+
+  - it: rejects a zero memory target
+    set:
+      aiGateway.enabled: true
+      aiGateway.autoscaling.memory.targetAverageUtilization: 0
+    template: ai-gateway-hpa.yaml
+    asserts:
+      - failedTemplate:
+          errorMessage: aiGateway.autoscaling needs 1 <= minReplicas <= maxReplicas, positive CPU and memory targets, and aiGateway.resources.requests for CPU and memory
+
+  - it: rejects a missing memory request
+    set:
+      aiGateway.enabled: true
+      aiGateway.resources.requests.memory: null
+    template: ai-gateway-hpa.yaml
+    asserts:
+      - failedTemplate:
+          errorMessage: aiGateway.autoscaling needs 1 <= minReplicas <= maxReplicas, positive CPU and memory targets, and aiGateway.resources.requests for CPU and memory
+
   - it: renders no HPA when autoscaling is disabled
     set:
       aiGateway.enabled: true

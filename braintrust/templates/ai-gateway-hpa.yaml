@@ -1,5 +1,13 @@
 {{- $autoscaling := .Values.aiGateway.autoscaling | default dict }}
 {{- if and .Values.aiGateway.enabled (dig "enabled" true $autoscaling) }}
+{{- $minReplicas := int (dig "minReplicas" 2 $autoscaling) }}
+{{- $maxReplicas := int (dig "maxReplicas" 6 $autoscaling) }}
+{{- $cpuTarget := int (dig "cpu" "targetAverageUtilization" 70 $autoscaling) }}
+{{- $memoryTarget := int (dig "memory" "targetAverageUtilization" 75 $autoscaling) }}
+{{- $requests := (.Values.aiGateway.resources | default dict).requests | default dict }}
+{{- if not (and (ge $minReplicas 1) (ge $maxReplicas $minReplicas) (gt $cpuTarget 0) (gt $memoryTarget 0) $requests.cpu $requests.memory) }}
+{{- fail "aiGateway.autoscaling needs 1 <= minReplicas <= maxReplicas, positive CPU and memory targets, and aiGateway.resources.requests for CPU and memory" }}
+{{- end }}
 ---
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
@@ -15,8 +23,8 @@ spec:
     apiVersion: apps/v1
     kind: Deployment
     name: {{ .Values.aiGateway.name }}
-  minReplicas: {{ dig "minReplicas" 2 $autoscaling }}
-  maxReplicas: {{ dig "maxReplicas" 6 $autoscaling }}
+  minReplicas: {{ $minReplicas }}
+  maxReplicas: {{ $maxReplicas }}
   metrics:
     - type: ContainerResource
       containerResource:
@@ -24,14 +32,14 @@ spec:
         container: ai-gateway
         target:
           type: Utilization
-          averageUtilization: {{ dig "cpu" "targetAverageUtilization" 70 $autoscaling }}
+          averageUtilization: {{ $cpuTarget }}
     - type: ContainerResource
       containerResource:
         name: memory
         container: ai-gateway
         target:
           type: Utilization
-          averageUtilization: {{ dig "memory" "targetAverageUtilization" 75 $autoscaling }}
+          averageUtilization: {{ $memoryTarget }}
   behavior:
     scaleUp:
       stabilizationWindowSeconds: 60
