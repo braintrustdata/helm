@@ -324,7 +324,7 @@ loopRuntime:
     service: {}
     pod: {}
     serviceaccount: {}
-  replicas: 2
+  replicas: 1
   image:
     repository: public.ecr.aws/braintrust/loop-runtime
     # Tested with the Sandbox Service worker release in the GKE example.
