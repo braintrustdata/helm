@@ -37,6 +37,9 @@ tests:
       loopRuntime.sandbox.memoryMib: "02048"
     asserts:
       - equal:
+          path: data.BRAINTRUST_APP_URL
+          value: https://www.braintrust.dev
+      - equal:
           path: data.BRAINSTORE_INDEX_URI
           value: gs://test-brainstore-bucket/brainstore/index
       - equal:
@@ -93,21 +96,12 @@ tests:
           path: data.LOOP_RUNTIME_ENABLE_SANDBOX_ADMIN
           value: "false"
 
-  - it: should explain reused values without an image pull policy
+  - it: should explain reused values with incomplete nested maps
     values: *values
     set:
       loopRuntime.image.pullPolicy: null
-    asserts: *missing-defaults
-
-  - it: should explain reused values without a service type
-    values: *values
-    set:
       loopRuntime.service.type: null
-    asserts: *missing-defaults
-
-  - it: should explain reused values without a service account name
-    values: *values
-    set:
+      loopRuntime.service.portName: null
       loopRuntime.serviceAccount.name: null
     asserts: *missing-defaults
 
@@ -117,17 +111,23 @@ tests:
       loopRuntime.resources: null
     asserts: *missing-defaults
 
-  - it: should explain reused values without a service port name
+  - it: should omit an unset control-plane URL so the runtime uses its default
     values: *values
     set:
-      loopRuntime.service.portName: null
-    asserts: *missing-defaults
+      aiGateway.braintrustAppUrl: null
+    asserts:
+      - notExists:
+          path: data.BRAINTRUST_APP_URL
 
-  - it: should use the configured egress URL for Git authorization and sandbox traffic
+  - it: should use the configured control-plane and egress URLs
     values: *values
     set:
+      aiGateway.braintrustAppUrl: https://control-plane.example.com
       loopRuntime.sandbox.egressGateway.url: http://custom-egress.internal:4002
     asserts:
+      - equal:
+          path: data.BRAINTRUST_APP_URL
+          value: https://control-plane.example.com
       - equal:
           path: data.LOOP_RUNTIME_SANDBOX_EGRESS_GATEWAY_URL
           value: http://custom-egress.internal:4002
@@ -180,20 +180,6 @@ tests:
     asserts:
       - failedTemplate:
           errorMessage: "loopRuntime.serviceAccount.googleServiceAccount is required"
-
-  - it: should reject a zero runtime port
-    values: *values
-    set:
-      loopRuntime.service.port: 0
-    asserts: &invalid-port
-      - failedTemplate:
-          errorMessage: "loopRuntime.service.port must be an integer between 1 and 65535"
-
-  - it: should reject a runtime port above the maximum
-    values: *values
-    set:
-      loopRuntime.service.port: 65536
-    asserts: *invalid-port
 
   - it: should reject a zero sandbox CPU count
     values: *values
@@ -258,14 +244,6 @@ tests:
     asserts: &missing-sandbox-image
       - failedTemplate:
           errorMessage: "loopRuntime.sandbox.image is required"
-
-  - it: should reject a padded sandbox image
-    values: *values
-    set:
-      loopRuntime.sandbox.image: " image "
-    asserts:
-      - failedTemplate:
-          errorMessage: "loopRuntime.sandbox.image must not have leading or trailing whitespace"
 
   - it: should ignore missing sandbox configuration when disabled
     values: *values

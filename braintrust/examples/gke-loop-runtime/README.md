@@ -22,6 +22,10 @@ Deploy the gateway with `aiGateway.enabled=true` first and wait for it to become
 ready before applying this example, which turns on `aiGateway.useGateway`.
 The TypeScript API proxy alone cannot restore the provider model IDs sent by Codex.
 
+For EU or custom control planes, set `aiGateway.braintrustAppUrl`; Loop Runtime
+uses the same URL. To override it for Loop only, set `BRAINTRUST_APP_URL` in
+`loopRuntime.extraEnvVars`.
+
 1. Create the mTLS Secrets in both clusters:
 
    ```sh

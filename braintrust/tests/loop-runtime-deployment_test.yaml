@@ -15,6 +15,10 @@ tests:
     values: &values
       - __fixtures__/base-values.yaml
       - __fixtures__/loop-runtime-values.yaml
+    set:
+      loopRuntime.extraEnvVars:
+        - name: BRAINTRUST_APP_URL
+          value: https://loop-control-plane.example.com
     asserts:
       - equal:
           path: spec.replicas
@@ -40,6 +44,11 @@ tests:
       - contains:
           path: spec.template.spec.containers[0].env
           content:
+            name: BRAINTRUST_APP_URL
+            value: https://loop-control-plane.example.com
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
             name: FUNCTION_SECRET_KEY
             valueFrom:
               secretKeyRef:
@@ -56,11 +65,11 @@ tests:
           content:
             containerPort: 4002
 
-  - it: should follow the runtime port with a custom port name
+  - it: should use numeric probe ports when the runtime port is quoted
     template: loop-runtime-deployment.yaml
     values: *values
     set:
-      loopRuntime.service.port: 65535
+      loopRuntime.service.port: "65535"
       loopRuntime.service.portName: runtime
     asserts:
       - equal:

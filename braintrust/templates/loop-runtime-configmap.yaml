@@ -25,6 +25,9 @@ data:
   LOOP_RUNTIME_STATE_DIR: /mnt/tmp/loop-runtime
   {{- /* The runtime refuses an empty ORG_NAME; the API treats empty as every org. */}}
   ORG_NAME: {{ .Values.global.orgName | default "" | toString | trim | default "*" | quote }}
+  {{- with .Values.aiGateway.braintrustAppUrl }}
+  BRAINTRUST_APP_URL: {{ . | quote }}
+  {{- end }}
   BRAINTRUST_API_URL: {{ include "braintrust.apiInternalUrl" . | quote }}
   LOOP_RUNTIME_AI_PROXY_URL: {{ include "braintrust.apiAiProxyInternalUrl" . | quote }}
   LOOP_RUNTIME_BRAINSTORE_READER_URL: "http://{{ .Values.brainstore.fastreader.service.name | default .Values.brainstore.fastreader.name }}.{{ include "braintrust.namespace" . }}:{{ .Values.brainstore.fastreader.service.port }}"

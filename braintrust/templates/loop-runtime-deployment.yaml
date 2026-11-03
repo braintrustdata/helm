@@ -72,7 +72,7 @@ spec:
           {{- with index $.Values.loopRuntime $name }}
           {{- $probe := deepCopy . -}}
           {{- if and (kindIs "map" $probe.httpGet) (not (hasKey $probe.httpGet "port")) -}}
-          {{- $_ := set $probe.httpGet "port" $.Values.loopRuntime.service.port -}}
+          {{- $_ := set $probe.httpGet "port" (int $.Values.loopRuntime.service.port) -}}
           {{- end }}
           {{ $name }}:
             {{- toYaml $probe | nindent 12 }}

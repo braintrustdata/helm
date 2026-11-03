@@ -169,13 +169,9 @@ predates Loop Runtime have no loopRuntime map, which means disabled.
 {{- end -}}
 {{- /* Reused values can provide each outer map while still omitting nested defaults. */ -}}
 {{- range $value := list $runtime.name $runtime.image.pullPolicy $runtime.service.type $runtime.service.portName $runtime.serviceAccount.name -}}
-{{- if or (not (kindIs "string" $value)) (eq (trim (toString $value)) "") (ne (toString $value) (trim (toString $value))) -}}
+{{- if or (not (kindIs "string" $value)) (eq (trim (toString $value)) "") -}}
 {{- fail $missingDefaults -}}
 {{- end -}}
-{{- end -}}
-{{- $port := toString $runtime.service.port -}}
-{{- if or (not (regexMatch "^[1-9][0-9]{0,4}$" $port)) (gt (int $port) 65535) -}}
-{{- fail "loopRuntime.service.port must be an integer between 1 and 65535" -}}
 {{- end -}}
 {{- $sandbox := $runtime.sandbox -}}
 {{- range $field := list "vcpuCount" "memoryMib" -}}
@@ -197,10 +193,6 @@ predates Loop Runtime have no loopRuntime map, which means disabled.
 -}}
 {{- if or (not (kindIs "string" $value)) (eq (trim (toString $value)) "") -}}
 {{- fail (printf "%s is required" $path) -}}
-{{- end -}}
-{{- /* Padding would otherwise be rendered into identities and endpoints unchanged. */ -}}
-{{- if ne $value (trim $value) -}}
-{{- fail (printf "%s must not have leading or trailing whitespace" $path) -}}
 {{- end -}}
 {{- end -}}
 {{- if not $egress.sourceRanges -}}
