@@ -26,14 +26,6 @@ tests:
       - hasDocuments:
           count: 0
 
-  - it: renders no HPA by default
-    set:
-      aiGateway.enabled: true
-    template: ai-gateway-hpa.yaml
-    asserts:
-      - hasDocuments:
-          count: 0
-
   - it: renders no PDB by default
     set:
       aiGateway.enabled: true
@@ -42,9 +34,19 @@ tests:
       - hasDocuments:
           count: 0
 
-  - it: keeps fixed replicas on the deployment by default
+  - it: renders no HPA when autoscaling is disabled
     set:
       aiGateway.enabled: true
+      aiGateway.autoscaling.enabled: false
+    template: ai-gateway-hpa.yaml
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: keeps fixed replicas on the deployment when autoscaling is disabled
+    set:
+      aiGateway.enabled: true
+      aiGateway.autoscaling.enabled: false
       aiGateway.replicas: 3
     template: ai-gateway-deployment.yaml
     asserts:
@@ -52,10 +54,9 @@ tests:
           path: spec.replicas
           value: 3
 
-  - it: renders an HPA with AWS-parity defaults when enabled
+  - it: renders an HPA with AWS-parity defaults by default
     set:
       aiGateway.enabled: true
-      aiGateway.autoscaling.enabled: true
     template: ai-gateway-hpa.yaml
     asserts:
       - hasDocuments:
@@ -109,10 +110,9 @@ tests:
       - notExists:
           path: metadata.annotations
 
-  - it: omits fixed replicas from the deployment when autoscaling is enabled
+  - it: omits fixed replicas from the deployment by default
     set:
       aiGateway.enabled: true
-      aiGateway.autoscaling.enabled: true
     template: ai-gateway-deployment.yaml
     asserts:
       - notExists:
@@ -208,6 +208,7 @@ tests:
   - it: does not validate bounds while autoscaling is disabled
     set:
       aiGateway.enabled: true
+      aiGateway.autoscaling.enabled: false
       aiGateway.autoscaling.minReplicas: 0
     template: ai-gateway-deployment.yaml
     asserts:
@@ -215,20 +216,51 @@ tests:
           path: spec.replicas
           value: 2
 
-  - it: keeps fixed replicas and no HPA for reused values from an older chart
+  - it: omits fixed replicas for reused values from an older chart
     values:
       - __fixtures__/base-values.yaml
       - __fixtures__/pre-ai-gateway-autoscaling-values.yaml
+    template: ai-gateway-deployment.yaml
+    asserts:
+      - notExists:
+          path: spec.replicas
+
+  - it: renders the default HPA for reused values from an older chart
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/pre-ai-gateway-autoscaling-values.yaml
+    template: ai-gateway-hpa.yaml
+    asserts:
+      - equal:
+          path: spec.minReplicas
+          value: 2
+      - equal:
+          path: spec.maxReplicas
+          value: 6
+      - equal:
+          path: spec.metrics[0].containerResource.target.averageUtilization
+          value: 70
+      - notExists:
+          path: metadata.annotations
+
+  - it: keeps fixed replicas when reused values disable autoscaling
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/pre-ai-gateway-autoscaling-values.yaml
+    set:
+      aiGateway.autoscaling.enabled: false
     template: ai-gateway-deployment.yaml
     asserts:
       - equal:
           path: spec.replicas
           value: 2
 
-  - it: renders no HPA for reused values from an older chart
+  - it: renders no HPA when reused values disable autoscaling
     values:
       - __fixtures__/base-values.yaml
       - __fixtures__/pre-ai-gateway-autoscaling-values.yaml
+    set:
+      aiGateway.autoscaling.enabled: false
     template: ai-gateway-hpa.yaml
     asserts:
       - hasDocuments:
@@ -248,7 +280,7 @@ tests:
       - __fixtures__/base-values.yaml
       - __fixtures__/pre-ai-gateway-autoscaling-values.yaml
     set:
-      aiGateway.autoscaling.enabled: true
+      aiGateway.autoscaling.maxReplicas: 20
     template: ai-gateway-hpa.yaml
     asserts:
       - equal:
@@ -256,7 +288,7 @@ tests:
           value: 2
       - equal:
           path: spec.maxReplicas
-          value: 6
+          value: 20
       - equal:
           path: spec.metrics[1].containerResource.target.averageUtilization
           value: 75

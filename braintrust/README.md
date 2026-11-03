@@ -280,15 +280,14 @@ When enabled for a pool, that pool's `replicas` setting is ignored and the HPA c
 
 ## AI Gateway Autoscaling
 
-The AI Gateway can autoscale with a standard `autoscaling/v2` Horizontal Pod Autoscaler on CPU and memory, scoped to the `ai-gateway` container. The defaults match the gateway ECS service in the AWS Terraform module: 2-6 replicas, 70% CPU, 75% memory, a 60 second scale-up window, and a 300 second scale-down window.
+When `aiGateway.enabled` is true, the AI Gateway autoscales by default. It uses a standard `autoscaling/v2` Horizontal Pod Autoscaler on CPU and memory, scoped to the `ai-gateway` container. The defaults match the gateway ECS service in the AWS Terraform module: 2-6 replicas, 70% CPU, 75% memory, a 60 second scale-up window, and a 300 second scale-down window.
 
-The HPA reads the Kubernetes resource metrics API. GKE and AKS provide it. On EKS, install [metrics-server](https://github.com/kubernetes-sigs/metrics-server) first.
+The HPA reads the Kubernetes resource metrics API. GKE and AKS provide it. On EKS, install [metrics-server](https://github.com/kubernetes-sigs/metrics-server); without it, the HPA cannot read utilization and holds the gateway at `minReplicas`.
 
 ```yaml
 aiGateway:
   enabled: true
   autoscaling:
-    enabled: true
     minReplicas: 2
     maxReplicas: 6
   podDisruptionBudget:
@@ -296,7 +295,9 @@ aiGateway:
     minAvailable: 1
 ```
 
-When enabled, `aiGateway.replicas` is ignored and the HPA controls the replica count. Turning autoscaling on for a running gateway removes `replicas` from the Deployment. Kubernetes then resets the Deployment to 1 replica until the HPA raises it to `minReplicas`, usually within one HPA sync period (15 seconds by default).
+While autoscaling is enabled, `aiGateway.replicas` is ignored and the HPA controls the replica count. Set `aiGateway.autoscaling.enabled: false` to keep a fixed `aiGateway.replicas` count.
+
+Upgrading a release that already runs the gateway with a fixed replica count removes `replicas` from the Deployment. Kubernetes then resets the Deployment to 1 replica until the HPA raises it to `minReplicas`, usually within one HPA sync period (15 seconds by default). To avoid the dip, set `aiGateway.autoscaling.enabled: false` for that upgrade, or schedule it outside peak traffic.
 
 ## API workload isolation
 

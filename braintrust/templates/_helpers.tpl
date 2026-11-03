@@ -152,7 +152,7 @@ that predates gateway autoscaling retains no aiGateway.autoscaling map, and a
 partial --set on top of those values would otherwise render empty fields.
 */}}
 {{- define "braintrust.aiGateway.autoscaling.defaults" -}}
-enabled: false
+enabled: true
 minReplicas: 2
 maxReplicas: 6
 cpu:

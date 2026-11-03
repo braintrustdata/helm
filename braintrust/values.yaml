@@ -327,12 +327,13 @@ aiGateway:
     hpa: {}
   # Ignored when autoscaling.enabled is true; the HPA controls the replica count.
   replicas: 2
-  # Optional Horizontal Pod Autoscaler on CPU and memory, scoped to the
-  # ai-gateway container. Defaults mirror the AWS module's gateway ECS service.
-  # Requires the Kubernetes resource metrics API (metrics-server). GKE and AKS
-  # provide it; EKS requires installing metrics-server.
+  # Horizontal Pod Autoscaler on CPU and memory, scoped to the ai-gateway
+  # container. Defaults mirror the AWS module's gateway ECS service.
+  # Scaling reads the Kubernetes resource metrics API (metrics-server). GKE and
+  # AKS provide it; on EKS, install metrics-server. Without it, the HPA holds
+  # the gateway at minReplicas.
   autoscaling:
-    enabled: false
+    enabled: true
     minReplicas: 2
     maxReplicas: 6
     cpu:
