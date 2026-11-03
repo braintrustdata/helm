@@ -201,6 +201,32 @@ predates Loop Runtime have no loopRuntime map, which means disabled.
 {{- end -}}
 {{- end -}}
 
+{{/* Autoscaling defaults also cover partial maps supplied with --reuse-values. */}}
+{{- define "braintrust.loopRuntime.autoscaling" -}}
+{{- $runtime := .Values.loopRuntime | default dict -}}
+{{- $defaults := dict "enabled" false "minReplicas" 1 "maxReplicas" 50 "metricsPath" "/metrics" "targetConversationUtilization" "50" -}}
+{{- $config := mergeOverwrite (deepCopy $defaults) (deepCopy ($runtime.autoscaling | default dict)) -}}
+{{- range $key, $value := $defaults -}}
+{{- if eq (index $config $key) nil -}}{{- $_ := set $config $key $value -}}{{- end -}}
+{{- end -}}
+{{- if and (include "braintrust.loopRuntime.enabled" .) $config.enabled -}}
+{{- include "braintrust.loopRuntime.validate" . -}}
+{{- if not (.Capabilities.APIVersions.Has "autoscaling.gke.io/v1beta1") -}}
+{{- fail "loopRuntime.autoscaling requires the AutoscalingMetric API (autoscaling.gke.io/v1beta1). For helm template, pass --api-versions=autoscaling.gke.io/v1beta1." -}}
+{{- end -}}
+{{- if or (not (regexMatch "^[1-9][0-9]*$" (toString $config.minReplicas))) (not (regexMatch "^[1-9][0-9]*$" (toString $config.maxReplicas))) (lt (int $config.maxReplicas) (int $config.minReplicas)) -}}
+{{- fail "loopRuntime.autoscaling requires positive minReplicas and maxReplicas >= minReplicas" -}}
+{{- end -}}
+{{- if not (and (gt (float64 $config.targetConversationUtilization) 0.0) (le (float64 $config.targetConversationUtilization) 100.0)) -}}
+{{- fail "loopRuntime.autoscaling.targetConversationUtilization must be greater than 0 and at most 100" -}}
+{{- end -}}
+{{- if or (not (kindIs "string" $config.metricsPath)) (not (hasPrefix "/" (toString $config.metricsPath))) -}}
+{{- fail "loopRuntime.autoscaling.metricsPath must be an absolute HTTP path" -}}
+{{- end -}}
+{{- toYaml $config -}}
+{{- end -}}
+{{- end -}}
+
 {{/* Internal cluster URL for the Loop Runtime service. */}}
 {{- define "braintrust.loopRuntimeInternalUrl" -}}
 http://{{ .Values.loopRuntime.service.name | default .Values.loopRuntime.name }}.{{ include "braintrust.namespace" . }}:{{ .Values.loopRuntime.service.port }}

@@ -330,6 +330,15 @@ loopRuntime:
     # Tested with the Sandbox Service worker release in the GKE example.
     tag: 38b05599cdc5e4c3a213bbf0718211b397183a7a
     pullPolicy: IfNotPresent
+  # Requires the same GKE custom-metrics prerequisites as api.autoscaling.
+  # Without the application metric, the HPA cannot perform metric-driven scaling.
+  autoscaling:
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 50
+    metricsPath: /metrics
+    # Percent of claimed conversation capacity, on a 0-100 scale.
+    targetConversationUtilization: "50"
   service:
     # Optional name for service object. If not specified (empty), loopRuntime.name is used.
     name: ""
