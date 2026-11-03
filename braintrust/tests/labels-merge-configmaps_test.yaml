@@ -5,6 +5,7 @@ templates:
   - brainstore-writer-configmap.yaml
   - brainstore-fastreader-configmap.yaml
   - brainstore-automationwriter-configmap.yaml
+  - loop-runtime-configmap.yaml
 tests:
   # These tests verify the deepCopy fix for configmaps.
   # Without deepCopy, labels would bleed between components due to merge mutation.
@@ -153,3 +154,24 @@ tests:
           path: metadata.labels["writer-specific"]
       - isNull:
           path: metadata.labels["fastreader-specific"]
+
+  - it: should give Loop Runtime configmap only global and runtime-specific labels
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/loop-runtime-values.yaml
+    set:
+      global.labels.shared: "global-cm"
+      loopRuntime.labels.loop-specific: "loop-cm"
+      api.labels.api-specific: "api-cm"
+      brainstore.reader.labels.reader-specific: "reader-cm"
+      brainstore.writer.labels.writer-specific: "writer-cm"
+      brainstore.fastreader.labels.fastreader-specific: "fastreader-cm"
+    release:
+      namespace: "braintrust"
+    template: loop-runtime-configmap.yaml
+    asserts:
+      - equal:
+          path: metadata.labels
+          value:
+            shared: global-cm
+            loop-specific: loop-cm

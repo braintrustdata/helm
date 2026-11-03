@@ -1,0 +1,27 @@
+# Values for the Sandbox Service worker chart, installed in the isolated worker cluster.
+# Every <...> value comes from the GCP Terraform output gke_isolated_workers.
+hostname: "<discovery.hostname>"
+image: public.ecr.aws/braintrust/sandbox-service:38b05599cdc5e4c3a213bbf0718211b397183a7a
+# Fixed worker capacity. The worker node pool autoscales, so raising this is a values change.
+replicas: 1
+gitResources: true
+nodePrep:
+  enabled: true
+prewarmTemplates:
+  - image: public.ecr.aws/braintrust/codex-runtime@sha256:490ab364fd6a787f73957d3d46bc5e173fb418c47d53bcf7a2d3afba8b419049
+    resources:
+      vcpu_count: 1
+      memory_mib: 2048
+    mounts: []
+    durable_file_systems: []
+    policy:
+      networking:
+        type: disabled
+      credentials: []
+    default_workdir: /home/exo/workspace
+externalDns:
+  enabled: true
+  provider: google
+  # One entry per argument in discovery.external_dns_extra_args.
+  extraArgs:
+    - "<argument>"

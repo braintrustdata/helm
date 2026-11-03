@@ -1,0 +1,4 @@
+# Simulate values retained by `helm upgrade --reuse-values` from a chart release
+# that predates loopRuntime. An explicit null removes the new chart default
+# during Helm value coalescing.
+loopRuntime: null

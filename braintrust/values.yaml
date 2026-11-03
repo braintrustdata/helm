@@ -309,6 +309,81 @@ api:
   extraContainers: []
   extraVolumes: []
 
+# Loop Runtime (optional, cloud: google only). Sandboxes run on Sandbox Service
+# workers in a separate GKE cluster; see examples/gke-loop-runtime.
+loopRuntime:
+  enabled: false
+  # Allow Braintrust staff sysadmins to inspect and terminate sandboxes.
+  enableSandboxAdmin: false
+  name: "braintrust-loop-runtime"
+  labels: {}
+  podLabels: {}
+  annotations:
+    configmap: {}
+    deployment: {}
+    service: {}
+    pod: {}
+    serviceaccount: {}
+  replicas: 2
+  image:
+    repository: public.ecr.aws/braintrust/loop-runtime
+    # Tested with the Sandbox Service worker release in the GKE example.
+    tag: 38b05599cdc5e4c3a213bbf0718211b397183a7a
+    pullPolicy: IfNotPresent
+  service:
+    # Optional name for service object. If not specified (empty), loopRuntime.name is used.
+    name: ""
+    type: ClusterIP
+    port: 4001
+    portName: http
+  serviceAccount:
+    name: "braintrust-loop-runtime"
+    # Terraform output loop_runtime_service_account.
+    googleServiceAccount: ""
+  resources:
+    requests:
+      cpu: "1"
+      memory: "2Gi"
+      ephemeral-storage: "9Gi"
+    limits:
+      cpu: "1"
+      memory: "2Gi"
+      ephemeral-storage: "9Gi"
+  livenessProbe:
+    httpGet:
+      path: /health/liveness
+    initialDelaySeconds: 10
+    periodSeconds: 30
+    timeoutSeconds: 5
+    failureThreshold: 3
+    successThreshold: 1
+  readinessProbe:
+    httpGet:
+      path: /health/liveness
+    initialDelaySeconds: 10
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+    successThreshold: 1
+  # Values come from Terraform output gke_isolated_workers.
+  sandbox:
+    # discovery.endpoint
+    dnsUrl: ""
+    # loop_egress.address, loop_egress.source_ranges, and loop_egress.url
+    egressGateway:
+      address: ""
+      sourceRanges: []
+      url: ""
+    image: "public.ecr.aws/braintrust/codex-runtime@sha256:490ab364fd6a787f73957d3d46bc5e173fb418c47d53bcf7a2d3afba8b419049"
+    vcpuCount: 1
+    memoryMib: 2048
+  extraEnvVars: []
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  extraContainers: []
+  extraVolumes: []
+
 # AI Gateway configuration (optional)
 # Deploys the Braintrust AI gateway service for LLM proxying and completions caching.
 # Recommended rollout: enabled=true first, wait for gateway pods to be ready, then useGateway=true.

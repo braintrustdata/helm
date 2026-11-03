@@ -147,6 +147,80 @@ http://{{ .Values.aiGateway.service.name | default .Values.aiGateway.name }}.{{ 
 {{- end -}}
 
 {{/*
+Whether Loop Runtime is enabled. Values reused from a chart release that
+predates Loop Runtime have no loopRuntime map, which means disabled.
+*/}}
+{{- define "braintrust.loopRuntime.enabled" -}}
+{{- if (.Values.loopRuntime | default dict).enabled -}}true{{- end -}}
+{{- end -}}
+
+{{/* Validate the Loop Runtime configuration. */}}
+{{- define "braintrust.loopRuntime.validate" -}}
+{{- if include "braintrust.loopRuntime.enabled" . -}}
+{{- $runtime := .Values.loopRuntime -}}
+{{- $missingDefaults := "loopRuntime defaults are missing. Values reused from a chart release that predates Loop Runtime omit them; upgrade with --reset-then-reuse-values." -}}
+{{- range $key := list "sandbox" "image" "service" "serviceAccount" "resources" "annotations" "labels" "podLabels" -}}
+{{- if not (kindIs "map" (get $runtime $key)) -}}
+{{- fail $missingDefaults -}}
+{{- end -}}
+{{- end -}}
+{{- if ne .Values.cloud "google" -}}
+{{- fail "loopRuntime.enabled requires cloud: google. On AWS, Loop Runtime runs on ECS through the Terraform module." -}}
+{{- end -}}
+{{- /* Reused values can provide each outer map while still omitting nested defaults. */ -}}
+{{- range $value := list $runtime.name $runtime.image.pullPolicy $runtime.service.type $runtime.service.portName $runtime.serviceAccount.name -}}
+{{- if or (not (kindIs "string" $value)) (eq (trim (toString $value)) "") -}}
+{{- fail $missingDefaults -}}
+{{- end -}}
+{{- end -}}
+{{- $sandbox := $runtime.sandbox -}}
+{{- range $field := list "vcpuCount" "memoryMib" -}}
+{{- if not (regexMatch "^0*[1-9][0-9]*$" (toString (index $sandbox $field))) -}}
+{{- fail (printf "loopRuntime.sandbox.%s must be a positive integer" $field) -}}
+{{- end -}}
+{{- end -}}
+{{- $egress := $sandbox.egressGateway | default dict -}}
+{{- $_ := required "objectStorage.google.brainstoreBucket is required" .Values.objectStorage.google.brainstoreBucket -}}
+{{- $_ := required "objectStorage.google.apiBucket is required" .Values.objectStorage.google.apiBucket -}}
+{{- range $path, $value := dict
+  "loopRuntime.image.repository" $runtime.image.repository
+  "loopRuntime.image.tag" ($runtime.image.tag | default "" | toString)
+  "loopRuntime.serviceAccount.googleServiceAccount" $runtime.serviceAccount.googleServiceAccount
+  "loopRuntime.sandbox.dnsUrl" $sandbox.dnsUrl
+  "loopRuntime.sandbox.image" $sandbox.image
+  "loopRuntime.sandbox.egressGateway.address" $egress.address
+  "loopRuntime.sandbox.egressGateway.url" $egress.url
+-}}
+{{- if or (not (kindIs "string" $value)) (eq (trim (toString $value)) "") -}}
+{{- fail (printf "%s is required" $path) -}}
+{{- end -}}
+{{- end -}}
+{{- if not $egress.sourceRanges -}}
+{{- fail "loopRuntime.sandbox.egressGateway.sourceRanges is required" -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
+
+{{/* Internal cluster URL for the Loop Runtime service. */}}
+{{- define "braintrust.loopRuntimeInternalUrl" -}}
+http://{{ .Values.loopRuntime.service.name | default .Values.loopRuntime.name }}.{{ include "braintrust.namespace" . }}:{{ .Values.loopRuntime.service.port }}
+{{- end -}}
+
+{{/* Product-owned Loop Runtime routes for an Istio VirtualService. */}}
+{{- define "braintrust.loopRuntimeVirtualServiceRoutes" -}}
+- match:
+    - uri:
+        exact: /loop/runtime
+    - uri:
+        prefix: /loop/runtime/
+  route:
+    - destination:
+        host: {{ .Values.loopRuntime.service.name | default .Values.loopRuntime.name }}
+        port:
+          number: {{ .Values.loopRuntime.service.port }}
+{{- end -}}
+
+{{/*
 Validate API autoscaling prerequisites (GKE + AutoscalingMetric CRD).
 */}}
 {{- define "braintrust.apiAutoscaling.validate" -}}

@@ -1,0 +1,48 @@
+suite: test Loop Runtime egress Service template
+templates:
+  - loop-runtime-egress-service.yaml
+tests:
+  - it: should not render when Loop Runtime is disabled
+    values:
+      - __fixtures__/base-values.yaml
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should expose the Git proxy on an internal load balancer at the reserved address
+    values: &values
+      - __fixtures__/base-values.yaml
+      - __fixtures__/loop-runtime-values.yaml
+    asserts:
+      - equal:
+          path: metadata.annotations["networking.gke.io/load-balancer-type"]
+          value: Internal
+      - equal:
+          path: spec.loadBalancerIP
+          value: 10.0.0.50
+      - equal:
+          path: spec.loadBalancerSourceRanges
+          value:
+            - 10.64.64.0/24
+            - 10.64.0.0/18
+      - equal:
+          path: spec.ports[0].port
+          value: 4002
+
+  - it: should retain IPv4 boundary ranges
+    values: *values
+    set:
+      loopRuntime.sandbox.egressGateway.sourceRanges: ["0.0.0.0/0","255.255.255.255/32","10.64.64.0/24"]
+    asserts:
+      - equal:
+          path: spec.loadBalancerSourceRanges
+          value: ["0.0.0.0/0","255.255.255.255/32","10.64.64.0/24"]
+
+  - it: should pass supplied ranges through for Kubernetes validation
+    values: *values
+    set:
+      loopRuntime.sandbox.egressGateway.sourceRanges: ["not-a-cidr", "2001:db8::/64"]
+    asserts:
+      - equal:
+          path: spec.loadBalancerSourceRanges
+          value: ["not-a-cidr", "2001:db8::/64"]

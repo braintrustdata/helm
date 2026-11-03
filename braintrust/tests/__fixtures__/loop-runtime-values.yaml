@@ -1,0 +1,28 @@
+# Loop Runtime on GKE. Layer on top of base-values.yaml.
+cloud: "google"
+
+objectStorage:
+  google:
+    brainstoreBucket: "test-brainstore-bucket"
+    apiBucket: "test-api-bucket"
+
+brainstore:
+  serviceAccount:
+    googleServiceAccount: "test@project.iam.gserviceaccount.com"
+
+loopRuntime:
+  enabled: true
+  image:
+    repository: "test/loop-runtime"
+    tag: "v1.0.0"
+  serviceAccount:
+    name: "braintrust-loop-runtime"
+    googleServiceAccount: "braintrust-loop@test-project.iam.gserviceaccount.com"
+  sandbox:
+    dnsUrl: "https://workers.sandbox.internal:9400"
+    egressGateway:
+      address: "10.0.0.50"
+      sourceRanges:
+        - "10.64.64.0/24"
+        - "10.64.0.0/18"
+      url: "http://loop-egress.sandbox.internal:4002"
