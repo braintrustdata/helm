@@ -1,5 +1,13 @@
 {{- $autoscaling := .Values.aiGateway.autoscaling | default dict }}
 {{- if and .Values.aiGateway.enabled (dig "enabled" true $autoscaling) }}
+{{- $minReplicas := dig "minReplicas" 2 $autoscaling }}
+{{- if lt (int $minReplicas) 1 }}
+{{- fail "aiGateway.autoscaling.minReplicas must be at least 1" }}
+{{- end }}
+{{- $requests := (.Values.aiGateway.resources | default dict).requests | default dict }}
+{{- if not (and $requests.cpu $requests.memory) }}
+{{- fail "aiGateway.autoscaling needs aiGateway.resources.requests.cpu and .memory. Set them, or set aiGateway.autoscaling.enabled to false." }}
+{{- end }}
 ---
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
@@ -15,7 +23,7 @@ spec:
     apiVersion: apps/v1
     kind: Deployment
     name: {{ .Values.aiGateway.name }}
-  minReplicas: {{ dig "minReplicas" 2 $autoscaling }}
+  minReplicas: {{ $minReplicas }}
   maxReplicas: {{ dig "maxReplicas" 6 $autoscaling }}
   metrics:
     - type: ContainerResource

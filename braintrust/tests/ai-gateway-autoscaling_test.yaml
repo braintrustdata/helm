@@ -77,6 +77,43 @@ tests:
           path: spec.metrics[1].containerResource.target.averageUtilization
           value: 80
 
+  - it: rejects zero minReplicas
+    set:
+      aiGateway.enabled: true
+      aiGateway.autoscaling.minReplicas: 0
+    template: ai-gateway-hpa.yaml
+    asserts:
+      - failedTemplate:
+          errorMessage: aiGateway.autoscaling.minReplicas must be at least 1
+
+  - it: rejects missing CPU and memory requests
+    set:
+      aiGateway.enabled: true
+      aiGateway.resources.requests: null
+    template: ai-gateway-hpa.yaml
+    asserts:
+      - failedTemplate:
+          errorMessage: aiGateway.autoscaling needs aiGateway.resources.requests.cpu and .memory. Set them, or set aiGateway.autoscaling.enabled to false.
+
+  - it: rejects a missing memory request
+    set:
+      aiGateway.enabled: true
+      aiGateway.resources.requests.memory: null
+    template: ai-gateway-hpa.yaml
+    asserts:
+      - failedTemplate:
+          errorMessage: aiGateway.autoscaling needs aiGateway.resources.requests.cpu and .memory. Set them, or set aiGateway.autoscaling.enabled to false.
+
+  - it: allows missing requests when autoscaling is disabled
+    set:
+      aiGateway.enabled: true
+      aiGateway.autoscaling.enabled: false
+      aiGateway.resources.requests: null
+    template: ai-gateway-hpa.yaml
+    asserts:
+      - hasDocuments:
+          count: 0
+
   - it: renders no HPA when autoscaling is disabled
     set:
       aiGateway.enabled: true

@@ -291,7 +291,7 @@ aiGateway:
     maxReplicas: 6
 ```
 
-Set `aiGateway.autoscaling.enabled: false` to use a fixed `aiGateway.replicas` instead.
+The targets are percentages of `aiGateway.resources.requests`, so the chart requires CPU and memory requests while autoscaling is on. Set `aiGateway.autoscaling.enabled: false` to use a fixed `aiGateway.replicas` instead.
 
 On a release that already runs the gateway, the upgrade that turns on autoscaling drops the gateway to 1 replica for about 15 seconds until the HPA scales it back up.
 
