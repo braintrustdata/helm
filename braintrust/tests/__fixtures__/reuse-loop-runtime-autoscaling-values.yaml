@@ -1,0 +1,9 @@
+# Nulls remove chart defaults during coalescing, leaving the enabled override
+# to simulate --reuse-values from a chart without autoscaling settings.
+loopRuntime:
+  autoscaling:
+    enabled: null
+    minReplicas: null
+    maxReplicas: null
+    metricsPath: null
+    targetConversationUtilization: null
