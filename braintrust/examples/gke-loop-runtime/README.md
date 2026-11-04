@@ -53,6 +53,11 @@ Workers run at a fixed count. One `c4-standard-8-lssd` worker holds about seven
 1 vCPU / 2 GiB sandboxes; beyond that, new sandboxes fail with
 `CapacityExhausted`. Raise `replicas` in `sandbox-service.yaml` to add workers.
 
+Loop Runtime defaults to one pod. Rolling updates use `maxSurge: 1` and
+`maxUnavailable: 0`, giving a 1 → 2 → 1 rollout. Increase `loopRuntime.replicas`
+for more capacity or pod redundancy.
+With `helm upgrade --reuse-values`, add `--set loopRuntime.replicas=1`
+to replace a retained count of two.
 Each runtime pod claims at most two conversations and has a 256Mi in-memory cache budget.
 Sandbox administration is disabled by default. Set `loopRuntime.enableSandboxAdmin: true`
 to allow authorized sysadmins to inspect and terminate sandboxes.

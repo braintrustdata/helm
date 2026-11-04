@@ -16,6 +16,12 @@ metadata:
   {{- end }}
 spec:
   replicas: {{ ternary 1 .Values.loopRuntime.replicas (has .Values.loopRuntime.replicas (list nil "")) }}
+  # Start the replacement before draining the current runtime.
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
   selector:
     matchLabels:
       app: {{ .Values.loopRuntime.name }}
