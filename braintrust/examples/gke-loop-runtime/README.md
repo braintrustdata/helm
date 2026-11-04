@@ -59,6 +59,18 @@ for more capacity or pod redundancy.
 With `helm upgrade --reuse-values`, add `--set loopRuntime.replicas=1`
 to replace a retained count of two.
 Each runtime pod claims at most two conversations and has a 256Mi in-memory cache budget.
+
+For conversation-based runtime autoscaling, set `loopRuntime.autoscaling.enabled: true`.
+This uses the same GKE custom-metrics prerequisites as `api.autoscaling` and defaults
+to 1–50 pods at 50% claimed conversation capacity, with a five-minute downscale window.
+The application must expose the gauge `loop_runtime_claimed_conversation_utilization`
+(0–100 percent) at `/metrics` on the runtime HTTP port. `metricsPath`, `minReplicas`,
+`maxReplicas`, and `targetConversationUtilization` are configurable under `loopRuntime.autoscaling`.
+An image without that endpoint or gauge cannot drive metric-based scaling; there is no image-version gate.
+The HPA owns replicas while enabled; disabling it restores `loopRuntime.replicas`.
+Enabling it on an existing Deployment can initially reset the count to one.
+This scales runtime pods only; provision worker replicas separately for the expected sandbox capacity.
+
 Sandbox administration is disabled by default. Set `loopRuntime.enableSandboxAdmin: true`
 to allow authorized sysadmins to inspect and terminate sandboxes.
 

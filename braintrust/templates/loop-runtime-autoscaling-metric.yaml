@@ -1,0 +1,24 @@
+{{- $autoscaling := include "braintrust.loopRuntime.autoscaling" . | fromYaml -}}
+{{- if $autoscaling -}}
+apiVersion: autoscaling.gke.io/v1beta1
+kind: AutoscalingMetric
+metadata:
+  name: {{ .Values.loopRuntime.name }}
+  namespace: {{ include "braintrust.namespace" . }}
+  labels:
+    {{- mergeOverwrite (deepCopy .Values.global.labels) (deepCopy .Values.loopRuntime.labels) | toYaml | nindent 4 }}
+spec:
+  metrics:
+    - pod:
+        selector:
+          matchLabels:
+            app: {{ .Values.loopRuntime.name }}
+        containers:
+          - endpoint:
+              port: {{ .Values.loopRuntime.service.port }}
+              path: {{ $autoscaling.metricsPath }}
+            metrics:
+              - gauge:
+                  name: claimed-conversation-utilization
+                  prometheusMetricName: loop_runtime_claimed_conversation_utilization
+{{- end }}

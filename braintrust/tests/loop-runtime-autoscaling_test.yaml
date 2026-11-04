@@ -1,0 +1,248 @@
+suite: test Loop Runtime conversation autoscaling
+templates:
+  - loop-runtime-autoscaling-metric.yaml
+  - loop-runtime-hpa.yaml
+  - loop-runtime-deployment.yaml
+  - loop-runtime-configmap.yaml
+  - api-service.yaml
+capabilities:
+  apiVersions:
+    - autoscaling.gke.io/v1beta1
+tests:
+  - it: should retain fixed replicas without autoscaling resources by default
+    values: &values
+      - __fixtures__/base-values.yaml
+      - __fixtures__/loop-runtime-values.yaml
+    asserts:
+      - hasDocuments:
+          count: 0
+        template: loop-runtime-hpa.yaml
+      - hasDocuments:
+          count: 0
+        template: loop-runtime-autoscaling-metric.yaml
+      - equal:
+          path: spec.replicas
+          value: 1
+        template: loop-runtime-deployment.yaml
+
+  - it: should reject a zero autoscaling minimum
+    template: loop-runtime-hpa.yaml
+    values: *values
+    set:
+      loopRuntime.autoscaling.enabled: true
+      loopRuntime.autoscaling.minReplicas: 0
+    asserts:
+      - failedTemplate: &invalidBounds
+          errorMessage: loopRuntime.autoscaling requires positive minReplicas and maxReplicas >= minReplicas
+
+  - it: should reject a fractional minimum
+    template: loop-runtime-hpa.yaml
+    values: *values
+    set:
+      loopRuntime.autoscaling.enabled: true
+      loopRuntime.autoscaling.minReplicas: 1.5
+    asserts:
+      - failedTemplate: *invalidBounds
+
+  - it: should reject a fractional maximum
+    template: loop-runtime-hpa.yaml
+    values: *values
+    set:
+      loopRuntime.autoscaling.enabled: true
+      loopRuntime.autoscaling.maxReplicas: 2.5
+    asserts:
+      - failedTemplate: *invalidBounds
+
+  - it: should reject a maximum below the minimum
+    template: loop-runtime-hpa.yaml
+    values: *values
+    set:
+      loopRuntime.autoscaling.enabled: true
+      loopRuntime.autoscaling.minReplicas: 3
+      loopRuntime.autoscaling.maxReplicas: 2
+    asserts:
+      - failedTemplate: *invalidBounds
+
+  - it: should reject an invalid conversation utilization target
+    template: loop-runtime-hpa.yaml
+    values: *values
+    set:
+      loopRuntime.autoscaling.enabled: true
+      loopRuntime.autoscaling.targetConversationUtilization: "101"
+    asserts:
+      - failedTemplate:
+          errorMessage: loopRuntime.autoscaling.targetConversationUtilization must be greater than 0 and at most 100
+
+  - it: should reject a relative metrics endpoint
+    template: loop-runtime-hpa.yaml
+    values: *values
+    set:
+      loopRuntime.autoscaling.enabled: true
+      loopRuntime.autoscaling.metricsPath: metrics
+    asserts:
+      - failedTemplate:
+          errorMessage: loopRuntime.autoscaling.metricsPath must be an absolute HTTP path
+
+  - it: should scale on conversation capacity and leave replica ownership to the HPA
+    values: *values
+    set:
+      loopRuntime.autoscaling.enabled: true
+      global.labels.shared: global
+      loopRuntime.labels.runtime-only: runtime
+      api.labels.api-only: api
+    asserts:
+      - equal:
+          path: spec
+          value:
+            scaleTargetRef:
+              apiVersion: apps/v1
+              kind: Deployment
+              name: braintrust-loop-runtime
+            minReplicas: 1
+            maxReplicas: 50
+            metrics:
+              - type: Pods
+                pods:
+                  metric:
+                    name: autoscaling.gke.io|braintrust-loop-runtime|claimed-conversation-utilization
+                  target:
+                    type: AverageValue
+                    averageValue: "50"
+            behavior:
+              scaleDown:
+                stabilizationWindowSeconds: 300
+        template: loop-runtime-hpa.yaml
+      - equal:
+          path: spec.metrics
+          value:
+            - pod:
+                selector:
+                  matchLabels:
+                    app: braintrust-loop-runtime
+                containers:
+                  - endpoint:
+                      port: 4001
+                      path: /metrics
+                    metrics:
+                      - gauge:
+                          name: claimed-conversation-utilization
+                          prometheusMetricName: loop_runtime_claimed_conversation_utilization
+        template: loop-runtime-autoscaling-metric.yaml
+      - notExists:
+          path: spec.replicas
+        template: loop-runtime-deployment.yaml
+      - equal:
+          path: metadata.labels
+          value:
+            shared: global
+            runtime-only: runtime
+        template: loop-runtime-hpa.yaml
+      - equal:
+          path: metadata.labels
+          value:
+            shared: global
+            runtime-only: runtime
+        template: loop-runtime-autoscaling-metric.yaml
+      - notExists:
+          path: metadata.labels["runtime-only"]
+        template: api-service.yaml
+
+  - it: should fill defaults when reused values enable autoscaling with only a partial override
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/loop-runtime-values.yaml
+      - __fixtures__/reuse-loop-runtime-autoscaling-values.yaml
+    set:
+      loopRuntime.autoscaling.enabled: true
+    asserts: &autoscalingDefaults
+      - equal:
+          path: spec.minReplicas
+          value: 1
+        template: loop-runtime-hpa.yaml
+      - equal:
+          path: spec.maxReplicas
+          value: 50
+        template: loop-runtime-hpa.yaml
+      - equal:
+          path: spec.metrics[0].pods.target.averageValue
+          value: "50"
+        template: loop-runtime-hpa.yaml
+      - equal:
+          path: spec.metrics[0].pod.containers[0].endpoint.path
+          value: /metrics
+        template: loop-runtime-autoscaling-metric.yaml
+      - notExists:
+          path: spec.replicas
+        template: loop-runtime-deployment.yaml
+
+  - it: should default individual null settings while autoscaling is enabled
+    values: *values
+    set:
+      loopRuntime.autoscaling:
+        enabled: true
+        minReplicas: null
+        maxReplicas: null
+        metricsPath: null
+        targetConversationUtilization: null
+    asserts: *autoscalingDefaults
+
+  - it: should honor custom capacity and scrape settings without changing fixed replicas
+    values: *values
+    set:
+      loopRuntime.replicas: 3
+      loopRuntime.service.port: "4888"
+      loopRuntime.autoscaling:
+        enabled: true
+        minReplicas: 2
+        maxReplicas: 8
+        metricsPath: /capacity
+        targetConversationUtilization: "75"
+    asserts:
+      - equal:
+          path: spec.minReplicas
+          value: 2
+        template: loop-runtime-hpa.yaml
+      - equal:
+          path: spec.maxReplicas
+          value: 8
+        template: loop-runtime-hpa.yaml
+      - equal:
+          path: spec.metrics[0].pods.target.averageValue
+          value: "75"
+        template: loop-runtime-hpa.yaml
+      - equal:
+          path: spec.metrics[0].pod.containers[0].endpoint
+          value:
+            port: 4888
+            path: /capacity
+        template: loop-runtime-autoscaling-metric.yaml
+      - notExists:
+          path: spec.replicas
+        template: loop-runtime-deployment.yaml
+
+  - it: should omit autoscaling when the runtime is disabled
+    values: *values
+    set:
+      loopRuntime.enabled: false
+      loopRuntime.autoscaling.enabled: true
+    asserts:
+      - hasDocuments:
+          count: 0
+        template: loop-runtime-hpa.yaml
+      - hasDocuments:
+          count: 0
+        template: loop-runtime-autoscaling-metric.yaml
+
+  - it: should restore explicit fixed replicas when autoscaling is disabled
+    values: *values
+    set:
+      loopRuntime.replicas: 3
+      loopRuntime.autoscaling: null
+    asserts:
+      - equal:
+          path: spec.replicas
+          value: 3
+        template: loop-runtime-deployment.yaml
+      - hasDocuments:
+          count: 0
+        template: loop-runtime-hpa.yaml

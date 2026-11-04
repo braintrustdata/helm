@@ -1,5 +1,6 @@
 {{- include "braintrust.loopRuntime.validate" . -}}
 {{- if include "braintrust.loopRuntime.enabled" . -}}
+{{- $autoscaling := include "braintrust.loopRuntime.autoscaling" . | fromYaml -}}
 {{- $podLabels := mergeOverwrite (deepCopy .Values.global.labels) (deepCopy .Values.loopRuntime.labels) (deepCopy .Values.loopRuntime.podLabels) (dict "app" .Values.loopRuntime.name "gke-workload-identity/use" "true") -}}
 apiVersion: apps/v1
 kind: Deployment
@@ -15,7 +16,9 @@ metadata:
     {{- toYaml . | nindent 4 }}
   {{- end }}
 spec:
+  {{- if not $autoscaling }}
   replicas: {{ ternary 1 .Values.loopRuntime.replicas (has .Values.loopRuntime.replicas (list nil "")) }}
+  {{- end }}
   # Start the replacement before draining the current runtime.
   strategy:
     type: RollingUpdate

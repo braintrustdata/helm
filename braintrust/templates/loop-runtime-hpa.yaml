@@ -1,0 +1,28 @@
+{{- $autoscaling := include "braintrust.loopRuntime.autoscaling" . | fromYaml -}}
+{{- if $autoscaling -}}
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ .Values.loopRuntime.name }}
+  namespace: {{ include "braintrust.namespace" . }}
+  labels:
+    {{- mergeOverwrite (deepCopy .Values.global.labels) (deepCopy .Values.loopRuntime.labels) | toYaml | nindent 4 }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ .Values.loopRuntime.name }}
+  minReplicas: {{ $autoscaling.minReplicas }}
+  maxReplicas: {{ $autoscaling.maxReplicas }}
+  metrics:
+    - type: Pods
+      pods:
+        metric:
+          name: autoscaling.gke.io|{{ .Values.loopRuntime.name }}|claimed-conversation-utilization
+        target:
+          type: AverageValue
+          averageValue: {{ $autoscaling.targetConversationUtilization | quote }}
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300
+{{- end }}
