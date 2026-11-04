@@ -287,6 +287,12 @@ api:
 
 When enabled for a pool, that pool's `replicas` setting is ignored and the HPA controls the replica count. With `api.workloadIsolation.enabled`, ingest and background pools inherit these settings and can override `minReplicas` / `maxReplicas` under `api.workloadIsolation.<pool>.autoscaling`.
 
+## AI Gateway Autoscaling
+
+The AI Gateway autoscales by default. An HPA runs 2-6 replicas at 70% CPU and 75% memory, the same as the AWS module. It needs metrics-server, which GKE and AKS include; without it the gateway stays at 2. Set `aiGateway.autoscaling.enabled: false` to use a fixed `aiGateway.replicas`.
+
+Turning on autoscaling for a running gateway briefly drops it to 1 replica until the HPA scales it back up.
+
 ## API workload isolation
 
 `api.workloadIsolation.enabled` creates fixed-capacity `braintrust-api-ingest`

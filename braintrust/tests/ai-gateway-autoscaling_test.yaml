@@ -1,0 +1,219 @@
+suite: AI Gateway autoscaling
+templates:
+  - ai-gateway-hpa.yaml
+  - ai-gateway-deployment.yaml
+  - ai-gateway-configmap.yaml
+values:
+  - __fixtures__/base-values.yaml
+release:
+  namespace: braintrust
+tests:
+  - it: renders no HPA when the gateway is disabled
+    template: ai-gateway-hpa.yaml
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: renders an HPA with AWS-parity defaults
+    set:
+      aiGateway.enabled: true
+    template: ai-gateway-hpa.yaml
+    asserts:
+      - isKind:
+          of: HorizontalPodAutoscaler
+      - equal:
+          path: spec.scaleTargetRef.name
+          value: braintrust-ai-gateway
+      - equal:
+          path: spec.minReplicas
+          value: 2
+      - equal:
+          path: spec.maxReplicas
+          value: 6
+      - equal:
+          path: spec.metrics[0].containerResource
+          value:
+            name: cpu
+            container: ai-gateway
+            target:
+              type: Utilization
+              averageUtilization: 70
+      - equal:
+          path: spec.metrics[1].containerResource
+          value:
+            name: memory
+            container: ai-gateway
+            target:
+              type: Utilization
+              averageUtilization: 75
+
+  - it: lets the HPA own replicas by default
+    set:
+      aiGateway.enabled: true
+    template: ai-gateway-deployment.yaml
+    asserts:
+      - notExists:
+          path: spec.replicas
+
+  - it: applies custom bounds and targets
+    set:
+      aiGateway.enabled: true
+      aiGateway.autoscaling.minReplicas: 4
+      aiGateway.autoscaling.maxReplicas: 40
+      aiGateway.autoscaling.cpu.targetAverageUtilization: 60
+      aiGateway.autoscaling.memory.targetAverageUtilization: 80
+    template: ai-gateway-hpa.yaml
+    asserts:
+      - equal:
+          path: spec.minReplicas
+          value: 4
+      - equal:
+          path: spec.maxReplicas
+          value: 40
+      - equal:
+          path: spec.metrics[0].containerResource.target.averageUtilization
+          value: 60
+      - equal:
+          path: spec.metrics[1].containerResource.target.averageUtilization
+          value: 80
+
+  - it: rejects zero minReplicas
+    set:
+      aiGateway.enabled: true
+      aiGateway.autoscaling.minReplicas: 0
+    template: ai-gateway-hpa.yaml
+    asserts:
+      - failedTemplate:
+          errorMessage: aiGateway.autoscaling needs 1 <= minReplicas <= maxReplicas, positive CPU and memory targets, and aiGateway.resources.requests for CPU and memory
+
+  - it: rejects maxReplicas below minReplicas
+    set:
+      aiGateway.enabled: true
+      aiGateway.autoscaling.maxReplicas: 1
+    template: ai-gateway-hpa.yaml
+    asserts:
+      - failedTemplate:
+          errorMessage: aiGateway.autoscaling needs 1 <= minReplicas <= maxReplicas, positive CPU and memory targets, and aiGateway.resources.requests for CPU and memory
+
+  - it: rejects an empty CPU target
+    set:
+      aiGateway.enabled: true
+      aiGateway.autoscaling.cpu.targetAverageUtilization: ""
+    template: ai-gateway-hpa.yaml
+    asserts:
+      - failedTemplate:
+          errorMessage: aiGateway.autoscaling needs 1 <= minReplicas <= maxReplicas, positive CPU and memory targets, and aiGateway.resources.requests for CPU and memory
+
+  - it: rejects a zero memory target
+    set:
+      aiGateway.enabled: true
+      aiGateway.autoscaling.memory.targetAverageUtilization: 0
+    template: ai-gateway-hpa.yaml
+    asserts:
+      - failedTemplate:
+          errorMessage: aiGateway.autoscaling needs 1 <= minReplicas <= maxReplicas, positive CPU and memory targets, and aiGateway.resources.requests for CPU and memory
+
+  - it: rejects a missing memory request
+    set:
+      aiGateway.enabled: true
+      aiGateway.resources.requests.memory: null
+    template: ai-gateway-hpa.yaml
+    asserts:
+      - failedTemplate:
+          errorMessage: aiGateway.autoscaling needs 1 <= minReplicas <= maxReplicas, positive CPU and memory targets, and aiGateway.resources.requests for CPU and memory
+
+  - it: renders no HPA when autoscaling is disabled
+    set:
+      aiGateway.enabled: true
+      aiGateway.autoscaling.enabled: false
+    template: ai-gateway-hpa.yaml
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: keeps fixed replicas when autoscaling is disabled
+    set:
+      aiGateway.enabled: true
+      aiGateway.autoscaling.enabled: false
+      aiGateway.replicas: 3
+    template: ai-gateway-deployment.yaml
+    asserts:
+      - equal:
+          path: spec.replicas
+          value: 3
+
+  - it: uses default bounds for reused values from an older chart
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/pre-ai-gateway-autoscaling-values.yaml
+    template: ai-gateway-hpa.yaml
+    asserts:
+      - equal:
+          path: spec.minReplicas
+          value: 2
+      - equal:
+          path: spec.maxReplicas
+          value: 6
+      - equal:
+          path: spec.metrics[1].containerResource.target.averageUtilization
+          value: 75
+
+  - it: fills defaults around a partial --set on reused values
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/pre-ai-gateway-autoscaling-values.yaml
+    set:
+      aiGateway.autoscaling.maxReplicas: 20
+    template: ai-gateway-hpa.yaml
+    asserts:
+      - equal:
+          path: spec.minReplicas
+          value: 2
+      - equal:
+          path: spec.maxReplicas
+          value: 20
+
+  - it: keeps fixed replicas when reused values disable autoscaling
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/pre-ai-gateway-autoscaling-values.yaml
+    set:
+      aiGateway.autoscaling.enabled: false
+    template: ai-gateway-deployment.yaml
+    asserts:
+      - equal:
+          path: spec.replicas
+          value: 2
+
+  - it: renders the HPA on aws
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/aws-values.yaml
+    set:
+      aiGateway.enabled: true
+    template: ai-gateway-hpa.yaml
+    asserts:
+      - isKind:
+          of: HorizontalPodAutoscaler
+
+  - it: renders the HPA on azure
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/azure-values.yaml
+    set:
+      aiGateway.enabled: true
+    template: ai-gateway-hpa.yaml
+    asserts:
+      - isKind:
+          of: HorizontalPodAutoscaler
+
+  - it: renders the HPA on google without the AutoscalingMetric API
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/google-values.yaml
+    set:
+      aiGateway.enabled: true
+    template: ai-gateway-hpa.yaml
+    asserts:
+      - isKind:
+          of: HorizontalPodAutoscaler
