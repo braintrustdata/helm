@@ -16,6 +16,9 @@ gke_isolated_workers = {
 `terraform output loop_runtime_service_account`.
 
 Use compatible API, Brainstore, and AI Gateway images for the runtime build.
+Use the chart's Braintrust services version for Loop Runtime and Sandbox Service.
+With `helm upgrade --reuse-values`, explicitly set `--set loopRuntime.image.tag=<services-version>`
+to replace a retained runtime image tag, and update `image` in `sandbox-service.yaml` to the same version.
 The API must report `ff_version` 82 or newer, and the Rust gateway must support
 `x-bt-provider-model-map`.
 Deploy the gateway with `aiGateway.enabled=true` first and wait for it to become

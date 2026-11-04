@@ -1,7 +1,7 @@
 # Values for the Sandbox Service worker chart, installed in the isolated worker cluster.
 # Every <...> value comes from the GCP Terraform output gke_isolated_workers.
 hostname: "<discovery.hostname>"
-image: public.ecr.aws/braintrust/sandbox-service:38b05599cdc5e4c3a213bbf0718211b397183a7a
+image: public.ecr.aws/braintrust/sandbox-service:v2.21.0
 # Fixed worker capacity. The worker node pool autoscales, so raising this is a values change.
 replicas: 1
 gitResources: true

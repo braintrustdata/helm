@@ -327,8 +327,7 @@ loopRuntime:
   replicas: 1
   image:
     repository: public.ecr.aws/braintrust/loop-runtime
-    # Tested with the Sandbox Service worker release in the GKE example.
-    tag: 38b05599cdc5e4c3a213bbf0718211b397183a7a
+    tag: v2.21.0
     pullPolicy: IfNotPresent
   # Requires the same GKE custom-metrics prerequisites as api.autoscaling.
   # Without the application metric, the HPA cannot perform metric-driven scaling.
