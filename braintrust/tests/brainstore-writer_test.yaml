@@ -318,6 +318,49 @@ tests:
             name: CUSTOM_VAR
             value: "custom-value"
 
+  - it: should render platformEnvVars before extraEnvVars so the user value wins
+    template: brainstore-writer-deployment.yaml
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      brainstore.writer.platformEnvVars:
+        - name: MODULE_VAR
+          value: from-module
+        - name: SHARED_NAME
+          value: module-value
+      brainstore.writer.extraEnvVars:
+        - name: USER_VAR
+          value: from-user
+        - name: SHARED_NAME
+          value: user-value
+    release:
+      namespace: "braintrust"
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].env[-4].name
+          value: MODULE_VAR
+      - equal:
+          path: spec.template.spec.containers[0].env[-4].value
+          value: from-module
+      - equal:
+          path: spec.template.spec.containers[0].env[-3].name
+          value: SHARED_NAME
+      - equal:
+          path: spec.template.spec.containers[0].env[-3].value
+          value: module-value
+      - equal:
+          path: spec.template.spec.containers[0].env[-2].name
+          value: USER_VAR
+      - equal:
+          path: spec.template.spec.containers[0].env[-2].value
+          value: from-user
+      - equal:
+          path: spec.template.spec.containers[0].env[-1].name
+          value: SHARED_NAME
+      - equal:
+          path: spec.template.spec.containers[0].env[-1].value
+          value: user-value
+
   - it: should include livenessProbe when configured
     template: brainstore-writer-deployment.yaml
     values:
