@@ -820,3 +820,20 @@ virtualService:
             host: "braintrust-api"  # Should match api.service.name or api.name
             port:
               number: 8000  # Should match api.service.port
+
+# Run schema migrations once per Helm revision before any new Deployment
+# application containers start. See docs/migration-job.md for retention/rollback.
+migrations:
+  enabled: true
+  timeoutSeconds: 1200
+  pollIntervalSeconds: 5
+  backoffLimit: 2
+  # Small read-only init-container helper; migration itself uses api.image.
+  image: "python:3.13-alpine@sha256:79e7a9b9ff1cbceff819f856fb374477792a5967759d94df266de7b7b4120e6f"
+  resources:
+    requests:
+      cpu: 25m
+      memory: 32Mi
+    limits:
+      cpu: 100m
+      memory: 128Mi

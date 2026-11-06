@@ -2,6 +2,9 @@ suite: test Brainstore Writer deployment template
 templates:
   - brainstore-writer-deployment.yaml
   - brainstore-writer-configmap.yaml
+# Existing workload behavior without the independent migration gate.
+set:
+  migrations.enabled: false
 tests:
   - it: should render Brainstore Writer deployment with default values
     template: brainstore-writer-deployment.yaml

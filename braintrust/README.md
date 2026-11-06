@@ -548,3 +548,14 @@ Example values files for different cloud providers and configurations are locate
 - `examples/google-autopilot-cel/values.yaml`: GKE Autopilot deployment with CEL-friendly security settings.
 - `examples/google-api-isolation-autoscaling/values.yaml`: Minimal example for API workload isolation and per-pool autoscaling on GKE (combine with an Autopilot or Standard values file).
 - `examples/google-standard/values.yaml`: GKE Standard deployment.
+
+## Migration ordering
+
+By default, a dedicated migration Job runs for each Helm release revision. All new
+Deployment pods wait for its success before starting application containers. API
+pods then run the existing Brainstore compatibility gate. The Job uses the shared
+`api.image` and API identity, configuration, secret mounts and resources.
+
+Set `migrations.enabled: false` to retain the previous API-startup migration behavior.
+See [migration lifecycle and configuration matrix](../docs/migration-job.md) for
+retention, cleanup, rollback, timeout, and Helm-controller requirements.

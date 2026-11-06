@@ -1,0 +1,71 @@
+{{- $config := include "braintrust.migrations.config" . | fromYaml -}}
+{{- if $config.enabled -}}
+{{- $name := include "braintrust.migrations.name" . -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $name }}-gate
+  namespace: {{ include "braintrust.namespace" . }}
+  annotations:
+    helm.sh/resource-policy: keep
+  labels:
+    braintrust.dev/migration-release: {{ .Release.Name | quote }}
+data:
+  gate.py: |
+    {{- .Files.Get "files/migration-gate.py" | nindent 4 }}
+  brainstore_gate.py: |
+    {{- .Files.Get "files/brainstore-startup-gate.py" | nindent 4 }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ $name }}
+  namespace: {{ include "braintrust.namespace" . }}
+  annotations:
+    helm.sh/resource-policy: keep
+  labels:
+    braintrust.dev/migration-release: {{ .Release.Name | quote }}
+rules:
+  - apiGroups: ["batch"]
+    resources: ["jobs"]
+    resourceNames: [{{ $name | quote }}]
+    verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ $name }}
+  namespace: {{ include "braintrust.namespace" . }}
+  annotations:
+    helm.sh/resource-policy: keep
+  labels:
+    braintrust.dev/migration-release: {{ .Release.Name | quote }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ $name }}
+subjects:
+  {{- $accounts := dict .Values.brainstore.serviceAccount.name true -}}
+  {{- range $pool := include "braintrust.apiPools" . | fromYamlArray -}}
+  {{- $_ := set $accounts $pool.config.serviceAccount.name true -}}
+  {{- end -}}
+  {{- if include "braintrust.loopRuntime.enabled" . -}}
+  {{- $_ := set $accounts .Values.loopRuntime.serviceAccount.name true -}}
+  {{- end -}}
+  {{- if .Values.aiGateway.enabled -}}
+  {{- $_ := set $accounts (include "braintrust.migrations.gatewayAccount" .) true -}}
+  {{- end -}}
+  {{- range $account := keys $accounts | sortAlpha }}
+  - kind: ServiceAccount
+    name: {{ $account }}
+    namespace: {{ include "braintrust.namespace" $ }}
+  {{- end }}
+{{- if .Values.aiGateway.enabled }}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ include "braintrust.migrations.gatewayAccount" . }}
+  namespace: {{ include "braintrust.namespace" . }}
+{{- end }}
+{{- end }}

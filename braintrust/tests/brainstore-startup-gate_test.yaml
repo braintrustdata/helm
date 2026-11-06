@@ -7,6 +7,9 @@ templates:
   - api-serviceaccount.yaml
   - brainstore-reader-deployment.yaml
   - brainstore-reader-configmap.yaml
+# Existing workload behavior without the independent migration gate.
+set:
+  migrations.enabled: false
 tests:
   - it: should gate API startup by default
     template: api-deployment.yaml

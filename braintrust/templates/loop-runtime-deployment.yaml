@@ -1,3 +1,4 @@
+{{- $migration := include "braintrust.migrations.config" . | fromYaml -}}
 {{- include "braintrust.loopRuntime.validate" . -}}
 {{- if include "braintrust.loopRuntime.enabled" . -}}
 {{- $autoscaling := include "braintrust.loopRuntime.autoscaling" . | fromYaml -}}
@@ -16,6 +17,9 @@ metadata:
     {{- toYaml . | nindent 4 }}
   {{- end }}
 spec:
+  {{- if $migration.enabled }}
+  progressDeadlineSeconds: {{ add 600 (int $migration.timeoutSeconds) }}
+  {{- end }}
   {{- if not $autoscaling }}
   replicas: {{ ternary 1 .Values.loopRuntime.replicas (has .Values.loopRuntime.replicas (list nil "")) }}
   {{- end }}
@@ -60,6 +64,10 @@ spec:
       {{- with .Values.loopRuntime.affinity }}
       affinity:
         {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if $migration.enabled }}
+      initContainers:
+        {{- include "braintrust.migrations.initContainer" . | nindent 8 }}
       {{- end }}
       containers:
         - name: loop-runtime
@@ -148,6 +156,9 @@ spec:
       {{- toYaml . | nindent 8 }}
       {{- end }}
       volumes:
+        {{- if $migration.enabled }}
+        {{- include "braintrust.migrations.volumes" . | nindent 8 }}
+        {{- end }}
         - name: state
           emptyDir:
             sizeLimit: 2Gi

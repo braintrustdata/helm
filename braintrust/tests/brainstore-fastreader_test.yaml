@@ -2,6 +2,9 @@ suite: test Brainstore Fast Reader deployment template
 templates:
   - brainstore-fastreader-deployment.yaml
   - brainstore-fastreader-configmap.yaml
+# Existing workload behavior without the independent migration gate.
+set:
+  migrations.enabled: false
 tests:
   - it: should render Brainstore Fast Reader deployment with default values
     template: brainstore-fastreader-deployment.yaml

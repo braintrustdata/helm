@@ -1,3 +1,4 @@
+{{- $migration := include "braintrust.migrations.config" . | fromYaml -}}
 {{- if .Values.aiGateway.enabled }}
 ---
 apiVersion: apps/v1
@@ -14,6 +15,9 @@ metadata:
     {{- toYaml . | nindent 4 }}
   {{- end }}
 spec:
+  {{- if $migration.enabled }}
+  progressDeadlineSeconds: {{ add 600 (int $migration.timeoutSeconds) }}
+  {{- end }}
   replicas: {{ .Values.aiGateway.replicas }}
   strategy:
     type: RollingUpdate
@@ -36,6 +40,10 @@ spec:
         {{- toYaml . | nindent 8 }}
         {{- end }}
     spec:
+      {{- if $migration.enabled }}
+      serviceAccountName: {{ include "braintrust.migrations.gatewayAccount" . }}
+      automountServiceAccountToken: false
+      {{- end }}
       {{- with .Values.aiGateway.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
@@ -47,6 +55,10 @@ spec:
       {{- with .Values.aiGateway.affinity }}
       affinity:
         {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if $migration.enabled }}
+      initContainers:
+        {{- include "braintrust.migrations.initContainer" . | nindent 8 }}
       {{- end }}
       containers:
         - name: ai-gateway
@@ -90,9 +102,12 @@ spec:
       {{- toYaml . | nindent 8 }}
       {{- end }}
       volumes:
-        {{- with .Values.aiGateway.extraVolumes }}
-        {{- toYaml . | nindent 8 }}
-        {{- else }}
+        {{- if $migration.enabled }}
+        {{- include "braintrust.migrations.volumes" . | nindent 8 }}
+        {{- end }}
+        {{- if .Values.aiGateway.extraVolumes }}
+        {{- toYaml .Values.aiGateway.extraVolumes | nindent 8 }}
+        {{- else if not $migration.enabled }}
         []
         {{- end }}
 {{- end }}

@@ -3,7 +3,12 @@
 {{- $root := .root -}}
 {{- $api := .api -}}
 {{- $role := .role -}}
+{{- $migration := include "braintrust.migrations.config" $root | fromYaml -}}
 {{- $startupGate := include "braintrust.brainstoreStartupGate.config" $root | fromYaml -}}
+{{- if .migrationJob -}}
+{{- $_ := set $startupGate "enabled" false -}}
+{{- $_ := set $migration "enabled" false -}}
+{{- end -}}
 {{- if $startupGate.enabled -}}
 {{- include "braintrust.brainstoreStartupGate.validateApi" (dict "api" $api) -}}
 {{- end -}}
@@ -44,8 +49,8 @@ metadata:
     {{- toYaml . | nindent 4 }}
   {{- end }}
 spec:
-  {{- if $startupGate.enabled }}
-  progressDeadlineSeconds: {{ add (int $startupGate.timeoutSeconds) 300 }}
+  {{- if or $startupGate.enabled $migration.enabled }}
+  progressDeadlineSeconds: {{ add 300 (ternary (int $startupGate.timeoutSeconds) 0 $startupGate.enabled) (ternary (int $migration.timeoutSeconds) 0 $migration.enabled) }}
   {{- end }}
   {{- if not (dig "autoscaling" "enabled" false $api) }}
   replicas: {{ $api.replicas }}
@@ -78,7 +83,7 @@ spec:
         {{- end }}
     spec:
       serviceAccountName: {{ $api.serviceAccount.name }}
-      {{- if $startupGate.enabled }}
+      {{- if or $startupGate.enabled $migration.enabled }}
       # Only the init container mounts the projected Kubernetes API credential.
       automountServiceAccountToken: false
       {{- end }}
@@ -107,8 +112,12 @@ spec:
       affinity:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- if $startupGate.enabled }}
+      {{- if or $startupGate.enabled $migration.enabled }}
       initContainers:
+        {{- if $migration.enabled }}
+        {{- include "braintrust.migrations.initContainer" $root | nindent 8 }}
+        {{- end }}
+        {{- if $startupGate.enabled }}
         - name: wait-for-brainstore
           image: {{ $startupGate.image | quote }}
           imagePullPolicy: IfNotPresent
@@ -145,6 +154,7 @@ spec:
             - name: brainstore-gate-credentials
               mountPath: /var/run/brainstore-gate
               readOnly: true
+        {{- end }}
       {{- end }}
       containers:
         - name: api
@@ -259,7 +269,10 @@ spec:
       {{- toYaml . | nindent 8 }}
       {{- end }}
       volumes:
-        {{- if or $startupGate.enabled $api.tmpVolume.enabled (and (eq $root.Values.cloud "azure") $root.Values.azure.enableAzureKeyVaultDriver) $customCA.enabled $api.extraVolumes }}
+        {{- if or $migration.enabled $startupGate.enabled $api.tmpVolume.enabled (and (eq $root.Values.cloud "azure") $root.Values.azure.enableAzureKeyVaultDriver) $customCA.enabled $api.extraVolumes }}
+        {{- if $migration.enabled }}
+        {{- include "braintrust.migrations.volumes" $root | nindent 8 }}
+        {{- end }}
         {{- if $startupGate.enabled }}
         - name: brainstore-gate-code
           configMap:
