@@ -157,7 +157,8 @@ spec:
           ports:
             - containerPort: {{ $api.service.port }}
             {{- if dig "autoscaling" "enabled" false $api }}
-            - containerPort: {{ $api.healthServer.port }}
+            - name: api-metrics
+              containerPort: {{ $api.healthServer.port }}
             {{- end }}
           resources:
             {{- toYaml $api.resources | nindent 12 }}
