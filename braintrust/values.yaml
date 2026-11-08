@@ -324,13 +324,14 @@ aiGateway:
     deployment: {}
     service: {}
     pod: {}
-  # Ignored when autoscaling.enabled is true.
+  # With autoscaling, the default minReplicas.
   replicas: 2
   # Needs metrics-server; without it the HPA holds minReplicas.
   autoscaling:
     enabled: true
-    minReplicas: 2
-    maxReplicas: 6
+    # minReplicas defaults to replicas, maxReplicas to max(6, minReplicas).
+    # minReplicas: 2
+    # maxReplicas: 6
     cpu:
       targetAverageUtilization: 70
     memory:

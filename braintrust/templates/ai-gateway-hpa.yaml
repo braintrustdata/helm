@@ -1,7 +1,8 @@
 {{- $autoscaling := .Values.aiGateway.autoscaling | default dict }}
 {{- if and .Values.aiGateway.enabled (dig "enabled" true $autoscaling) }}
-{{- $minReplicas := int (dig "minReplicas" 2 $autoscaling) }}
-{{- $maxReplicas := int (dig "maxReplicas" 6 $autoscaling) }}
+{{- /* Bounds default from replicas so a custom count is not reset to 2-6. */}}
+{{- $minReplicas := int (dig "minReplicas" (dig "replicas" 2 .Values.aiGateway) $autoscaling) }}
+{{- $maxReplicas := int (dig "maxReplicas" (max 6 $minReplicas) $autoscaling) }}
 {{- $cpuTarget := int (dig "cpu" "targetAverageUtilization" 70 $autoscaling) }}
 {{- $memoryTarget := int (dig "memory" "targetAverageUtilization" 75 $autoscaling) }}
 {{- $requests := (.Values.aiGateway.resources | default dict).requests | default dict }}

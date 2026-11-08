@@ -77,6 +77,91 @@ tests:
           path: spec.metrics[1].containerResource.target.averageUtilization
           value: 80
 
+  - it: keeps a custom replicas count as the floor
+    set:
+      aiGateway.enabled: true
+      aiGateway.replicas: 4
+    template: ai-gateway-hpa.yaml
+    asserts:
+      - equal:
+          path: spec.minReplicas
+          value: 4
+      - equal:
+          path: spec.maxReplicas
+          value: 6
+
+  - it: raises maxReplicas to a replicas count above 6
+    set:
+      aiGateway.enabled: true
+      aiGateway.replicas: 10
+    template: ai-gateway-hpa.yaml
+    asserts:
+      - equal:
+          path: spec.minReplicas
+          value: 10
+      - equal:
+          path: spec.maxReplicas
+          value: 10
+
+  - it: raises maxReplicas to a minReplicas above 6
+    set:
+      aiGateway.enabled: true
+      aiGateway.autoscaling.minReplicas: 8
+    template: ai-gateway-hpa.yaml
+    asserts:
+      - equal:
+          path: spec.minReplicas
+          value: 8
+      - equal:
+          path: spec.maxReplicas
+          value: 8
+
+  - it: prefers explicit bounds over replicas
+    set:
+      aiGateway.enabled: true
+      aiGateway.replicas: 10
+      aiGateway.autoscaling.minReplicas: 3
+      aiGateway.autoscaling.maxReplicas: 5
+    template: ai-gateway-hpa.yaml
+    asserts:
+      - equal:
+          path: spec.minReplicas
+          value: 3
+      - equal:
+          path: spec.maxReplicas
+          value: 5
+
+  - it: uses 2 replicas when replicas is null
+    set:
+      aiGateway.enabled: true
+      aiGateway.replicas: null
+    template: ai-gateway-hpa.yaml
+    asserts:
+      - equal:
+          path: spec.minReplicas
+          value: 2
+      - equal:
+          path: spec.maxReplicas
+          value: 6
+
+  - it: rejects zero replicas
+    set:
+      aiGateway.enabled: true
+      aiGateway.replicas: 0
+    template: ai-gateway-hpa.yaml
+    asserts:
+      - failedTemplate:
+          errorMessage: aiGateway.autoscaling needs 1 <= minReplicas <= maxReplicas, positive CPU and memory targets, and aiGateway.resources.requests for CPU and memory
+
+  - it: rejects empty replicas
+    set:
+      aiGateway.enabled: true
+      aiGateway.replicas: ""
+    template: ai-gateway-hpa.yaml
+    asserts:
+      - failedTemplate:
+          errorMessage: aiGateway.autoscaling needs 1 <= minReplicas <= maxReplicas, positive CPU and memory targets, and aiGateway.resources.requests for CPU and memory
+
   - it: rejects zero minReplicas
     set:
       aiGateway.enabled: true
@@ -172,6 +257,21 @@ tests:
       - equal:
           path: spec.maxReplicas
           value: 20
+
+  - it: keeps a reused custom replicas count as the floor
+    values:
+      - __fixtures__/base-values.yaml
+      - __fixtures__/pre-ai-gateway-autoscaling-values.yaml
+    set:
+      aiGateway.replicas: 4
+    template: ai-gateway-hpa.yaml
+    asserts:
+      - equal:
+          path: spec.minReplicas
+          value: 4
+      - equal:
+          path: spec.maxReplicas
+          value: 6
 
   - it: keeps fixed replicas when reused values disable autoscaling
     values:
