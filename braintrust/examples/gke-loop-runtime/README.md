@@ -56,6 +56,53 @@ Workers run at a fixed count. One `c4-standard-8-lssd` worker holds about seven
 1 vCPU / 2 GiB sandboxes; beyond that, new sandboxes fail with
 `CapacityExhausted`. Raise `replicas` in `sandbox-service.yaml` to add workers.
 
+## Filesystem retention
+
+The worker package and image pinned above use node-local storage. They do not
+enable durable filesystem checkpoints. To enable retention, use a published
+Sandbox Service chart and image whose release supports filesystem retention,
+alongside a compatible Loop Runtime image. Updating only the image or passing
+retention values to the older chart does not enable this feature.
+
+Apply the GCP Terraform module's checkpoint-storage update first. Its
+`gke_isolated_workers.checkpoint_store` output identifies a dedicated private GCS
+bucket. Copy that URI into `sandbox-service-retention.yaml`. Worker nodes receive
+object access to that bucket through their node identity; the primary runtime and
+isolated services pool do not need checkpoint access.
+
+Set `SANDBOX_SERVICE_CHART_URL` and `SANDBOX_SERVICE_IMAGE` to the compatible
+published artifacts, then apply the overlay to the worker release:
+
+```sh
+: "${SANDBOX_SERVICE_CHART_URL:?set a retention-capable published worker chart URL}"
+: "${SANDBOX_SERVICE_IMAGE:?set a compatible published worker image}"
+helm --kube-context <worker> upgrade --install sandbox-service \
+  "$SANDBOX_SERVICE_CHART_URL" --namespace braintrust-sandbox \
+  --values braintrust/examples/gke-loop-runtime/sandbox-service.yaml \
+  --values braintrust/examples/gke-loop-runtime/sandbox-service-retention.yaml \
+  --set-string image="$SANDBOX_SERVICE_IMAGE" --wait
+```
+
+Existing releases using `--reuse-values` must explicitly set both retention
+values and the compatible image; do not rely on new chart defaults to replace
+retained settings. The worker controller continues to own replica changes and
+draining. Keep its eviction protections and provision capacity for a replacement
+worker during upgrades.
+
+The workers still use local SSDs formatted as XFS for their working disks.
+Checkpoints preserve files at completed idle sleep or preserving drain; they do
+not preserve running processes or edits since the last completed checkpoint.
+Before relying on recovery, verify that a file survives sleep, wake, and worker
+node replacement in the target deployment. Allow disk headroom for retained
+local checkpoints as well as active sandboxes.
+
+Keep the checkpoint bucket and URI stable while retained sandboxes exist.
+Coordinate any return to workers without retention support before disabling it.
+Removing the worker infrastructure retains the bucket; save its URI and retain
+the encryption key, and import the original storage before re-enabling workers
+with existing checkpoints. See the Terraform module's
+[storage lifecycle](https://github.com/braintrustdata/terraform-google-braintrust-data-plane/blob/main/ISOLATED_WORKERS.md#storage-and-lifecycle).
+
 Loop Runtime defaults to one pod. Rolling updates use `maxSurge: 1` and
 `maxUnavailable: 0`, giving a 1 → 2 → 1 rollout. Increase `loopRuntime.replicas`
 for more capacity or pod redundancy.
