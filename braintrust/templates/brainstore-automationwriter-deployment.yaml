@@ -48,13 +48,7 @@ spec:
         {{- toYaml . | nindent 8 }}
         {{- end }}
       annotations:
-        checksum/config: {{ include (print $.Template.BasePath "/brainstore-automationwriter-configmap.yaml") . | sha256sum }}
-        {{- if eq .Values.cloud "google" }}
-        iam.gke.io/gcp-service-account: {{ required "brainstore.serviceAccount.googleServiceAccount is required when cloud is google" .Values.brainstore.serviceAccount.googleServiceAccount }}
-        {{- end }}
-        {{- with $aw.annotations.pod }}
-        {{- toYaml . | nindent 8 }}
-        {{- end }}
+        {{- include "braintrust.rollout.podAnnotations" (dict "root" . "role" "automationwriter" "config" $aw) | nindent 8 }}
     spec:
       serviceAccountName: {{ .Values.brainstore.serviceAccount.name }}
       {{- with $aw.podSecurityContext }}
@@ -82,7 +76,7 @@ spec:
       {{- end }}
       {{- if $migration.enabled }}
       initContainers:
-        {{- include "braintrust.migrations.initContainer" . | nindent 8 }}
+        {{- include "braintrust.releaseJob.initContainer" (dict "root" .) | nindent 8 }}
       {{- end }}
       containers:
         - name: brainstore-automationwriter
@@ -182,7 +176,7 @@ spec:
       {{- end }}
       volumes:
         {{- if $migration.enabled }}
-        {{- include "braintrust.migrations.volumes" . | nindent 8 }}
+        {{- include "braintrust.releaseJob.volumes" . | nindent 8 }}
         {{- end }}
         - name: cache-volume
           {{- /* Azure local disk is required only once this pool has replicas. A disabled pool must render without a size. */}}

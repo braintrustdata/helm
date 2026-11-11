@@ -1,4 +1,4 @@
-"""Wait for the exact release's migration Job; never infer success from absence."""
+"""Wait for the exact release Job; never infer success from absence."""
 
 import os
 import sys
@@ -10,12 +10,12 @@ from brainstore_gate import KubernetesClient
 
 
 def job_complete(job):
-    if job.get("metadata", {}).get("deletionTimestamp"):
-        return False
     conditions = job.get("status", {}).get("conditions", [])
     if any(c.get("type") in {"Failed", "FailureTarget"} and c.get("status") == "True"
            for c in conditions):
-        raise RuntimeError("migration Job failed; inspect its logs and retry with a new Helm upgrade")
+        raise RuntimeError("Job failed; inspect its logs and retry with a new Helm upgrade")
+    if job.get("metadata", {}).get("deletionTimestamp"):
+        return False
     return any(c.get("type") == "Complete" and c.get("status") == "True" for c in conditions)
 
 
@@ -28,7 +28,7 @@ def wait_for_job(client, name, timeout, interval,
         try:
             complete = job_complete(client.get(path, deadline))
             if complete and clock() < deadline:
-                log(f"Migration Job {name} completed successfully", flush=True)
+                log(f"Job {name} completed successfully", flush=True)
                 return
             reason = "Job has not completed"
         except urllib.error.HTTPError as error:
@@ -37,17 +37,17 @@ def wait_for_job(client, name, timeout, interval,
             error.close()
         except (OSError, ValueError, KeyError, TypeError) as error:
             reason = f"Kubernetes observation failed: {type(error).__name__}"
-        log(f"Waiting for migration Job {name}: {reason}", flush=True)
+        log(f"Waiting for Job {name}: {reason}", flush=True)
         sleep(min(interval, max(0, deadline - clock())))
-    raise TimeoutError(f"Migration Job {name} wait timed out after {timeout}s: {reason}")
+    raise TimeoutError(f"Job {name} wait timed out after {timeout}s: {reason}")
 
 
 def main():
-    timeout = int(os.environ["MIGRATION_TIMEOUT_SECONDS"])
-    interval = int(os.environ["MIGRATION_POLL_SECONDS"])
-    name = os.environ["MIGRATION_JOB_NAME"]
+    timeout = int(os.environ["JOB_TIMEOUT_SECONDS"])
+    interval = int(os.environ["JOB_POLL_SECONDS"])
+    name = os.environ["JOB_NAME"]
     if not name or interval <= 0 or timeout <= interval:
-        raise ValueError("invalid migration gate configuration")
+        raise ValueError("invalid Job gate configuration")
     client = KubernetesClient(os.environ["POD_NAMESPACE"], "/var/run/migration-gate")
     wait_for_job(client, name, timeout, interval)
 

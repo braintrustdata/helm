@@ -41,13 +41,7 @@ spec:
         {{- toYaml . | nindent 8 }}
         {{- end }}
       annotations:
-        checksum/config: {{ include (print $.Template.BasePath "/brainstore-reader-configmap.yaml") . | sha256sum }}
-        {{- if eq .Values.cloud "google" }}
-        iam.gke.io/gcp-service-account: {{ required "brainstore.serviceAccount.googleServiceAccount is required when cloud is google" .Values.brainstore.serviceAccount.googleServiceAccount }}
-        {{- end }}
-        {{- with .Values.brainstore.reader.annotations.pod }}
-        {{- toYaml . | nindent 8 }}
-        {{- end }}
+        {{- include "braintrust.rollout.podAnnotations" (dict "root" . "role" "reader" "config" .Values.brainstore.reader) | nindent 8 }}
     spec:
       serviceAccountName: {{ .Values.brainstore.serviceAccount.name }}
       {{- with .Values.brainstore.reader.podSecurityContext }}
@@ -75,7 +69,7 @@ spec:
       {{- end }}
       {{- if $migration.enabled }}
       initContainers:
-        {{- include "braintrust.migrations.initContainer" . | nindent 8 }}
+        {{- include "braintrust.releaseJob.initContainer" (dict "root" .) | nindent 8 }}
       {{- end }}
       containers:
         - name: brainstore-reader
@@ -167,7 +161,7 @@ spec:
       {{- end }}
       volumes:
         {{- if $migration.enabled }}
-        {{- include "braintrust.migrations.volumes" . | nindent 8 }}
+        {{- include "braintrust.releaseJob.volumes" . | nindent 8 }}
         {{- end }}
         - name: cache-volume
           {{- if and (eq .Values.cloud "azure") .Values.azure.enableAzureContainerStorageDriver }}

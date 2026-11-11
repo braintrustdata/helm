@@ -1,8 +1,8 @@
 """Remove the target revision's retained resources before Helm restores them.
 
 Helm 3 cannot update a retained object absent from the current release manifest.
-Delete only the named target revision; foreground Job deletion waits for its
-migration pods to terminate before the rollback can recreate that Job.
+Delete only the named target revision; foreground Job deletion waits for all of
+its migration and rollout pods before rollback can recreate either Job.
 """
 import json
 import os
@@ -35,7 +35,7 @@ class Client:
     def request(self, method, path, deadline):
         remaining = deadline - time.monotonic()
         if remaining <= 0:
-            raise TimeoutError("rollback migration cleanup timed out")
+            raise TimeoutError("rollback release cleanup timed out")
         token = (self.credentials / "token").read_text().strip()
         payload = json.dumps({"propagationPolicy": "Foreground"}).encode() if method == "DELETE" else None
         request = urllib.request.Request(self.base + path, method=method, data=payload,
@@ -53,28 +53,60 @@ class Client:
             raise RuntimeError(f"Kubernetes cleanup {method} returned HTTP {error.code}") from None
 
 
-def resource_paths(namespace, name):
+def resource_paths(namespace, names):
     namespace = urllib.parse.quote(namespace, safe="")
-    name = urllib.parse.quote(name, safe="")
-    return [
-        f"/apis/batch/v1/namespaces/{namespace}/jobs/{name}",
-        f"/api/v1/namespaces/{namespace}/configmaps/{name}-config",
-        f"/api/v1/namespaces/{namespace}/configmaps/{name}-gate",
-        f"/apis/rbac.authorization.k8s.io/v1/namespaces/{namespace}/rolebindings/{name}",
-        f"/apis/rbac.authorization.k8s.io/v1/namespaces/{namespace}/roles/{name}",
-    ]
+    names = [urllib.parse.quote(name, safe="") for name in names]
+    jobs = [f"/apis/batch/v1/namespaces/{namespace}/jobs/{name}" for name in names]
+    retained = []
+    for name in names:
+        retained.extend([
+            f"/api/v1/namespaces/{namespace}/configmaps/{name}-config",
+            f"/api/v1/namespaces/{namespace}/configmaps/{name}-gate",
+            f"/apis/rbac.authorization.k8s.io/v1/namespaces/{namespace}/rolebindings/{name}",
+            f"/apis/rbac.authorization.k8s.io/v1/namespaces/{namespace}/roles/{name}",
+        ])
+    return jobs + retained
 
 
-def cleanup(client, namespace, name, timeout, clock=time.monotonic, sleep=time.sleep):
+def cleanup(client, namespace, names, timeout, clock=time.monotonic, sleep=time.sleep):
     deadline = clock() + timeout
-    for path in resource_paths(namespace, name):
-        client.request("DELETE", path, deadline)
-        while client.request("GET", path, deadline):
-            if clock() >= deadline:
-                raise TimeoutError("rollback migration cleanup timed out")
+    paths = resource_paths(namespace, names)
+    jobs, retained = paths[:len(names)], paths[len(names):]
+
+    def check_deadline():
+        if clock() >= deadline:
+            raise TimeoutError("rollback release cleanup timed out")
+
+    def request(method, path):
+        check_deadline()
+        exists = client.request(method, path, deadline)
+        check_deadline()
+        return exists
+
+    def wait_until_deleted(path):
+        while request("GET", path):
             sleep(min(2, max(0, deadline - clock())))
+
+    # Stop both phases before removing any config or permissions they rely on.
+    for path in jobs:
+        request("DELETE", path)
+    for path in jobs:
+        wait_until_deleted(path)
+    for path in retained:
+        request("DELETE", path)
+        wait_until_deleted(path)
+
+
+def main():
+    names = json.loads(os.environ["RELEASE_JOB_NAMES"])
+    if not isinstance(names, list) or not names or any(
+            not isinstance(name, str) or not name for name in names):
+        raise ValueError("RELEASE_JOB_NAMES must be a nonempty list of Job names")
+    timeout = int(os.environ["RELEASE_TIMEOUT_SECONDS"])
+    if timeout <= 0:
+        raise ValueError("RELEASE_TIMEOUT_SECONDS must be positive")
+    cleanup(Client(), os.environ["POD_NAMESPACE"], names, timeout)
 
 
 if __name__ == "__main__":
-    cleanup(Client(), os.environ["POD_NAMESPACE"], os.environ["MIGRATION_JOB_NAME"],
-            int(os.environ["MIGRATION_TIMEOUT_SECONDS"]))
+    main()

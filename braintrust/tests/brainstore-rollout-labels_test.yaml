@@ -1,0 +1,38 @@
+suite: rollout observer label isolation
+release:
+  name: test
+  namespace: workload
+  revision: 7
+templates:
+  - brainstore-rollout.yaml
+  - brainstore-reader-configmap.yaml
+  - brainstore-writer-configmap.yaml
+  - brainstore-fastreader-configmap.yaml
+  - brainstore-automationwriter-configmap.yaml
+tests:
+  - it: prevents observer pods from becoming API backends through global labels
+    template: brainstore-rollout.yaml
+    documentIndex: 0
+    set:
+      global.labels:
+        app: braintrust-api
+        shared: global
+      api.labels.api-only: api
+      brainstore.reader.labels.reader-only: reader
+    asserts:
+      - notEqual:
+          path: spec.template.metadata.labels.app
+          value: braintrust-api
+      - equal:
+          path: spec.template.metadata.labels.shared
+          value: global
+      - isNull:
+          path: spec.template.metadata.labels["api-only"]
+      - isNull:
+          path: spec.template.metadata.labels["reader-only"]
+      - equal:
+          path: spec.template.spec.automountServiceAccountToken
+          value: false
+      - isNull:
+          path: spec.template.spec.containers[0].envFrom[0].secretRef
+

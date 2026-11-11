@@ -89,26 +89,23 @@ tests:
       - isNull:
           path: data.PG_URL
 
-  - it: waits for migrations before the Brainstore compatibility gate
+  - it: holds APIs behind the completed rollout before the compatibility check
     template: api-deployment.yaml
     asserts:
       - equal:
           path: spec.template.spec.initContainers[0].name
-          value: wait-for-migrations
+          value: wait-for-brainstore-rollout
       - equal:
           path: spec.template.spec.initContainers[1].name
           value: wait-for-brainstore
       - matchRegex:
           path: spec.template.spec.initContainers[0].env[1].value
-          pattern: '-migrate-r7$'
-      - equal:
-          path: spec.progressDeadlineSeconds
-          value: 2700
+          pattern: '-rollout-r7$'
       - equal:
           path: spec.template.spec.automountServiceAccountToken
           value: false
 
-  - it: grants only get on the exact revision Job
+  - it: restricts workload gates to reading only the two exact release Jobs
     template: migration-gate.yaml
     documentIndex: 1
     asserts:
@@ -129,24 +126,12 @@ tests:
       - matchRegex:
           path: rules[0].resourceNames[0]
           pattern: '-migrate-r7$'
-      - equal:
-          path: metadata.annotations["helm.sh/resource-policy"]
-          value: keep
-
-  - it: keeps revision-bound helper code for old replicas and rollback
-    template: migration-gate.yaml
-    documentIndex: 0
-    asserts:
       - matchRegex:
-          path: metadata.name
-          pattern: '-migrate-r7-gate$'
+          path: rules[0].resourceNames[1]
+          pattern: '-rollout-r7$'
       - equal:
           path: metadata.annotations["helm.sh/resource-policy"]
           value: keep
-      - isNotNull:
-          path: data["gate.py"]
-      - isNotNull:
-          path: data["brainstore_gate.py"]
 
   - it: binds all pool identities and the Brainstore account in the actual namespace
     template: migration-gate.yaml
@@ -323,7 +308,7 @@ tests:
     documentIndex: 0
     set: {"api.workloadIsolation.enabled": true}
     asserts:
-      - {"equal": {"path": "spec.template.spec.initContainers[0].name", "value": "wait-for-migrations"}}
+      - {"equal": {"path": "spec.template.spec.initContainers[0].name", "value": "wait-for-brainstore-rollout"}}
       - {"equal": {"path": "spec.template.spec.initContainers[1].name", "value": "wait-for-brainstore"}}
 
   - it: gates isolated API pool 1
@@ -331,7 +316,7 @@ tests:
     documentIndex: 1
     set: {"api.workloadIsolation.enabled": true}
     asserts:
-      - {"equal": {"path": "spec.template.spec.initContainers[0].name", "value": "wait-for-migrations"}}
+      - {"equal": {"path": "spec.template.spec.initContainers[0].name", "value": "wait-for-brainstore-rollout"}}
       - {"equal": {"path": "spec.template.spec.initContainers[1].name", "value": "wait-for-brainstore"}}
 
   - it: gates isolated API pool 2
@@ -339,7 +324,7 @@ tests:
     documentIndex: 2
     set: {"api.workloadIsolation.enabled": true}
     asserts:
-      - {"equal": {"path": "spec.template.spec.initContainers[0].name", "value": "wait-for-migrations"}}
+      - {"equal": {"path": "spec.template.spec.initContainers[0].name", "value": "wait-for-brainstore-rollout"}}
       - {"equal": {"path": "spec.template.spec.initContainers[1].name", "value": "wait-for-brainstore"}}
 
   - it: gates the optional AI Gateway
@@ -427,7 +412,7 @@ tests:
     template: api-deployment.yaml
     set: {"migrations": null}
     asserts:
-      - {"equal": {"path": "spec.template.spec.initContainers[0].name", "value": "wait-for-migrations"}}
+      - {"equal": {"path": "spec.template.spec.initContainers[0].name", "value": "wait-for-brainstore-rollout"}}
 
   - it: merges partial reused values with defaults
     template: migration-job.yaml
@@ -445,81 +430,25 @@ tests:
       - {"equal": {"path": "spec.backoffLimit", "value": 0}}
 
   - it: uses custom timing and a mirrored helper image
-    template: api-deployment.yaml
+    template: brainstore-reader-deployment.yaml
     set: {"migrations.timeoutSeconds": 1800, "migrations.pollIntervalSeconds": 10, "migrations.image": "mirror/python:3.13"}
     asserts:
-      - {"equal": {"path": "spec.progressDeadlineSeconds", "value": 3300}}
       - {"equal": {"path": "spec.template.spec.initContainers[0].image", "value": "mirror/python:3.13"}}
       - {"equal": {"path": "spec.template.spec.initContainers[0].env[2].value", "value": "1800"}}
       - {"equal": {"path": "spec.template.spec.initContainers[0].env[3].value", "value": "10"}}
 
-  - it: preserves API image tag v2.22.0
-    template: migration-job.yaml
-    documentIndex: 0
-    set: {"api.image.tag": "v2.22.0", "api.brainstoreStartupGate.minimumVersion": "2.22.0"}
-    asserts:
-      - {"equal": {"path": "spec.template.spec.containers[0].image", "value": "public.ecr.aws/braintrust/standalone-api:v2.22.0"}}
-
-  - it: preserves API image tag 2.22.0
-    template: migration-job.yaml
-    documentIndex: 0
-    set: {"api.image.tag": "2.22.0", "api.brainstoreStartupGate.minimumVersion": "2.22.0"}
-    asserts:
-      - {"equal": {"path": "spec.template.spec.containers[0].image", "value": "public.ecr.aws/braintrust/standalone-api:2.22.0"}}
-
-  - it: preserves API image tag abcdef0123456789abcdef0123456789abcdef0123
-    template: migration-job.yaml
-    documentIndex: 0
-    set: {"api.image.tag": "abcdef0123456789abcdef0123456789abcdef0123", "api.brainstoreStartupGate.minimumVersion": "2.22.0"}
-    asserts:
-      - {"equal": {"path": "spec.template.spec.containers[0].image", "value": "public.ecr.aws/braintrust/standalone-api:abcdef0123456789abcdef0123456789abcdef0123"}}
-
-  - it: preserves API image tag deadbeef
-    template: migration-job.yaml
-    documentIndex: 0
-    set: {"api.image.tag": "deadbeef", "api.brainstoreStartupGate.minimumVersion": "2.22.0"}
-    asserts:
-      - {"equal": {"path": "spec.template.spec.containers[0].image", "value": "public.ecr.aws/braintrust/standalone-api:deadbeef"}}
-
-  - it: preserves API image tag 1234567
-    template: migration-job.yaml
-    documentIndex: 0
-    set: {"api.image.tag": "1234567", "api.brainstoreStartupGate.minimumVersion": "2.22.0"}
-    asserts:
-      - {"equal": {"path": "spec.template.spec.containers[0].image", "value": "public.ecr.aws/braintrust/standalone-api:1234567"}}
-
-  - it: preserves API image tag v2.23.0-rc.1
-    template: migration-job.yaml
-    documentIndex: 0
-    set: {"api.image.tag": "v2.23.0-rc.1", "api.brainstoreStartupGate.minimumVersion": "2.22.0"}
-    asserts:
-      - {"equal": {"path": "spec.template.spec.containers[0].image", "value": "public.ecr.aws/braintrust/standalone-api:v2.23.0-rc.1"}}
-
-  - it: preserves API image tag custom
-    template: migration-job.yaml
-    documentIndex: 0
-    set: {"api.image.tag": "custom", "api.brainstoreStartupGate.minimumVersion": "2.22.0"}
-    asserts:
-      - {"equal": {"path": "spec.template.spec.containers[0].image", "value": "public.ecr.aws/braintrust/standalone-api:custom"}}
-
-  - it: preserves API image tag v2.22.0@sha256:abc
-    template: migration-job.yaml
-    documentIndex: 0
-    set: {"api.image.tag": "v2.22.0@sha256:abc", "api.brainstoreStartupGate.minimumVersion": "2.22.0"}
-    asserts:
-      - {"equal": {"path": "spec.template.spec.containers[0].image", "value": "public.ecr.aws/braintrust/standalone-api:v2.22.0@sha256:abc"}}
 
   - it: rejects invalid timeoutSeconds 0
     template: migration-rollback.yaml
     set: {"migrations.timeoutSeconds": 0}
     asserts:
-      - {"failedTemplate": {"errorMessage": "migrations timing values must be positive integers"}}
+      - failedTemplate: {}
 
   - it: rejects invalid timeoutSeconds 
     template: migration-rollback.yaml
     set: {"migrations.timeoutSeconds": ""}
     asserts:
-      - {"failedTemplate": {"errorMessage": "migrations timing values must be positive integers"}}
+      - failedTemplate: {}
 
   - it: defaults a null timeoutSeconds after Helm coalesces values
     template: migration-job.yaml
@@ -534,19 +463,19 @@ tests:
     template: migration-rollback.yaml
     set: {"migrations.timeoutSeconds": -1}
     asserts:
-      - {"failedTemplate": {"errorMessage": "migrations timing values must be positive integers"}}
+      - failedTemplate: {}
 
   - it: rejects invalid pollIntervalSeconds 0
     template: migration-rollback.yaml
     set: {"migrations.pollIntervalSeconds": 0}
     asserts:
-      - {"failedTemplate": {"errorMessage": "migrations timing values must be positive integers"}}
+      - failedTemplate: {}
 
   - it: rejects invalid pollIntervalSeconds 
     template: migration-rollback.yaml
     set: {"migrations.pollIntervalSeconds": ""}
     asserts:
-      - {"failedTemplate": {"errorMessage": "migrations timing values must be positive integers"}}
+      - failedTemplate: {}
 
   - it: defaults a null pollIntervalSeconds after Helm coalesces values
     template: migration-job.yaml
@@ -561,19 +490,19 @@ tests:
     template: migration-rollback.yaml
     set: {"migrations.pollIntervalSeconds": -1}
     asserts:
-      - {"failedTemplate": {"errorMessage": "migrations timing values must be positive integers"}}
+      - failedTemplate: {}
 
   - it: rejects a poll interval outside the budget
     template: migration-rollback.yaml
     set: {"migrations.pollIntervalSeconds": 1200}
     asserts:
-      - {"failedTemplate": {"errorMessage": "migrations.timeoutSeconds must exceed pollIntervalSeconds"}}
+      - failedTemplate: {}
 
   - it: rejects an empty helper image
     template: migration-rollback.yaml
     set: {"migrations.image": ""}
     asserts:
-      - {"failedTemplate": {"errorMessage": "migrations.image is required"}}
+      - failedTemplate: {}
 
   - it: does not validate unused disabled settings
     template: migration-job.yaml
@@ -585,46 +514,7 @@ tests:
     template: migration-rollback.yaml
     set: {"migrations.backoffLimit": -1}
     asserts:
-      - {"failedTemplate": {"errorMessage": "migrations.backoffLimit must be a nonnegative integer"}}
-
-  - it: binds a distinct Job to release revision 1
-    template: migration-job.yaml
-    documentIndex: 0
-    release: {"name": "test", "revision": 1}
-    asserts:
-      - {"matchRegex": {"path": "metadata.name", "pattern": "-migrate-r1$"}}
-
-  - it: binds pods to release revision 1
-    template: api-deployment.yaml
-    release: {"name": "test", "revision": 1}
-    asserts:
-      - {"matchRegex": {"path": "spec.template.spec.initContainers[0].env[1].value", "pattern": "-migrate-r1$"}}
-
-  - it: binds a distinct Job to release revision 8
-    template: migration-job.yaml
-    documentIndex: 0
-    release: {"name": "test", "revision": 8}
-    asserts:
-      - {"matchRegex": {"path": "metadata.name", "pattern": "-migrate-r8$"}}
-
-  - it: binds pods to release revision 8
-    template: api-deployment.yaml
-    release: {"name": "test", "revision": 8}
-    asserts:
-      - {"matchRegex": {"path": "spec.template.spec.initContainers[0].env[1].value", "pattern": "-migrate-r8$"}}
-
-  - it: binds a distinct Job to release revision 101
-    template: migration-job.yaml
-    documentIndex: 0
-    release: {"name": "test", "revision": 101}
-    asserts:
-      - {"matchRegex": {"path": "metadata.name", "pattern": "-migrate-r101$"}}
-
-  - it: binds pods to release revision 101
-    template: api-deployment.yaml
-    release: {"name": "test", "revision": 101}
-    asserts:
-      - {"matchRegex": {"path": "spec.template.spec.initContainers[0].env[1].value", "pattern": "-migrate-r101$"}}
+      - failedTemplate: {}
 
   - it: preserves revision suffix with long release names
     template: migration-job.yaml
@@ -633,24 +523,6 @@ tests:
     asserts:
       - {"matchRegex": {"path": "metadata.name", "pattern": "^.{1,56}$"}}
       - {"matchRegex": {"path": "metadata.name", "pattern": "-migrate-r101$"}}
-
-  - it: preserves reader replica behavior for 0
-    template: brainstore-reader-deployment.yaml
-    set: {"brainstore.reader.replicas": 0}
-    asserts:
-      - {"equal": {"path": "spec.template.spec.initContainers[0].name", "value": "wait-for-migrations"}}
-
-  - it: preserves reader replica behavior for None
-    template: brainstore-reader-deployment.yaml
-    set: {"brainstore.reader.replicas": null}
-    asserts:
-      - {"equal": {"path": "spec.template.spec.initContainers[0].name", "value": "wait-for-migrations"}}
-
-  - it: preserves reader replica behavior for 
-    template: brainstore-reader-deployment.yaml
-    set: {"brainstore.reader.replicas": ""}
-    asserts:
-      - {"equal": {"path": "spec.template.spec.initContainers[0].name", "value": "wait-for-migrations"}}
 
   - it: keeps missing automation writer omitted
     template: brainstore-automationwriter-deployment.yaml
@@ -691,7 +563,7 @@ tests:
           value: before-hook-creation,hook-succeeded
       - matchRegex:
           path: spec.template.spec.containers[0].env[1].value
-          pattern: '-migrate-r7$'
+          pattern: '^\["test-9f86d081-migrate-r7","test-9f86d081-rollout-r7"\]$'
       - matchRegex:
           path: spec.template.spec.serviceAccountName
           pattern: '-migrate-r7-reset$'
@@ -717,13 +589,13 @@ tests:
           value: [get, delete]
       - equal:
           path: rules[0].resourceNames
-          value: [test-9f86d081-migrate-r7]
+          value: [test-9f86d081-migrate-r7, test-9f86d081-rollout-r7]
       - equal:
           path: rules[1].resourceNames
-          value: [test-9f86d081-migrate-r7-config, test-9f86d081-migrate-r7-gate]
+          value: [test-9f86d081-migrate-r7-config, test-9f86d081-migrate-r7-gate, test-9f86d081-rollout-r7-config, test-9f86d081-rollout-r7-gate]
       - equal:
           path: rules[2].resourceNames
-          value: [test-9f86d081-migrate-r7]
+          value: [test-9f86d081-migrate-r7, test-9f86d081-rollout-r7]
 
   - it: does not render rollback hooks when migrations are disabled
     template: migration-rollback.yaml

@@ -102,8 +102,8 @@ btqlAuditLogsBestEffortOrgIds: []
 
 api:
   name: "braintrust-api"
-  # Experimental: hold new API processes until compatible Brainstore capacity
-  # is available. Shared by all API pools. Enable for a canary before promotion.
+  # Hold new API processes until compatible Brainstore capacity is available.
+  # With migrations enabled, first require this release's exact Brainstore rollout.
   # Requires stable release tags (vX.Y.Z); opaque custom tags cannot prove compatibility.
   # Only the init container mounts a Kubernetes API token when enabled; custom
   # sidecars needing Kubernetes API access must project their own token.
@@ -821,8 +821,8 @@ virtualService:
             port:
               number: 8000  # Should match api.service.port
 
-# Run schema migrations once per Helm revision before any new Deployment
-# application containers start. See docs/migration-job.md for retention/rollback.
+# Run schema migrations once per Helm revision before new application containers
+# start. API startup then waits for the exact Brainstore rollout. See docs/migration-job.md.
 migrations:
   enabled: true
   timeoutSeconds: 1200

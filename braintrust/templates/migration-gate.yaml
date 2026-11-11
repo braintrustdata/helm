@@ -12,9 +12,13 @@ metadata:
     braintrust.dev/migration-release: {{ .Release.Name | quote }}
 data:
   gate.py: |
-    {{- .Files.Get "files/migration-gate.py" | nindent 4 }}
+    {{- .Files.Get "files/job-gate.py" | nindent 4 }}
   brainstore_gate.py: |
     {{- .Files.Get "files/brainstore-startup-gate.py" | nindent 4 }}
+  {{- if include "braintrust.rollout.enabled" . }}
+  brainstore_rollout.py: |
+    {{- .Files.Get "files/brainstore-rollout.py" | nindent 4 }}
+  {{- end }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
@@ -28,7 +32,11 @@ metadata:
 rules:
   - apiGroups: ["batch"]
     resources: ["jobs"]
-    resourceNames: [{{ $name | quote }}]
+    resourceNames:
+      - {{ $name | quote }}
+      {{- if include "braintrust.rollout.enabled" . }}
+      - {{ include "braintrust.rollout.name" . | quote }}
+      {{- end }}
     verbs: ["get"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
@@ -46,6 +54,9 @@ roleRef:
   name: {{ $name }}
 subjects:
   {{- $accounts := dict .Values.brainstore.serviceAccount.name true -}}
+  {{- if include "braintrust.rollout.enabled" . -}}
+  {{- $_ := set $accounts (include "braintrust.rollout.serviceAccount" .) true -}}
+  {{- end -}}
   {{- range $pool := include "braintrust.apiPools" . | fromYamlArray -}}
   {{- $_ := set $accounts $pool.config.serviceAccount.name true -}}
   {{- end -}}

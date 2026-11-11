@@ -1,0 +1,160 @@
+suite: exact release rollout boundaries
+release:
+  name: test
+  namespace: workload
+  revision: 7
+templates:
+  - brainstore-rollout.yaml
+  - api-deployment.yaml
+  - api-configmap.yaml
+  - brainstore-reader-deployment.yaml
+  - brainstore-reader-configmap.yaml
+  - brainstore-writer-configmap.yaml
+  - brainstore-fastreader-configmap.yaml
+  - brainstore-automationwriter-configmap.yaml
+tests:
+  - it: omits the observer when migrations are disabled
+    template: brainstore-rollout.yaml
+    set:
+      migrations.enabled: false
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: omits exact rollout ordering when the startup gate is disabled
+    template: brainstore-rollout.yaml
+    set:
+      api.brainstoreStartupGate.enabled: false
+      api.brainstoreStartupGate.timeoutSeconds: 0
+      api.brainstoreStartupGate.image: ""
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: allows rollback to recreate the observer identity after a disabled revision
+    template: brainstore-rollout.yaml
+    documentIndex: 2
+    asserts:
+      - isKind:
+          of: ServiceAccount
+      - isNull:
+          path: metadata.annotations["helm.sh/resource-policy"]
+
+  - it: keeps compatibility-only startup when migrations are disabled
+    template: api-deployment.yaml
+    set:
+      migrations.enabled: false
+    asserts:
+      - lengthEqual:
+          path: spec.template.spec.initContainers
+          count: 1
+      - equal:
+          path: spec.template.spec.initContainers[0].name
+          value: wait-for-brainstore
+
+  - it: restores full ordering for null feature maps on reused values
+    template: brainstore-rollout.yaml
+    set:
+      migrations: null
+      api.brainstoreStartupGate: null
+    asserts:
+      - hasDocuments:
+          count: 5
+
+  - it: budgets migration and rollout separately without premature API expiry
+    template: api-deployment.yaml
+    set:
+      migrations.timeoutSeconds: 900
+      api.brainstoreStartupGate.timeoutSeconds: 300
+    asserts:
+      - equal:
+          path: spec.template.spec.initContainers[0].env[2].value
+          value: "1200"
+      - equal:
+          path: spec.progressDeadlineSeconds
+          value: 1800
+
+  - it: gives the observer time for migration before its rollout observation
+    template: brainstore-rollout.yaml
+    documentIndex: 0
+    set:
+      migrations.timeoutSeconds: 900
+      api.brainstoreStartupGate.timeoutSeconds: 300
+    asserts:
+      - equal:
+          path: spec.activeDeadlineSeconds
+          value: 1200
+      - isNull:
+          path: spec.ttlSecondsAfterFinished
+      - equal:
+          path: metadata.annotations["helm.sh/resource-policy"]
+          value: keep
+      - isNull:
+          path: metadata.annotations["helm.sh/hook"]
+
+  - it: prevents custom annotations from spoofing the expected release or config
+    template: brainstore-reader-deployment.yaml
+    set:
+      brainstore.reader.annotations.pod:
+        braintrust.dev/release-revision: forged
+        checksum/config: forged
+        custom: preserved
+    asserts:
+      - equal:
+          path: spec.template.metadata.annotations["braintrust.dev/release-revision"]
+          value: "7"
+      - notEqual:
+          path: spec.template.metadata.annotations["checksum/config"]
+          value: forged
+      - equal:
+          path: spec.template.metadata.annotations.custom
+          value: preserved
+
+  - it: does not force strict revision identity after opting out of migrations
+    template: brainstore-reader-deployment.yaml
+    set:
+      migrations.enabled: false
+    asserts:
+      - isNull:
+          path: spec.template.metadata.annotations["braintrust.dev/release-revision"]
+      - isNull:
+          path: spec.template.spec.initContainers
+
+  - it: restricts observation to namespace pod listing and named deployments
+    template: brainstore-rollout.yaml
+    documentIndex: 3
+    set:
+      global.createNamespace: true
+      global.namespace: custom-namespace
+      brainstore.reader.name: custom-reader
+      brainstore.writer.name: custom-writer
+      brainstore.fastreader.name: custom-fastreader
+      brainstore.automationwriter: null
+    asserts:
+      - equal:
+          path: metadata.namespace
+          value: custom-namespace
+      - lengthEqual:
+          path: rules
+          count: 2
+      - equal:
+          path: rules[0].apiGroups
+          value: [apps]
+      - equal:
+          path: rules[0].resources
+          value: [deployments]
+      - equal:
+          path: rules[0].resourceNames
+          value: [custom-reader, custom-writer, custom-fastreader]
+      - equal:
+          path: rules[0].verbs
+          value: [get]
+      - equal:
+          path: rules[1].apiGroups
+          value: [""]
+      - equal:
+          path: rules[1].resources
+          value: [pods]
+      - equal:
+          path: rules[1].verbs
+          value: [list]
