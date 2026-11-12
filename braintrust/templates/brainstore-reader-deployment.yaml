@@ -41,7 +41,7 @@ spec:
         {{- toYaml . | nindent 8 }}
         {{- end }}
       annotations:
-        {{- include "braintrust.brainstoreStartupGate.podAnnotations" (dict "root" . "role" "reader" "config" .Values.brainstore.reader) | nindent 8 }}
+        {{- include "braintrust.brainstore.podAnnotations" (dict "root" . "role" "reader" "config" .Values.brainstore.reader) | nindent 8 }}
     spec:
       serviceAccountName: {{ .Values.brainstore.serviceAccount.name }}
       {{- with .Values.brainstore.reader.podSecurityContext }}

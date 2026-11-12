@@ -289,6 +289,22 @@ and normal writable-layer/log overhead.
 {{- toYaml $resources -}}
 {{- end -}}
 
+{{/* Merge Brainstore pod annotations, reserving release identity for rollout checks. */}}
+{{- define "braintrust.brainstore.podAnnotations" -}}
+{{- $root := .root -}}
+{{- $annotations := dict "checksum/config" (include (printf "%s/brainstore-%s-configmap.yaml" $root.Template.BasePath .role) $root | sha256sum) -}}
+{{- if eq $root.Values.cloud "google" -}}
+{{- $_ := set $annotations "iam.gke.io/gcp-service-account" (required "brainstore.serviceAccount.googleServiceAccount is required when cloud is google" $root.Values.brainstore.serviceAccount.googleServiceAccount) -}}
+{{- end -}}
+{{- $annotations = mergeOverwrite $annotations (deepCopy (.config.annotations.pod | default dict)) -}}
+{{- $migration := include "braintrust.migrations.config" $root | fromYaml -}}
+{{- if $migration.enabled -}}
+{{/* Release identity rejects a previous Ready generation before Helm updates it. */}}
+{{- $_ := set $annotations "braintrust.dev/release-revision" (toString $root.Release.Revision) -}}
+{{- end -}}
+{{- toYaml $annotations -}}
+{{- end -}}
+
 {{/*
 Defaults for the optional automation writer pool.
 
