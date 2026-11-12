@@ -1,7 +1,6 @@
 import importlib.util
 import itertools
 import json
-import os
 from pathlib import Path
 import sys
 import unittest
@@ -66,24 +65,23 @@ class JobGateTests(unittest.TestCase):
                         gate.job_complete(job(condition, "Complete", **metadata))
 
     def test_exact_job_wait_retries_missing_job_rbac_and_server_errors(self):
-        for name in ("release-migrate-r2", "release-rollout-r2"):
-            with self.subTest(name=name):
-                errors = [urllib.error.HTTPError("url", code, "error", {}, None)
-                          for code in (404, 403, 500)]
-                client, _ = self.wait(errors + [job("Complete")], name=name)
-                self.assertEqual(
-                    {call.args for call in client.get.call_args_list},
-                    {(f"/apis/batch/v1/namespaces/test-namespace/jobs/{name}", 20)},
-                )
+        errors = [urllib.error.HTTPError("url", code, "error", {}, None)
+                  for code in (404, 403, 500)]
+        client, elapsed = self.wait(errors + [job("Complete")])
+        self.assertEqual(elapsed, 15)
+        self.assertEqual(
+            {call.args for call in client.get.call_args_list},
+            {("/apis/batch/v1/namespaces/test-namespace/jobs/release-migrate-r2", 20)},
+        )
 
     def test_retained_success_does_not_wait_for_another_observation(self):
-        for name in ("release-migrate-r1", "release-rollout-r1"):
-            client = Mock(namespace="ns")
-            client.get.return_value = job("Complete")
-            sleep = Mock()
-            gate.wait_for_job(client, name, 20, 5, clock=lambda: 0,
-                              sleep=sleep, log=Mock())
-            sleep.assert_not_called()
+        client = Mock(namespace="ns")
+        client.get.return_value = job("Complete")
+        sleep = Mock()
+        gate.wait_for_job(client, "release-migrate-r1", 20, 5, clock=lambda: 0,
+                          sleep=sleep, log=Mock())
+        self.assertEqual(client.get.call_count, 1)
+        sleep.assert_not_called()
 
     def test_running_job_then_success(self):
         _, elapsed = self.wait([job(), job("Complete")])
@@ -101,7 +99,10 @@ class JobGateTests(unittest.TestCase):
             self.wait([job("Failed")])
 
     def test_transient_observation_errors_retry(self):
-        self.wait([OSError("network"), ValueError("bad JSON"), job("Complete")])
+        client, elapsed = self.wait([OSError("network"), ValueError("bad JSON"),
+                                     job("Complete")])
+        self.assertEqual(client.get.call_count, 3)
+        self.assertEqual(elapsed, 10)
 
     def test_observation_errors_do_not_disclose_response_details(self):
         clock = Clock()
@@ -127,117 +128,132 @@ class JobGateTests(unittest.TestCase):
 
 
 class RollbackCleanupTests(unittest.TestCase):
-    names = ["release-migrate-r7", "release-rollout-r7"]
+    name = "release-migrate-r7"
 
-    def test_resource_paths_escape_namespace_and_names(self):
-        paths = rollback.resource_paths("ns/other", ["name/other"])
-        self.assertTrue(all("/namespaces/ns%2Fother/" in path for path in paths))
-        self.assertTrue(all(path.rsplit("/", 1)[1].startswith("name%2Fother")
-                            for path in paths))
+    def test_resource_paths_escape_and_limit_cleanup_to_the_target_migration(self):
+        self.assertEqual(rollback.resource_paths("ns/other", "name/other"), [
+            "/apis/batch/v1/namespaces/ns%2Fother/jobs/name%2Fother",
+            "/api/v1/namespaces/ns%2Fother/configmaps/name%2Fother-config",
+            "/api/v1/namespaces/ns%2Fother/configmaps/name%2Fother-gate",
+            "/apis/rbac.authorization.k8s.io/v1/namespaces/ns%2Fother/rolebindings/name%2Fother",
+            "/apis/rbac.authorization.k8s.io/v1/namespaces/ns%2Fother/roles/name%2Fother",
+        ])
 
-    def test_both_jobs_are_deleted_before_any_config_or_rbac_cleanup(self):
-        paths = rollback.resource_paths("ns", self.names)
-        jobs = paths[:2]
-        observations = {jobs[0]: iter([True, False]),
-                        jobs[1]: iter([True, True, False])}
-        deleted, absent = set(), set()
+    def test_job_is_absent_before_any_config_or_rbac_cleanup(self):
+        paths = rollback.resource_paths("ns", self.name)
+        job_path = paths[0]
+        observations = iter([True, False])
+        deleted = absent = False
         clock = Clock()
         def request(method, path, deadline):
+            nonlocal deleted, absent
             self.assertIn(path, paths)
             self.assertEqual(deadline, 10)
-            if path in jobs:
+            if path == job_path:
                 if method == "DELETE":
-                    deleted.add(path)
+                    deleted = True
                     return True
-                self.assertEqual(deleted, set(jobs))
-                exists = next(observations[path])
-                if not exists:
-                    absent.add(path)
+                self.assertTrue(deleted)
+                exists = next(observations)
+                absent = not exists
                 return exists
-            self.assertEqual(absent, set(jobs))
+            self.assertTrue(absent)
             return method == "DELETE"
         client = Mock()
         client.request.side_effect = request
-        rollback.cleanup(client, "ns", self.names, 10, clock=clock, sleep=clock.sleep)
+        rollback.cleanup(client, "ns", self.name, 10, clock=clock, sleep=clock.sleep)
+        expected = [("DELETE", job_path, 10), ("GET", job_path, 10),
+                    ("GET", job_path, 10)]
+        expected.extend((method, path, 10) for path in paths[1:]
+                        for method in ("DELETE", "GET"))
+        self.assertEqual([call.args for call in client.request.call_args_list], expected)
+        self.assertEqual(clock.now, 2)
+
+    def test_cleanup_of_absent_resources_is_idempotent(self):
+        client = Mock()
+        client.request.return_value = False
+        sleep = Mock()
+        rollback.cleanup(client, "ns", self.name, 10, clock=lambda: 0, sleep=sleep)
         self.assertEqual(
-            {call.args[1] for call in client.request.call_args_list if call.args[0] == "DELETE"},
-            set(paths),
+            [call.args for call in client.request.call_args_list],
+            [(method, path, 10) for path in rollback.resource_paths("ns", self.name)
+             for method in ("DELETE", "GET")],
+        )
+        sleep.assert_not_called()
+
+    def test_stuck_job_blocks_all_config_and_rbac_cleanup(self):
+        job_path = rollback.resource_paths("ns", self.name)[0]
+        client = Mock()
+        client.request.return_value = True
+        clock = Clock()
+        with self.assertRaises(TimeoutError):
+            rollback.cleanup(client, "ns", self.name, 3,
+                             clock=clock, sleep=clock.sleep)
+        self.assertEqual(clock.now, 3)
+        self.assertEqual(
+            [call.args for call in client.request.call_args_list],
+            [("DELETE", job_path, 3), ("GET", job_path, 3), ("GET", job_path, 3)],
         )
 
-    def test_cleanup_of_absent_resources_is_idempotent_for_one_or_both_jobs(self):
-        for names in (self.names[:1], self.names):
-            with self.subTest(names=names):
-                client = Mock()
-                client.request.return_value = False
-                sleep = Mock()
-                rollback.cleanup(client, "ns", names, 10, clock=lambda: 0, sleep=sleep)
-                self.assertEqual(
-                    {call.args[1] for call in client.request.call_args_list
-                     if call.args[0] == "DELETE"},
-                    set(rollback.resource_paths("ns", names)),
-                )
-                sleep.assert_not_called()
+    def test_config_cleanup_uses_remaining_job_deadline(self):
+        paths = rollback.resource_paths("ns", self.name)
+        observations = iter([True, False])
+        client = Mock()
+        clock = Clock()
+        def request(method, path, deadline):
+            self.assertEqual(deadline, 5)
+            if method == "GET" and path == paths[0]:
+                return next(observations)
+            return True
+        client.request.side_effect = request
+        with self.assertRaises(TimeoutError):
+            rollback.cleanup(client, "ns", self.name, 5,
+                             clock=clock, sleep=clock.sleep)
+        self.assertEqual(clock.now, 5)
+        self.assertEqual(
+            [call.args[1] for call in client.request.call_args_list
+             if call.args[0] == "DELETE"],
+            paths[:2],
+        )
+        self.assertEqual(client.request.call_args.args[:2], ("GET", paths[1]))
 
-    def test_either_stuck_job_blocks_all_config_and_rbac_cleanup(self):
-        jobs = rollback.resource_paths("ns", self.names)[:2]
-        for stuck in jobs:
-            with self.subTest(stuck=stuck):
-                client = Mock()
-                client.request.side_effect = lambda method, path, deadline: path == stuck
-                clock = Clock()
-                with self.assertRaises(TimeoutError):
-                    rollback.cleanup(client, "ns", self.names, 3,
-                                     clock=clock, sleep=clock.sleep)
-                self.assertEqual(clock.now, 3)
-                self.assertTrue(all(call.args[1] in jobs
-                                    for call in client.request.call_args_list))
-                self.assertEqual(
-                    {call.args[1] for call in client.request.call_args_list
-                     if call.args[0] == "DELETE"}, set(jobs),
-                )
-
-    def test_each_phase_shares_the_same_deadline(self):
-        paths = rollback.resource_paths("ns", self.names)
-        for late_path in (paths[1], paths[2]):
+    def test_late_absence_does_not_escape_shared_deadline(self):
+        paths = rollback.resource_paths("ns", self.name)
+        for late_path in paths:
             with self.subTest(late_path=late_path):
                 clock = Clock()
                 client = Mock()
                 def request(method, path, deadline):
                     self.assertEqual(deadline, 3)
-                    if method == "GET" and path == late_path:
-                        clock.now = 3
+                    if method == "GET":
+                        clock.now = 3 if path == late_path else clock.now + 0.25
                     return False
                 client.request.side_effect = request
                 with self.assertRaises(TimeoutError):
-                    rollback.cleanup(client, "ns", self.names, 3,
+                    rollback.cleanup(client, "ns", self.name, 3,
                                      clock=clock, sleep=clock.sleep)
-                self.assertEqual(client.request.call_args.args[1], late_path)
+                self.assertEqual(client.request.call_args.args[:2], ("GET", late_path))
 
     def test_permission_or_transport_failure_stops_cleanup(self):
-        paths = rollback.resource_paths("ns", self.names)
+        paths = rollback.resource_paths("ns", self.name)
         for failure in (RuntimeError("forbidden"), OSError("network")):
-            for failing_path in paths[:3]:
-                with self.subTest(failure=failure, path=failing_path):
-                    client = Mock()
-                    def request(method, path, deadline):
-                        if path == failing_path:
-                            raise failure
-                        return False
-                    client.request.side_effect = request
-                    with self.assertRaises(type(failure)):
-                        rollback.cleanup(client, "ns", self.names, 10,
-                                         clock=lambda: 0, sleep=Mock())
-                    self.assertEqual(client.request.call_args.args[1], failing_path)
-                    if failing_path in paths[:2]:
-                        self.assertTrue(all(call.args[1] in paths[:2]
+            for failing_path in paths:
+                for failing_method in ("DELETE", "GET"):
+                    with self.subTest(failure=failure, path=failing_path,
+                                      method=failing_method):
+                        client = Mock()
+                        def request(method, path, deadline):
+                            if (method, path) == (failing_method, failing_path):
+                                raise failure
+                            return False
+                        client.request.side_effect = request
+                        with self.assertRaises(type(failure)):
+                            rollback.cleanup(client, "ns", self.name, 10,
+                                             clock=lambda: 0, sleep=Mock())
+                        self.assertEqual(client.request.call_args.args[:2],
+                                         (failing_method, failing_path))
+                        self.assertTrue(all(call.args[1] in paths[:paths.index(failing_path) + 1]
                                             for call in client.request.call_args_list))
-
-    def test_main_rejects_non_list_or_empty_job_names(self):
-        for names in ("job", [], ["job", ""], ["job", None]):
-            env = {"RELEASE_JOB_NAMES": json.dumps(names), "RELEASE_TIMEOUT_SECONDS": "60"}
-            with self.subTest(names=names), patch.dict(os.environ, env, clear=True), \
-                    self.assertRaises(ValueError):
-                rollback.main()
 
 
 class RollbackClientTests(unittest.TestCase):

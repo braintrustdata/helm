@@ -40,9 +40,15 @@ An API-only image bump must not silently accept the still-old Brainstore fleet.
 
 {{- define "braintrust.brainstoreStartupGate.targets" -}}
 {{- $targets := list -}}
+{{- $migration := include "braintrust.migrations.config" . | fromYaml -}}
+{{- $revision := ternary (int .Release.Revision) 0 $migration.enabled -}}
 {{- range $role := list "reader" "writer" "fastreader" -}}
 {{- $config := index $.Values.brainstore $role -}}
-{{- $targets = append $targets (dict "deployment" $config.name "container" (printf "brainstore-%s" $role)) -}}
+{{- $targets = append $targets (dict "deployment" $config.name "container" (printf "brainstore-%s" $role) "minimumRevision" $revision) -}}
+{{- end -}}
+{{- if .Values.brainstore.automationwriter -}}
+{{- $config := include "braintrust.automationWriter.config" . | fromYaml -}}
+{{- $targets = append $targets (dict "deployment" $config.name "container" "brainstore-automationwriter" "minimumRevision" $revision) -}}
 {{- end -}}
 {{- toJson $targets -}}
 {{- end -}}
@@ -55,4 +61,20 @@ An API-only image bump must not silently accept the still-old Brainstore fleet.
 {{- if has (toString $rolling.maxSurge) (list "0" "0%" "<nil>") -}}
 {{- fail "api.brainstoreStartupGate requires nonzero maxSurge for every API pool" -}}
 {{- end -}}
+{{- end -}}
+
+{{/* Release identity prevents a previous fully Ready generation from passing
+before Helm updates the desired image or configuration. */}}
+{{- define "braintrust.brainstoreStartupGate.podAnnotations" -}}
+{{- $root := .root -}}
+{{- $annotations := dict "checksum/config" (include (printf "%s/brainstore-%s-configmap.yaml" $root.Template.BasePath .role) $root | sha256sum) -}}
+{{- if eq $root.Values.cloud "google" -}}
+{{- $_ := set $annotations "iam.gke.io/gcp-service-account" (required "brainstore.serviceAccount.googleServiceAccount is required when cloud is google" $root.Values.brainstore.serviceAccount.googleServiceAccount) -}}
+{{- end -}}
+{{- $annotations = mergeOverwrite $annotations (deepCopy (.config.annotations.pod | default dict)) -}}
+{{- $migration := include "braintrust.migrations.config" $root | fromYaml -}}
+{{- if $migration.enabled -}}
+{{- $_ := set $annotations "braintrust.dev/release-revision" (toString $root.Release.Revision) -}}
+{{- end -}}
+{{- toYaml $annotations -}}
 {{- end -}}

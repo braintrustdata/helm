@@ -13,9 +13,9 @@ rules:
   - apiGroups: ["apps"]
     resources: ["deployments"]
     resourceNames:
-      - {{ .Values.brainstore.reader.name | quote }}
-      - {{ .Values.brainstore.writer.name | quote }}
-      - {{ .Values.brainstore.fastreader.name | quote }}
+      {{- range $target := include "braintrust.brainstoreStartupGate.targets" . | fromJsonArray }}
+      - {{ $target.deployment | quote }}
+      {{- end }}
     verbs: ["get"]
   - apiGroups: [""]
     resources: ["pods"]

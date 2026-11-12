@@ -103,14 +103,14 @@ btqlAuditLogsBestEffortOrgIds: []
 api:
   name: "braintrust-api"
   # Hold new API processes until compatible Brainstore capacity is available.
-  # With migrations enabled, first require this release's exact Brainstore rollout.
+  # With migrations enabled, first require fully updated reader/writer Deployments.
   # Requires stable release tags (vX.Y.Z); opaque custom tags cannot prove compatibility.
   # Only the init container mounts a Kubernetes API token when enabled; custom
   # sidecars needing Kubernetes API access must project their own token.
   brainstoreStartupGate:
     enabled: true
     # Empty derives the floor from each pool's api.image.tag. Kept in each API Pod so
-    # older APIs can restart against newer Brainstore releases in the same major.
+    # older APIs can start after a later compatible Brainstore rollout completes.
     minimumVersion: ""
     image: "python:3.13-alpine@sha256:79e7a9b9ff1cbceff819f856fb374477792a5967759d94df266de7b7b4120e6f"
     timeoutSeconds: 1200

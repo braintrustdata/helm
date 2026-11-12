@@ -67,7 +67,7 @@ spec:
       {{- end }}
       {{- if $migration.enabled }}
       initContainers:
-        {{- include "braintrust.releaseJob.initContainer" (dict "root" .) | nindent 8 }}
+        {{- include "braintrust.migrations.initContainer" . | nindent 8 }}
       {{- end }}
       containers:
         - name: loop-runtime
@@ -157,7 +157,7 @@ spec:
       {{- end }}
       volumes:
         {{- if $migration.enabled }}
-        {{- include "braintrust.releaseJob.volumes" . | nindent 8 }}
+        {{- include "braintrust.migrations.volumes" . | nindent 8 }}
         {{- end }}
         - name: state
           emptyDir:

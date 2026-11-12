@@ -1,15 +1,6 @@
 {{- $config := include "braintrust.migrations.config" . | fromYaml -}}
 {{- if $config.enabled -}}
 {{- $name := include "braintrust.migrations.name" . -}}
-{{- $jobs := list $name -}}
-{{- if include "braintrust.rollout.enabled" . -}}
-{{- $jobs = append $jobs (include "braintrust.rollout.name" .) -}}
-{{- end -}}
-{{- $configNames := list -}}
-{{- range $job := $jobs -}}
-{{- $configNames = append $configNames (printf "%s-config" $job) -}}
-{{- $configNames = append $configNames (printf "%s-gate" $job) -}}
-{{- end -}}
 {{- $hook := printf "%s-reset" $name -}}
 {{/* Hook manifests belong to the target release, so the name is the original
 revision's name, not the new rollback revision. No hook runs during install or
@@ -29,15 +20,15 @@ metadata:
 rules:
   - apiGroups: ["batch"]
     resources: ["jobs"]
-    resourceNames: {{ toJson $jobs }}
+    resourceNames: [{{ $name | quote }}]
     verbs: ["get", "delete"]
   - apiGroups: [""]
     resources: ["configmaps"]
-    resourceNames: {{ toJson $configNames }}
+    resourceNames: [{{ printf "%s-config" $name | quote }}, {{ printf "%s-gate" $name | quote }}]
     verbs: ["get", "delete"]
   - apiGroups: ["rbac.authorization.k8s.io"]
     resources: ["roles", "rolebindings"]
-    resourceNames: {{ toJson $jobs }}
+    resourceNames: [{{ $name | quote }}]
     verbs: ["get", "delete"]
 {{- else if eq $kind "RoleBinding" }}
 roleRef:
@@ -102,8 +93,8 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.namespace
-            - name: RELEASE_JOB_NAMES
-              value: {{ toJson $jobs | quote }}
-            - name: RELEASE_TIMEOUT_SECONDS
+            - name: JOB_NAME
+              value: {{ $name | quote }}
+            - name: JOB_TIMEOUT_SECONDS
               value: {{ $config.timeoutSeconds | quote }}
 {{- end }}

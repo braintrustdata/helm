@@ -89,23 +89,23 @@ tests:
       - isNull:
           path: data.PG_URL
 
-  - it: holds APIs behind the completed rollout before the compatibility check
+  - it: waits for migrations before directly checking the Brainstore rollout
     template: api-deployment.yaml
     asserts:
       - equal:
           path: spec.template.spec.initContainers[0].name
-          value: wait-for-brainstore-rollout
+          value: wait-for-migrations
       - equal:
           path: spec.template.spec.initContainers[1].name
           value: wait-for-brainstore
       - matchRegex:
           path: spec.template.spec.initContainers[0].env[1].value
-          pattern: '-rollout-r7$'
+          pattern: '-migrate-r7$'
       - equal:
           path: spec.template.spec.automountServiceAccountToken
           value: false
 
-  - it: restricts workload gates to reading only the two exact release Jobs
+  - it: restricts workload gates to reading only the exact migration Job
     template: migration-gate.yaml
     documentIndex: 1
     asserts:
@@ -126,9 +126,9 @@ tests:
       - matchRegex:
           path: rules[0].resourceNames[0]
           pattern: '-migrate-r7$'
-      - matchRegex:
-          path: rules[0].resourceNames[1]
-          pattern: '-rollout-r7$'
+      - lengthEqual:
+          path: rules[0].resourceNames
+          count: 1
       - equal:
           path: metadata.annotations["helm.sh/resource-policy"]
           value: keep
@@ -308,7 +308,7 @@ tests:
     documentIndex: 0
     set: {"api.workloadIsolation.enabled": true}
     asserts:
-      - {"equal": {"path": "spec.template.spec.initContainers[0].name", "value": "wait-for-brainstore-rollout"}}
+      - {"equal": {"path": "spec.template.spec.initContainers[0].name", "value": "wait-for-migrations"}}
       - {"equal": {"path": "spec.template.spec.initContainers[1].name", "value": "wait-for-brainstore"}}
 
   - it: gates isolated API pool 1
@@ -316,7 +316,7 @@ tests:
     documentIndex: 1
     set: {"api.workloadIsolation.enabled": true}
     asserts:
-      - {"equal": {"path": "spec.template.spec.initContainers[0].name", "value": "wait-for-brainstore-rollout"}}
+      - {"equal": {"path": "spec.template.spec.initContainers[0].name", "value": "wait-for-migrations"}}
       - {"equal": {"path": "spec.template.spec.initContainers[1].name", "value": "wait-for-brainstore"}}
 
   - it: gates isolated API pool 2
@@ -324,7 +324,7 @@ tests:
     documentIndex: 2
     set: {"api.workloadIsolation.enabled": true}
     asserts:
-      - {"equal": {"path": "spec.template.spec.initContainers[0].name", "value": "wait-for-brainstore-rollout"}}
+      - {"equal": {"path": "spec.template.spec.initContainers[0].name", "value": "wait-for-migrations"}}
       - {"equal": {"path": "spec.template.spec.initContainers[1].name", "value": "wait-for-brainstore"}}
 
   - it: gates the optional AI Gateway
@@ -412,7 +412,7 @@ tests:
     template: api-deployment.yaml
     set: {"migrations": null}
     asserts:
-      - {"equal": {"path": "spec.template.spec.initContainers[0].name", "value": "wait-for-brainstore-rollout"}}
+      - {"equal": {"path": "spec.template.spec.initContainers[0].name", "value": "wait-for-migrations"}}
 
   - it: merges partial reused values with defaults
     template: migration-job.yaml
@@ -563,7 +563,7 @@ tests:
           value: before-hook-creation,hook-succeeded
       - matchRegex:
           path: spec.template.spec.containers[0].env[1].value
-          pattern: '^\["test-9f86d081-migrate-r7","test-9f86d081-rollout-r7"\]$'
+          pattern: '^test-9f86d081-migrate-r7$'
       - matchRegex:
           path: spec.template.spec.serviceAccountName
           pattern: '-migrate-r7-reset$'
@@ -589,13 +589,13 @@ tests:
           value: [get, delete]
       - equal:
           path: rules[0].resourceNames
-          value: [test-9f86d081-migrate-r7, test-9f86d081-rollout-r7]
+          value: [test-9f86d081-migrate-r7]
       - equal:
           path: rules[1].resourceNames
-          value: [test-9f86d081-migrate-r7-config, test-9f86d081-migrate-r7-gate, test-9f86d081-rollout-r7-config, test-9f86d081-rollout-r7-gate]
+          value: [test-9f86d081-migrate-r7-config, test-9f86d081-migrate-r7-gate]
       - equal:
           path: rules[2].resourceNames
-          value: [test-9f86d081-migrate-r7, test-9f86d081-rollout-r7]
+          value: [test-9f86d081-migrate-r7]
 
   - it: does not render rollback hooks when migrations are disabled
     template: migration-rollback.yaml
@@ -604,3 +604,27 @@ tests:
     asserts:
       - hasDocuments:
           count: 0
+
+  - it: reserves the release marker without discarding custom pod annotations
+    template: brainstore-reader-deployment.yaml
+    set:
+      brainstore.reader.annotations.pod:
+        braintrust.dev/release-revision: forged
+        custom: preserved
+    asserts:
+      - equal:
+          path: spec.template.metadata.annotations["braintrust.dev/release-revision"]
+          value: "7"
+      - equal:
+          path: spec.template.metadata.annotations.custom
+          value: preserved
+
+  - it: gives the API time for migration and one direct rollout check
+    template: api-deployment.yaml
+    set:
+      migrations.timeoutSeconds: 900
+      api.brainstoreStartupGate.timeoutSeconds: 300
+    asserts:
+      - equal:
+          path: spec.progressDeadlineSeconds
+          value: 1500

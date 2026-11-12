@@ -214,7 +214,7 @@ tests:
           value:
             - apiGroups: [apps]
               resources: [deployments]
-              resourceNames: [custom-reader, brainstore-writer, brainstore-fastreader]
+              resourceNames: [custom-reader, brainstore-writer, brainstore-fastreader, brainstore-automationwriter]
               verbs: [get]
             - apiGroups: [""]
               resources: [pods]

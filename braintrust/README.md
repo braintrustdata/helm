@@ -469,8 +469,8 @@ The API receives
 `BRAINSTORE_AUTOMATION_WRITER_URL` whenever the pool has replicas. A compatible
 API release decides which queries use this endpoint. With no replicas, the URL
 is omitted and the API falls back to the regular writers.
-The live version-compatibility check covers readers, writers, and fast readers.
-The release rollout barrier also waits for every rendered automation writer.
+The API startup gate covers every rendered reader and writer role, including
+automation writers and pools that are scaling down to zero.
 
 The include/exclude split follows `brainstore.automationwriter.replicas` in the
 Helm values. `kubectl scale` or an autoscaler changes the live pod count only;
@@ -552,21 +552,18 @@ Example values files for different cloud providers and configurations are locate
 
 ## Release ordering
 
-By default, each Helm release runs migrations first, rolls out the exact
-Brainstore image and configuration, then starts new API application containers.
-Old Ready writers cannot satisfy the rollout barrier for an environment-only
-change. All API pools share the same revision-specific rollout Job and then run
-the existing live version-compatibility check.
+Each Helm release runs one migration Job. All new application containers wait
+for it. The existing API startup gate then directly checks that the reader/writer
+Deployments have observed the intended release and fully rolled out: updated,
+Ready, Available, with no old or terminating pods. Same-image environment changes
+cannot pass using old Ready writers. There is no separate rollout Job or snapshot.
 
-Migration and rollout Jobs share a read-only wait helper but remain separate to
-avoid a dependency cycle. The migrator uses the shared `api.image`, identity,
-configuration, secrets, and resources; the rollout observer only reads Kubernetes
-Deployments and Pods. Completed phase records are retained for replacement pods
-and reset together during rollback.
+An older API replacement also waits during a later unfinished Brainstore rollout,
+but accepts a later completed compatible release. This deliberately favors simpler
+ordering over restarting that API while a future rollout is blocked on capacity.
 
-`migrations.enabled: false` retains the previous API-startup migration behavior
-and compatibility-only gate. Disabling `api.brainstoreStartupGate.enabled` leaves
-migration-only ordering. Gates control application startup, not when Helm updates
-Deployment specs or mutable configuration objects.
-See [release lifecycle and configuration matrix](../docs/migration-job.md) for
-retention, rollback, timeouts, configuration limits, and capacity requirements.
+`migrations.enabled: false` keeps compatibility-only/API-startup migration behavior;
+disabling `api.brainstoreStartupGate.enabled` leaves migration-only ordering.
+These gates order container startup, not Helm's updates to configuration objects.
+See [migration lifecycle and input matrix](../docs/migration-job.md) for rollback,
+retention, timeouts, and configuration limits.

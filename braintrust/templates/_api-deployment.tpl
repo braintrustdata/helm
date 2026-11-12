@@ -9,7 +9,6 @@
 {{- $_ := set $startupGate "enabled" false -}}
 {{- $_ := set $migration "enabled" false -}}
 {{- end -}}
-{{- $strictRollout := and $migration.enabled $startupGate.enabled -}}
 {{- if $startupGate.enabled -}}
 {{- include "braintrust.brainstoreStartupGate.validateApi" (dict "api" $api) -}}
 {{- end -}}
@@ -51,7 +50,7 @@ metadata:
   {{- end }}
 spec:
   {{- if or $startupGate.enabled $migration.enabled }}
-  progressDeadlineSeconds: {{ add 300 (ternary (int $startupGate.timeoutSeconds) 0 $startupGate.enabled) (ternary (int $migration.timeoutSeconds) 0 $migration.enabled) (ternary (int $startupGate.timeoutSeconds) 0 $strictRollout) }}
+  progressDeadlineSeconds: {{ add 300 (ternary (int $startupGate.timeoutSeconds) 0 $startupGate.enabled) (ternary (int $migration.timeoutSeconds) 0 $migration.enabled) }}
   {{- end }}
   {{- if not (dig "autoscaling" "enabled" false $api) }}
   replicas: {{ $api.replicas }}
@@ -116,7 +115,7 @@ spec:
       {{- if or $startupGate.enabled $migration.enabled }}
       initContainers:
         {{- if $migration.enabled }}
-        {{- include "braintrust.releaseJob.initContainer" (dict "root" $root "phase" (ternary "rollout" "migration" $strictRollout)) | nindent 8 }}
+        {{- include "braintrust.migrations.initContainer" $root | nindent 8 }}
         {{- end }}
         {{- if $startupGate.enabled }}
         - name: wait-for-brainstore
@@ -272,7 +271,7 @@ spec:
       volumes:
         {{- if or $migration.enabled $startupGate.enabled $api.tmpVolume.enabled (and (eq $root.Values.cloud "azure") $root.Values.azure.enableAzureKeyVaultDriver) $customCA.enabled $api.extraVolumes }}
         {{- if $migration.enabled }}
-        {{- include "braintrust.releaseJob.volumes" $root | nindent 8 }}
+        {{- include "braintrust.migrations.volumes" $root | nindent 8 }}
         {{- end }}
         {{- if $startupGate.enabled }}
         - name: brainstore-gate-code

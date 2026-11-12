@@ -1,4 +1,4 @@
-"""Wait for compatible Brainstore capacity before starting an API container.
+"""Wait for compatible Brainstore capacity and required rollouts before API startup.
 
 Uses only Python's standard library and read-only Kubernetes API requests.
 The required version is fixed in the API Pod's environment, not a ConfigMap that
@@ -76,13 +76,14 @@ def ready(pod, container):
     )
 
 
-def check_deployment(deployment, pods, container, minimum):
-    """Return a wait reason, or None when every potential backend is compatible.
+def check_deployment(deployment, pods, container, minimum, minimum_revision=0):
+    """Return a wait reason, or None when compatible backends satisfy the gate.
 
-    We deliberately do not require an exact image or a finished *compatible*
-    rollout: older APIs must be able to restart while a later Brainstore release
-    rolls. Incompatible terminating Pods still block, because their connections
-    may remain usable until the process exits.
+    A release revision requires the current Deployment rollout to finish, even
+    for an older API restarting during a later compatible release. Without a
+    revision floor, compatible capacity suffices during an ongoing rollout.
+    Incompatible terminating Pods always block because connections may remain
+    usable until their process exits.
 
     Deployment rollouts replace Pods, so use each Pod's declared release tag.
     Container status can report a different alias or only a digest. Neither is
@@ -99,12 +100,22 @@ def check_deployment(deployment, pods, container, minimum):
     if status.get("observedGeneration", 0) < metadata.get("generation", 1):
         return f"{name}: controller has not observed the desired generation"
     desired = spec.get("replicas", 1)
+    template = spec.get("template", {})
+    revision_key = "braintrust.dev/release-revision"
+    revision = template.get("metadata", {}).get("annotations", {}).get(revision_key)
+    if minimum_revision > 0:
+        try:
+            current_revision = int(revision)
+        except (TypeError, ValueError):
+            return f"{name}: desired release revision is missing or invalid"
+        if current_revision < minimum_revision:
+            return f"{name}: waiting for release revision {minimum_revision} or later"
     live = [pod for pod in pods if pod.get("status", {}).get("phase") not in TERMINAL_PHASES]
-    if desired == 0:
+    if desired == 0 and minimum_revision == 0:
         return f"{name}: waiting for scaled-down Pods to disappear" if live else None
     # Check desired state too: compatible Pods are insufficient if the
     # Deployment is about to replace them with an incompatible image.
-    image = container_image(spec.get("template", {}).get("spec", {}), container)
+    image = container_image(template.get("spec", {}), container)
     if not compatible(image, minimum):
         return f"{name}: desired image {image!r} is below or outside the required release"
     for pod in live:
@@ -112,9 +123,21 @@ def check_deployment(deployment, pods, container, minimum):
         if not compatible(image, minimum):
             pod_name = pod.get("metadata", {}).get("name", "unknown")
             return f"{name}: incompatible Pod {pod_name} still exists ({image!r})"
+        if minimum_revision > 0:
+            pod_metadata = pod.get("metadata", {})
+            if pod_metadata.get("annotations", {}).get(revision_key) != revision:
+                return f"{name}: waiting for Pods from the current release revision"
+            if pod_metadata.get("deletionTimestamp"):
+                return f"{name}: waiting for terminating Pods to disappear"
     # Require both current Pod readiness and Deployment availability; the
     # latter also accounts for the Deployment's minReadySeconds setting.
     ready_count = sum(ready(pod, container) for pod in live)
+    if minimum_revision > 0:
+        counters = ("updatedReplicas", "readyReplicas", "availableReplicas", "replicas")
+        if any(status.get(counter, 0) != desired for counter in counters):
+            return f"{name}: waiting for all {desired} replicas to complete the current rollout"
+        if len(live) != desired or ready_count != desired:
+            return f"{name}: waiting for exactly {desired} current Ready Pods"
     if ready_count < desired or status.get("availableReplicas", 0) < desired:
         return f"{name}: waiting for {desired} available compatible Pods ({ready_count} ready)"
     return None
@@ -181,7 +204,9 @@ def check_fleet(client, targets, minimum, deadline):
         # The chart's Services select app=<deployment name>. Include stray Pods
         # with that label too; they can receive traffic regardless of ownership.
         pods = client.pods("app=" + target["deployment"], deadline)
-        reason = check_deployment(deployment, pods, target["container"], minimum)
+        reason = check_deployment(
+            deployment, pods, target["container"], minimum, target.get("minimumRevision", 0),
+        )
         if reason:
             return reason
     return None

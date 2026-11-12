@@ -14,24 +14,31 @@ gate = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(gate)
 
 
-def pod(version="v2.15.0", uid="new", is_ready=True, **metadata):
+def pod(version="v2.15.0", uid="new", is_ready=True, revision=None,
+        container="brainstore-reader", **metadata):
+    if revision is not None:
+        metadata["annotations"] = {"braintrust.dev/release-revision": str(revision)}
     return {
         "metadata": {"name": uid, "uid": uid, **metadata},
-        "spec": {"containers": [{"name": "brainstore-reader", "image": "registry/brainstore:" + version}]},
+        "spec": {"containers": [{"name": container, "image": "registry/brainstore:" + version}]},
         "status": {
             "phase": "Running",
             "conditions": [{"type": "Ready", "status": "True" if is_ready else "False"}],
-            "containerStatuses": [{"name": "brainstore-reader", "image": "registry/brainstore:" + version,
+            "containerStatuses": [{"name": container, "image": "registry/brainstore:" + version,
                                    "ready": is_ready, "state": {"running": {}}}],
         },
     }
 
 
-def deployment(version="v2.15.0", replicas=1):
+def deployment(version="v2.15.0", replicas=1, revision=None, container="brainstore-reader"):
     return {
         "metadata": {"name": "reader", "uid": "reader-deployment", "generation": 2},
-        "spec": {"replicas": replicas, "template": {"spec": pod(version)["spec"]}},
-        "status": {"observedGeneration": 2, "availableReplicas": replicas},
+        "spec": {"replicas": replicas, "template": {
+            "metadata": {"annotations": pod(revision=revision)["metadata"].get("annotations", {})},
+            "spec": pod(version, container=container)["spec"],
+        }},
+        "status": {"observedGeneration": 2, "updatedReplicas": replicas,
+                   "readyReplicas": replicas, "availableReplicas": replicas, "replicas": replicas},
     }
 
 
@@ -142,6 +149,128 @@ class CompatibilityTests(unittest.TestCase):
         self.assertIn("available compatible", self.check(pods=[current]))
 
 
+class StrictRolloutTests(unittest.TestCase):
+    def check(self, resource=None, pods=None, minimum_revision=8):
+        return gate.check_deployment(
+            resource if resource is not None else deployment(revision=8),
+            pods if pods is not None else [pod(revision=8)],
+            "brainstore-reader", (2, 15, 0), minimum_revision,
+        )
+
+    def test_same_image_release_waits_for_current_pods(self):
+        old = pod(revision=7)
+        current = pod(revision=8, is_ready=False)
+        self.assertIsNotNone(self.check(pods=[old, current]))
+        self.assertIsNotNone(self.check(pods=[old]))
+        current = pod(revision=8)
+        self.assertIsNone(self.check(pods=[current]))
+
+    def test_same_release_env_change_waits_for_updated_replicas(self):
+        resource = deployment(revision=8)
+        resource["metadata"]["generation"] = 3
+        resource["status"]["observedGeneration"] = 3
+        resource["spec"]["template"]["spec"]["containers"][0]["env"] = [
+            {"name": "BRAINSTORE_CONFIG", "value": "new-config"},
+        ]
+        resource["status"]["updatedReplicas"] = 0
+        self.assertIsNotNone(self.check(resource))
+        resource["status"]["updatedReplicas"] = 1
+        current = pod(revision=8)
+        current["spec"] = resource["spec"]["template"]["spec"]
+        self.assertIsNone(self.check(resource, [current]))
+
+    def test_old_complete_generation_cannot_pass_before_helm_update(self):
+        self.assertIsNotNone(self.check(deployment(revision=7), [pod(revision=7)]))
+
+    def test_revision_floor_rejects_missing_malformed_and_old_markers(self):
+        for revision in (None, "", "invalid", "8.0", 7):
+            with self.subTest(revision=revision):
+                self.assertIsNotNone(self.check(deployment(revision=revision)))
+
+    def test_requires_current_controller_observation(self):
+        resource = deployment(revision=8)
+        resource["status"]["observedGeneration"] = 1
+        self.assertIsNotNone(self.check(resource))
+
+    def test_every_replica_counter_must_equal_current_desired_count(self):
+        for counter in ("updatedReplicas", "readyReplicas", "availableReplicas", "replicas"):
+            for count in (None, 0, 2):
+                with self.subTest(counter=counter, count=count):
+                    resource = deployment(revision=8)
+                    if count is None:
+                        del resource["status"][counter]
+                    else:
+                        resource["status"][counter] = count
+                    self.assertIsNotNone(self.check(resource))
+
+    def test_requires_exactly_desired_live_ready_current_pods(self):
+        for pods in ([], [pod(revision=8, is_ready=False)],
+                     [pod(revision=8), pod(uid="surge", revision=8)],
+                     [pod(revision=8, deletionTimestamp="2026-09-30T12:00:00Z")],
+                     [pod(revision=8), pod(uid="terminating", revision=8, is_ready=False,
+                                           deletionTimestamp="2026-09-30T12:00:00Z")]):
+            with self.subTest(pods=pods):
+                self.assertIsNotNone(self.check(pods=pods))
+        current = pod(revision=8)
+        current["status"]["containerStatuses"] = []
+        self.assertIsNotNone(self.check(pods=[current]))
+
+    def test_stray_service_backend_is_not_exempt_from_revision_check(self):
+        stray = pod(uid="stray", revision=7)
+        self.assertIsNotNone(self.check(pods=[stray]))
+        del stray["metadata"]["annotations"]
+        self.assertIsNotNone(self.check(pods=[stray]))
+
+    def test_terminal_old_pods_do_not_block_completed_rollout(self):
+        for phase in ("Succeeded", "Failed"):
+            with self.subTest(phase=phase):
+                old = pod("v2.14.0", revision=7)
+                old["status"]["phase"] = phase
+                self.assertIsNone(self.check(pods=[pod(revision=8), old]))
+
+    def test_min_ready_seconds_requires_available_replicas(self):
+        resource = deployment(revision=8)
+        resource["spec"]["minReadySeconds"] = 60
+        resource["status"]["availableReplicas"] = 0
+        self.assertIsNotNone(self.check(resource))
+        resource["status"]["availableReplicas"] = 1
+        self.assertIsNone(self.check(resource))
+
+    def test_zero_role_requires_release_identity_and_completed_scale_down(self):
+        resource = deployment(replicas=0, revision=8)
+        self.assertIsNone(self.check(resource, []))
+        self.assertIsNotNone(self.check(resource, [pod(revision=8)]))
+        for counter in ("updatedReplicas", "readyReplicas", "availableReplicas", "replicas"):
+            with self.subTest(counter=counter):
+                resource["status"][counter] = 1
+                self.assertIsNotNone(self.check(resource, []))
+                del resource["status"][counter]
+        self.assertIsNone(self.check(resource, []))
+        for revision in (None, 7):
+            with self.subTest(revision=revision):
+                self.assertIsNotNone(self.check(deployment(replicas=0, revision=revision), []))
+        resource["status"]["observedGeneration"] = 1
+        self.assertIsNotNone(self.check(resource, []))
+
+    def test_uses_current_replica_count_after_scaling(self):
+        resource = deployment(replicas=2, revision=8)
+        self.assertIsNotNone(self.check(resource, [pod(revision=8)]))
+        self.assertIsNone(self.check(resource, [pod(revision=8), pod(uid="second", revision=8)]))
+
+    def test_older_api_accepts_later_completed_but_not_unfinished_rollout(self):
+        resource = deployment("v2.16.0", revision=9)
+        self.assertIsNone(self.check(resource, [pod("v2.16.0", revision=9)]))
+        self.assertIsNotNone(self.check(resource, [pod(revision=8)]))
+        resource["status"]["updatedReplicas"] = 0
+        self.assertIsNotNone(self.check(resource, [pod("v2.16.0", revision=9)]))
+
+    def test_strict_mode_preserves_desired_and_pod_image_compatibility(self):
+        for version in ("v2.14.0", "v3.0.0", "latest", "v2.15.0-rc.1"):
+            with self.subTest(version=version):
+                self.assertIsNotNone(self.check(deployment(version, revision=8)))
+                self.assertIsNotNone(self.check(pods=[pod(version, revision=8)]))
+
+
 class FakeClock:
     def __init__(self):
         self.now = 0
@@ -234,6 +363,60 @@ class FleetTests(unittest.TestCase):
         client.pods.side_effect = [[pod(), stray]]
         reason = gate.check_fleet(client, targets, (2, 15, 0), 100)
         self.assertIn("stray", reason)
+
+
+    def test_strict_writer_waits_across_same_image_and_later_rollouts(self):
+        container = "brainstore-writer"
+        resources = [deployment(revision=revision, container=container)
+                     for revision in (7, 8, 8, 9, 9, 9)]
+        for resource in resources:
+            resource["metadata"]["name"] = "writer"
+        resources[1]["status"]["updatedReplicas"] = 0
+        resources[3]["status"]["updatedReplicas"] = 0
+        old = pod(revision=7, container=container)
+        current = pod(revision=8, container=container)
+        later = pod(revision=9, container=container)
+        client = Mock()
+        client.deployment.side_effect = resources
+        client.pods.side_effect = [
+            [old], [old, pod(revision=8, is_ready=False, container=container)],
+            [current], [current, pod(revision=9, is_ready=False, container=container)],
+            [later], [later],
+        ]
+        targets = [{"deployment": "writer", "container": container, "minimumRevision": 8}]
+        clock = FakeClock()
+        gate.wait_for_fleet(client, targets, (2, 15, 0), 120, 15,
+                            clock.clock, clock.sleep, Mock())
+        self.assertEqual(clock.now, 75)
+
+    def test_strict_observation_errors_reset_confirmation(self):
+        client = Mock()
+        resource = deployment(revision=8)
+        client.deployment.side_effect = [
+            urllib.error.HTTPError("https://api", 403, "synthetic", None, None),
+            resource, OSError("synthetic"), resource, resource,
+        ]
+        client.pods.return_value = [pod(revision=8)]
+        targets = [{"deployment": "reader", "container": "brainstore-reader", "minimumRevision": 8}]
+        clock = FakeClock()
+        gate.wait_for_fleet(client, targets, (2, 15, 0), 90, 15,
+                            clock.clock, clock.sleep, Mock())
+        self.assertEqual(clock.now, 60)
+
+    def test_strict_completed_observation_cannot_release_api_after_deadline(self):
+        clock = FakeClock()
+
+        def observe(name, deadline):
+            clock.sleep(30)
+            return deployment(revision=8)
+
+        client = Mock()
+        client.deployment.side_effect = observe
+        client.pods.return_value = [pod(revision=8)]
+        targets = [{"deployment": "reader", "container": "brainstore-reader", "minimumRevision": 8}]
+        with self.assertRaises(TimeoutError):
+            gate.wait_for_fleet(client, targets, (2, 15, 0), 60, 15,
+                                clock.clock, clock.sleep, Mock())
 
 
 class ClientTests(unittest.TestCase):

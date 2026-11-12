@@ -89,35 +89,6 @@ tests:
           path: data.BRAINSTORE_AUTOMATION_WRITER_URL
           value: http://custom-pool.created-namespace:4000
 
-  - it: should preserve existing API startup targets with automation writers enabled
-    template: api-deployment.yaml
-    set:
-      <<: *enabled
-      brainstore.automationwriter.name: custom-pool
-    asserts: &startup-targets
-      - contains:
-          path: spec.template.spec.initContainers[0].env
-          content:
-            name: BRAINSTORE_DEPLOYMENTS
-            value: '[{"container":"brainstore-reader","deployment":"brainstore-reader"},{"container":"brainstore-writer","deployment":"brainstore-writer"},{"container":"brainstore-fastreader","deployment":"brainstore-fastreader"}]'
-
-  - it: should preserve background API startup targets with automation writers enabled
-    template: api-deployment.yaml
-    documentIndex: 2
-    set:
-      <<: *enabled
-      api.workloadIsolation.enabled: true
-      brainstore.automationwriter.name: custom-pool
-    asserts: *startup-targets
-
-  - it: should preserve ingest API startup targets with automation writers enabled
-    template: api-deployment.yaml
-    documentIndex: 1
-    set:
-      <<: *enabled
-      api.workloadIsolation.enabled: true
-      brainstore.automationwriter.name: custom-pool
-    asserts: *startup-targets
 
   - it: should preserve gate permissions with a custom automation deployment enabled
     template: brainstore-startup-gate-rbac.yaml
@@ -128,7 +99,7 @@ tests:
     asserts:
       - equal:
           path: rules[0].resourceNames
-          value: [brainstore-reader, brainstore-writer, brainstore-fastreader]
+          value: [brainstore-reader, brainstore-writer, brainstore-fastreader, custom-pool]
 
   - it: should preserve gate permissions with a partial reused pool enabled
     template: brainstore-startup-gate-rbac.yaml
@@ -138,25 +109,10 @@ tests:
     asserts:
       - equal:
           path: rules[0].resourceNames
-          value: [brainstore-reader, brainstore-writer, brainstore-fastreader]
+          value: [brainstore-reader, brainstore-writer, brainstore-fastreader, brainstore-automationwriter]
 
-  - it: should omit disabled automation writers from gate targets
-    template: api-deployment.yaml
-    asserts: *startup-targets
 
-  - it: should omit a missing reused pool from gate targets
-    template: api-deployment.yaml
-    values:
-      - __fixtures__/pre-automationwriter-values.yaml
-    asserts: *startup-targets
-
-  - it: should omit null replicas from gate targets
-    template: api-deployment.yaml
-    set:
-      brainstore.automationwriter.replicas: null
-    asserts: *startup-targets
-
-  - it: should omit empty replicas from gate permissions
+  - it: should track a rendered zero-replica pool until it finishes draining
     template: brainstore-startup-gate-rbac.yaml
     documentIndex: 0
     set:
@@ -164,7 +120,7 @@ tests:
     asserts:
       - equal:
           path: rules[0].resourceNames
-          value: [brainstore-reader, brainstore-writer, brainstore-fastreader]
+          value: [brainstore-reader, brainstore-writer, brainstore-fastreader, brainstore-automationwriter]
 
   - it: should still allow an explicitly disabled startup gate
     template: api-deployment.yaml
