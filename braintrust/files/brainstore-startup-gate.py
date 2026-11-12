@@ -195,21 +195,21 @@ class KubernetesClient:
                 return items
 
 
-def check_fleet(client, targets, minimum, deadline):
+def check_fleet(client, targets, minimum, minimum_revision, deadline):
     for target in targets:
         deployment = client.deployment(target["deployment"], deadline)
         # The chart's Services select app=<deployment name>. Include stray Pods
         # with that label too; they can receive traffic regardless of ownership.
         pods = client.pods("app=" + target["deployment"], deadline)
         reason = check_deployment(
-            deployment, pods, target["container"], minimum, target["minimumRevision"],
+            deployment, pods, target["container"], minimum, minimum_revision,
         )
         if reason:
             return reason
     return None
 
 
-def wait_for_fleet(client, targets, minimum, timeout, interval,
+def wait_for_fleet(client, targets, minimum, minimum_revision, timeout, interval,
                   clock=time.monotonic, sleep=time.sleep, log=print):
     # All roles and API requests share one budget, unaffected by wall-clock changes.
     deadline = clock() + timeout
@@ -217,7 +217,7 @@ def wait_for_fleet(client, targets, minimum, timeout, interval,
     last_reason = "no observation yet"
     while clock() < deadline:
         try:
-            reason = check_fleet(client, targets, minimum, deadline)
+            reason = check_fleet(client, targets, minimum, minimum_revision, deadline)
         except urllib.error.HTTPError as error:
             # RBAC and Deployments may be applied after the application Pod is created.
             path = urllib.parse.urlsplit(error.url).path
@@ -246,13 +246,14 @@ def wait_for_fleet(client, targets, minimum, timeout, interval,
 
 def main():
     minimum = release_version(os.environ["BRAINSTORE_MINIMUM_VERSION"])
+    minimum_revision = int(os.environ["BRAINSTORE_MINIMUM_REVISION"])
     targets = json.loads(os.environ["BRAINSTORE_DEPLOYMENTS"])
     timeout = int(os.environ["BRAINSTORE_GATE_TIMEOUT_SECONDS"])
     interval = int(os.environ["BRAINSTORE_GATE_POLL_SECONDS"])
-    if not targets or timeout <= 0 or interval <= 0 or interval >= timeout:
+    if not targets or minimum_revision <= 0 or timeout <= 0 or interval <= 0 or interval >= timeout:
         raise ValueError("invalid startup gate configuration")
     client = KubernetesClient(os.environ["POD_NAMESPACE"], "/var/run/brainstore-gate")
-    wait_for_fleet(client, targets, minimum, timeout, interval)
+    wait_for_fleet(client, targets, minimum, minimum_revision, timeout, interval)
 
 
 if __name__ == "__main__":

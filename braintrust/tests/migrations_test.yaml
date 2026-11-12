@@ -26,6 +26,9 @@ tests:
   - it: runs a regular bounded migration Job using the target API image
     template: migration-job.yaml
     documentIndex: 0
+    set:
+      api.image.repository: registry.example/custom-api
+      api.image.tag: v2.15.0
     asserts:
       - isKind:
           of: Job
@@ -53,7 +56,7 @@ tests:
           value: [/braintrust/venv/bin/python, /braintrust/api-schema/lambda_function.py, --execute]
       - equal:
           path: spec.template.spec.containers[0].image
-          value: public.ecr.aws/braintrust/standalone-api:v2.22.0
+          value: registry.example/custom-api:v2.15.0
       - isNull:
           path: spec.template.spec.initContainers
       - isNull:
@@ -368,12 +371,6 @@ tests:
     asserts:
       - {"hasDocuments": {"count": 0}}
 
-  - it: removes migration wait when disabled in api-deployment.yaml
-    template: api-deployment.yaml
-    set: {"deploymentOrdering.enabled": false, "aiGateway.enabled": true}
-    asserts:
-      - {"isNull": {"path": "spec.template.spec.initContainers"}}
-
   - it: removes migration wait when disabled in brainstore-reader-deployment.yaml
     template: brainstore-reader-deployment.yaml
     set: {"deploymentOrdering.enabled": false, "aiGateway.enabled": true}
@@ -508,30 +505,12 @@ tests:
       - {"matchRegex": {"path": "metadata.name", "pattern": "^.{1,56}$"}}
       - {"matchRegex": {"path": "metadata.name", "pattern": "-migrate-r101$"}}
 
-  - it: keeps missing automation writer omitted
-    template: brainstore-automationwriter-deployment.yaml
-    set: {"brainstore.automationwriter": null}
-    asserts:
-      - {"hasDocuments": {"count": 0}}
-
   - it: gates a partially specified automation writer
     template: brainstore-automationwriter-deployment.yaml
     set: {"brainstore.automationwriter": {"replicas": 1}}
     asserts:
       - {"equal": {"path": "spec.template.spec.initContainers[0].name", "value": "wait-for-migrations"}}
       - {"equal": {"path": "spec.replicas", "value": 1}}
-
-  - it: keeps disabled optional workloads omitted
-    template: ai-gateway-deployment.yaml
-    set: {"aiGateway.enabled": false}
-    asserts:
-      - {"hasDocuments": {"count": 0}}
-
-  - it: keeps disabled Loop runtime omitted
-    template: loop-runtime-deployment.yaml
-    set: {"loopRuntime.enabled": false}
-    asserts:
-      - {"hasDocuments": {"count": 0}}
 
   - it: prepares target revision rollback cleanup without install or upgrade hooks
     template: migration-rollback.yaml

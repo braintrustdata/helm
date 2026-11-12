@@ -15,14 +15,13 @@ An API-only image bump must not silently accept the still-old Brainstore fleet.
 
 {{- define "braintrust.brainstoreStartupGate.targets" -}}
 {{- $targets := list -}}
-{{- $revision := int .Release.Revision -}}
 {{- range $role := list "reader" "writer" "fastreader" -}}
 {{- $config := index $.Values.brainstore $role -}}
-{{- $targets = append $targets (dict "deployment" $config.name "container" (printf "brainstore-%s" $role) "minimumRevision" $revision) -}}
+{{- $targets = append $targets (dict "deployment" $config.name "container" (printf "brainstore-%s" $role)) -}}
 {{- end -}}
 {{- if .Values.brainstore.automationwriter -}}
 {{- $config := include "braintrust.automationWriter.config" . | fromYaml -}}
-{{- $targets = append $targets (dict "deployment" $config.name "container" "brainstore-automationwriter" "minimumRevision" $revision) -}}
+{{- $targets = append $targets (dict "deployment" $config.name "container" "brainstore-automationwriter") -}}
 {{- end -}}
 {{- toJson $targets -}}
 {{- end -}}
@@ -68,6 +67,8 @@ An API-only image bump must not silently accept the still-old Brainstore fleet.
       value: {{ $config.timeoutSeconds | quote }}
     - name: BRAINSTORE_GATE_POLL_SECONDS
       value: {{ $config.pollIntervalSeconds | quote }}
+    - name: BRAINSTORE_MINIMUM_REVISION
+      value: {{ .root.Release.Revision | quote }}
   volumeMounts:
     - name: migration-gate-code
       mountPath: /opt/migration-gate

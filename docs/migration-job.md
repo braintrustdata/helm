@@ -4,6 +4,8 @@
 
 With `deploymentOrdering.enabled: true` (default), one regular migration Job runs the shared API image's migration entry point for each Helm revision. Brainstore waits for it; all API pools, optional AI Gateway, and optional Loop Runtime wait for migrations and then check Brainstore Deployments and Pods directly. There is no separate rollout Job or rollout-configuration snapshot.
 
+This replaces `api.brainstoreStartupGate`; migrate previous opt-outs to `deploymentOrdering.enabled: false`.
+
 ## What applications check
 
 For every rendered reader, writer, fastreader, and automationwriter:
@@ -60,6 +62,6 @@ These gates order **application-container startup**, not Kubernetes object updat
 
 Use real Helm revisions. Pool-specific API overrides must remain schema-compatible with the shared migrator image/database. Existing rollout strategies determine availability; strict startup ordering does not provide spare nodes or guarantee cache warm-up beyond configured readiness and `minReadySeconds`.
 
-`deploymentOrdering.timeoutSeconds` (default 1200) bounds each migration and rollout-wait phase separately; `pollIntervalSeconds` (default 5) must be smaller. `minimumVersion` is an optional shared stable floor; when empty each API pool derives its own image floor, and Gateway/Loop use the shared API image. `image`, `resources`, and `backoffLimit` configure the helpers and migration retry budget. API progress deadlines include two phase budgets plus 300 seconds; Gateway/Loop include two plus 600; Brainstore adds one phase budget to its configured rollout deadline.
+`deploymentOrdering.timeoutSeconds` (default 1200) bounds each migration and rollout-wait phase separately; `pollIntervalSeconds` (default 15) must be smaller. `minimumVersion` is an optional shared stable floor; when empty each API pool derives its own image floor, and Gateway/Loop use the shared API image. `image`, `resources`, and `backoffLimit` configure the helpers and migration retry budget. API progress deadlines include two phase budgets plus 300 seconds; Gateway/Loop include two plus 600; Brainstore adds one phase budget to its configured rollout deadline.
 
 Use a sufficient Helm timeout and `--wait --wait-for-jobs`; otherwise Helm can return before migrations or rollout complete. Inspect `wait-for-migrations` and `wait-for-brainstore` init logs for the condition holding startup.

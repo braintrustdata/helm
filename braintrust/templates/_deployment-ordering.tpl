@@ -4,7 +4,7 @@
   "enabled" true
   "minimumVersion" ""
   "timeoutSeconds" 1200
-  "pollIntervalSeconds" 5
+  "pollIntervalSeconds" 15
   "backoffLimit" 2
   "image" "python:3.13-alpine@sha256:79e7a9b9ff1cbceff819f856fb374477792a5967759d94df266de7b7b4120e6f"
   "resources" (dict "requests" (dict "cpu" "25m" "memory" "32Mi") "limits" (dict "cpu" "100m" "memory" "128Mi"))

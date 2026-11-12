@@ -822,7 +822,7 @@ deploymentOrdering:
   minimumVersion: ""
   # Separate budget for each phase (migration Job/wait, then Brainstore rollout).
   timeoutSeconds: 1200
-  pollIntervalSeconds: 5
+  pollIntervalSeconds: 15
   backoffLimit: 2
   # Small read-only init-container helper; migration itself uses api.image.
   image: "python:3.13-alpine@sha256:79e7a9b9ff1cbceff819f856fb374477792a5967759d94df266de7b7b4120e6f"

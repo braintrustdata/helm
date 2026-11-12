@@ -42,6 +42,29 @@ tests:
             name: BRAINSTORE_MINIMUM_VERSION
             value: "2.15.0"
 
+  - it: should retain zero-replica roles in the rollout drain check
+    template: api-deployment.yaml
+    release:
+      revision: 7
+    set:
+      brainstore.reader.name: drain-reader
+      brainstore.reader.replicas: 0
+      brainstore.writer.name: drain-writer
+      brainstore.writer.replicas: 0
+      brainstore.fastreader.name: drain-fastreader
+      brainstore.fastreader.replicas: 0
+      brainstore.automationwriter.name: drain-automationwriter
+      brainstore.automationwriter.replicas: 0
+    asserts:
+      - equal:
+          path: spec.template.spec.initContainers[1].env[2].value
+          value: '[{"container":"brainstore-reader","deployment":"drain-reader"},{"container":"brainstore-writer","deployment":"drain-writer"},{"container":"brainstore-fastreader","deployment":"drain-fastreader"},{"container":"brainstore-automationwriter","deployment":"drain-automationwriter"}]'
+      - contains:
+          path: spec.template.spec.initContainers[1].env
+          content:
+            name: BRAINSTORE_MINIMUM_REVISION
+            value: "7"
+
   - it: should mount gate credentials only into the init container
     template: api-deployment.yaml
     set:
@@ -57,6 +80,24 @@ tests:
       - equal:
           path: spec.template.spec.automountServiceAccountToken
           value: false
+      - equal:
+          path: spec.template.spec.initContainers[0].securityContext.runAsNonRoot
+          value: true
+      - equal:
+          path: spec.template.spec.initContainers[0].securityContext.readOnlyRootFilesystem
+          value: true
+      - equal:
+          path: spec.template.spec.initContainers[1].securityContext.runAsNonRoot
+          value: true
+      - equal:
+          path: spec.template.spec.initContainers[1].securityContext.readOnlyRootFilesystem
+          value: true
+      - contains:
+          path: spec.template.spec.initContainers[0].volumeMounts
+          content:
+            name: migration-gate-credentials
+            mountPath: /var/run/migration-gate
+            readOnly: true
       - contains:
           path: spec.template.spec.initContainers[1].volumeMounts
           content:

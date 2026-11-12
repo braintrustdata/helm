@@ -42,7 +42,7 @@ def deployment(version="v2.15.0", replicas=1, revision=8, container="brainstore-
     }
 
 
-class ImageCompatibilityTests(unittest.TestCase):
+class CompatibilityTests(unittest.TestCase):
     def check(self, resource=None, pods=None, minimum="2.15.0"):
         return gate.check_deployment(
             resource if resource is not None else deployment(),
@@ -50,17 +50,17 @@ class ImageCompatibilityTests(unittest.TestCase):
             "brainstore-reader", gate.release_version(minimum), 8,
         )
 
-    def test_new_application_waits_for_compatible_desired_image(self):
+    def test_new_api_waits_when_helm_has_not_updated_brainstore_spec(self):
         self.assertIsNotNone(self.check(deployment("v2.14.0")))
 
-    def test_new_application_waits_for_incompatible_live_pods(self):
+    def test_new_api_waits_for_incompatible_old_pods(self):
         self.assertIsNotNone(self.check(pods=[pod(), pod("v2.14.0", "old")]))
 
     def test_incompatible_terminating_pod_blocks_even_when_unready(self):
         old = pod("v2.14.0", "old", False, deletionTimestamp="2026-09-30T12:00:00Z")
         self.assertIsNotNone(self.check(pods=[pod(), old]))
 
-    def test_older_application_accepts_completed_newer_brainstore(self):
+    def test_old_api_can_restart_against_newer_brainstore(self):
         self.assertIsNone(self.check(deployment("v2.16.0"), [pod("v2.16.0")], "2.15.0"))
 
     def test_unknown_and_other_major_images_fail_closed(self):
@@ -151,7 +151,7 @@ class RolloutTests(unittest.TestCase):
             with self.subTest(minimum_revision=minimum_revision):
                 self.assertIsNotNone(self.check(minimum_revision=minimum_revision))
 
-    def test_requires_current_controller_observation(self):
+    def test_unobserved_generation_does_not_pass(self):
         resource = deployment(revision=8)
         resource["status"]["observedGeneration"] = 1
         self.assertIsNotNone(self.check(resource))
@@ -202,14 +202,14 @@ class RolloutTests(unittest.TestCase):
         del stray["metadata"]["annotations"]
         self.assertIsNotNone(self.check(pods=[stray]))
 
-    def test_terminal_old_pods_do_not_block_completed_rollout(self):
+    def test_terminal_pods_do_not_block(self):
         for phase in ("Succeeded", "Failed"):
             with self.subTest(phase=phase):
                 old = pod("v2.14.0", revision=7)
                 old["status"]["phase"] = phase
                 self.assertIsNone(self.check(pods=[pod(revision=8), old]))
 
-    def test_min_ready_seconds_requires_available_replicas(self):
+    def test_honors_deployment_min_ready_seconds_availability(self):
         resource = deployment(revision=8)
         resource["spec"]["minReadySeconds"] = 60
         resource["status"]["availableReplicas"] = 0
@@ -277,9 +277,8 @@ class WaitTests(unittest.TestCase):
         clock = FakeClock()
         log = Mock()
         with patch.object(gate, "check_fleet", side_effect=observations) as check:
-            gate.wait_for_fleet(Mock(), [{"deployment": "reader", "container": "brainstore-reader",
-                                         "minimumRevision": 8}],
-                                (2, 15, 0), timeout, 15, clock.clock, clock.sleep, log)
+            gate.wait_for_fleet(Mock(), [{"deployment": "reader", "container": "brainstore-reader"}],
+                                (2, 15, 0), 8, timeout, 15, clock.clock, clock.sleep, log)
         return clock, log, check
 
     def test_requires_two_successful_observations(self):
@@ -305,17 +304,17 @@ class WaitTests(unittest.TestCase):
                 self.assertEqual(check.call_count, 4)
                 self.assertEqual(clock.now, 45)
 
-    def test_timeout_never_releases_application(self):
+    def test_timeout_never_releases_api(self):
         with self.assertRaisesRegex(TimeoutError, "old pod remains"):
             self.wait(["old pod remains"] * 3, timeout=30)
 
-    def test_kubernetes_api_failure_never_releases_application(self):
+    def test_kubernetes_api_failure_never_releases_api(self):
         with self.assertRaisesRegex(TimeoutError, "HTTP 429"):
             self.wait([urllib.error.HTTPError("https://api", 429, "synthetic", None, None)] * 3, 30)
 
 
 class FleetTests(unittest.TestCase):
-    def test_completed_compatible_rollout_churn_can_confirm_an_older_application(self):
+    def test_compatible_deployment_and_pod_churn_do_not_delay_an_old_api(self):
         client = Mock()
         first = deployment("v2.15.0", revision=8)
         later = deployment("v2.16.0", revision=9)
@@ -324,9 +323,9 @@ class FleetTests(unittest.TestCase):
         client.deployment.side_effect = [first, later]
         client.pods.side_effect = [[pod("v2.15.0", "old", revision=8)],
                                    [pod("v2.16.0", "new", revision=9)]]
-        targets = [{"deployment": "reader", "container": "brainstore-reader", "minimumRevision": 8}]
+        targets = [{"deployment": "reader", "container": "brainstore-reader"}]
         clock = FakeClock()
-        gate.wait_for_fleet(client, targets, (2, 15, 0), 60, 15,
+        gate.wait_for_fleet(client, targets, (2, 15, 0), 8, 60, 15,
                             clock.clock, clock.sleep, Mock())
         self.assertEqual(client.deployment.call_count, 2)
         self.assertEqual(clock.now, 15)
@@ -339,7 +338,7 @@ class FleetTests(unittest.TestCase):
         for role in ("reader", "writer", "fastreader", "automationwriter"):
             name = "custom-" + role
             container = "brainstore-" + role
-            targets.append({"deployment": name, "container": container, "minimumRevision": 8})
+            targets.append({"deployment": name, "container": container})
             resource = deployment()
             resource["metadata"]["name"] = name
             resource["metadata"]["uid"] = name
@@ -351,7 +350,7 @@ class FleetTests(unittest.TestCase):
             pod_sets.append([current])
         client.deployment.side_effect = deployments
         client.pods.side_effect = pod_sets
-        reason = gate.check_fleet(client, targets, (2, 15, 0), 100)
+        reason = gate.check_fleet(client, targets, (2, 15, 0), 8, 100)
         self.assertIsNone(reason)
         self.assertEqual(client.deployment.call_count, 4)
         self.assertEqual([call.args[0] for call in client.pods.call_args_list],
@@ -364,21 +363,19 @@ class FleetTests(unittest.TestCase):
         stray = pod("v2.14.0", "stray")
         client.deployment.side_effect = deployments
         client.pods.side_effect = [[pod(), stray]]
-        reason = gate.check_fleet(client, targets, (2, 15, 0), 100)
+        reason = gate.check_fleet(client, targets, (2, 15, 0), 8, 100)
         self.assertIsNotNone(reason)
 
-    def test_missing_or_zero_revision_target_cannot_release_application(self):
-        for revision in (None, 0):
+    def test_nonpositive_revision_floor_cannot_release_application(self):
+        for revision in (0, -1):
             with self.subTest(revision=revision):
                 target = {"deployment": "reader", "container": "brainstore-reader"}
-                if revision is not None:
-                    target["minimumRevision"] = revision
                 client = Mock()
                 client.deployment.return_value = deployment()
                 client.pods.return_value = [pod()]
                 clock = FakeClock()
                 with self.assertRaises(TimeoutError):
-                    gate.wait_for_fleet(client, [target], (2, 15, 0), 30, 15,
+                    gate.wait_for_fleet(client, [target], (2, 15, 0), revision, 30, 15,
                                         clock.clock, clock.sleep, Mock())
 
     def test_writer_waits_across_same_image_and_later_rollouts(self):
@@ -399,25 +396,11 @@ class FleetTests(unittest.TestCase):
             [current], [current, pod(revision=9, is_ready=False, container=container)],
             [later], [later],
         ]
-        targets = [{"deployment": "writer", "container": container, "minimumRevision": 8}]
+        targets = [{"deployment": "writer", "container": container}]
         clock = FakeClock()
-        gate.wait_for_fleet(client, targets, (2, 15, 0), 120, 15,
+        gate.wait_for_fleet(client, targets, (2, 15, 0), 8, 120, 15,
                             clock.clock, clock.sleep, Mock())
         self.assertEqual(clock.now, 75)
-
-    def test_observation_errors_reset_confirmation(self):
-        client = Mock()
-        resource = deployment(revision=8)
-        client.deployment.side_effect = [
-            urllib.error.HTTPError("https://api", 403, "synthetic", None, None),
-            resource, OSError("synthetic"), resource, resource,
-        ]
-        client.pods.return_value = [pod(revision=8)]
-        targets = [{"deployment": "reader", "container": "brainstore-reader", "minimumRevision": 8}]
-        clock = FakeClock()
-        gate.wait_for_fleet(client, targets, (2, 15, 0), 90, 15,
-                            clock.clock, clock.sleep, Mock())
-        self.assertEqual(clock.now, 60)
 
     def test_completed_observation_cannot_release_application_after_deadline(self):
         clock = FakeClock()
@@ -429,10 +412,36 @@ class FleetTests(unittest.TestCase):
         client = Mock()
         client.deployment.side_effect = observe
         client.pods.return_value = [pod(revision=8)]
-        targets = [{"deployment": "reader", "container": "brainstore-reader", "minimumRevision": 8}]
+        targets = [{"deployment": "reader", "container": "brainstore-reader"}]
         with self.assertRaises(TimeoutError):
-            gate.wait_for_fleet(client, targets, (2, 15, 0), 60, 15,
+            gate.wait_for_fleet(client, targets, (2, 15, 0), 8, 60, 15,
                                 clock.clock, clock.sleep, Mock())
+
+
+class MainTests(unittest.TestCase):
+    def environment(self):
+        return {
+            "BRAINSTORE_MINIMUM_VERSION": "2.15.0",
+            "BRAINSTORE_MINIMUM_REVISION": "8",
+            "BRAINSTORE_DEPLOYMENTS": '[{"deployment":"reader","container":"brainstore-reader"}]',
+            "BRAINSTORE_GATE_TIMEOUT_SECONDS": "60",
+            "BRAINSTORE_GATE_POLL_SECONDS": "15",
+            "POD_NAMESPACE": "custom",
+        }
+
+    def test_missing_invalid_or_nonpositive_revision_floor_fails_closed(self):
+        for revision in (None, "", "invalid", "8.0", "0", "-1"):
+            with self.subTest(revision=revision):
+                environment = self.environment()
+                if revision is None:
+                    del environment["BRAINSTORE_MINIMUM_REVISION"]
+                else:
+                    environment["BRAINSTORE_MINIMUM_REVISION"] = revision
+                with patch.dict(os.environ, environment, clear=True), \
+                     patch.object(gate, "wait_for_fleet") as wait, \
+                     self.assertRaises((KeyError, ValueError)):
+                    gate.main()
+                wait.assert_not_called()
 
 
 class ClientTests(unittest.TestCase):

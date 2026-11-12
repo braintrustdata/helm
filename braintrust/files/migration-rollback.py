@@ -84,9 +84,7 @@ def cleanup(client, namespace, name, timeout, clock=time.monotonic, sleep=time.s
             sleep(min(2, max(0, deadline - clock())))
 
     # Stop the migration before removing any config or permissions it relies on.
-    request("DELETE", paths[0])
-    wait_until_deleted(paths[0])
-    for path in paths[1:]:
+    for path in paths:
         request("DELETE", path)
         wait_until_deleted(path)
 
