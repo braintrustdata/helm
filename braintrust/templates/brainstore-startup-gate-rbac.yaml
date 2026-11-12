@@ -40,7 +40,7 @@ subjects:
   {{- $_ := set $accounts $pool.config.serviceAccount.name true -}}
   {{- end -}}
   {{- if .Values.aiGateway.enabled -}}
-  {{- $_ := set $accounts (include "braintrust.migrations.gatewayAccount" .) true -}}
+  {{- $_ := set $accounts (include "braintrust.aiGateway.serviceAccountName" .) true -}}
   {{- end -}}
   {{- if include "braintrust.loopRuntime.enabled" . -}}
   {{- $_ := set $accounts .Values.loopRuntime.serviceAccount.name true -}}

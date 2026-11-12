@@ -146,6 +146,11 @@ Internal cluster URL for the AI Gateway service.
 http://{{ .Values.aiGateway.service.name | default .Values.aiGateway.name }}.{{ include "braintrust.namespace" . }}:{{ .Values.aiGateway.service.port }}
 {{- end -}}
 
+{{/* Also supports reused values that predate the Gateway ServiceAccount. */}}
+{{- define "braintrust.aiGateway.serviceAccountName" -}}
+{{- (.Values.aiGateway.serviceAccount | default dict).name | default "braintrust-ai-gateway" -}}
+{{- end -}}
+
 {{/*
 Whether Loop Runtime is enabled. Values reused from a chart release that
 predates Loop Runtime have no loopRuntime map, which means disabled.

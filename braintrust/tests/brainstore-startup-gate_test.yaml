@@ -294,10 +294,11 @@ tests:
       namespace: workload
     set:
       aiGateway.enabled: true
+      aiGateway.serviceAccount.name: gateway-account
     asserts:
       - contains:
           path: subjects
-          content: {kind: ServiceAccount, name: test-migration-gate, namespace: workload}
+          content: {kind: ServiceAccount, name: gateway-account, namespace: workload}
       - contains:
           path: subjects
           content: {kind: ServiceAccount, name: braintrust-loop-runtime, namespace: workload}

@@ -564,6 +564,9 @@ Loop Runtime then wait for the full compatible Brainstore rollout and start in
 parallel. Set it to `false` for unordered startup. This replaces
 `api.brainstoreStartupGate`; migrate existing opt-outs to the new setting.
 
+Gateway has its own Kubernetes ServiceAccount regardless of ordering; configure
+its name with `aiGateway.serviceAccount.name`.
+
 Ordering gates container startup, not Kubernetes object updates. Older replacement
 pods also wait during an unfinished Brainstore rollout.
 

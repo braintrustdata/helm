@@ -32,10 +32,6 @@
 {{- printf "%s-%s-migrate-r%d" (.Release.Name | trunc 24 | trimSuffix "-") (.Release.Name | sha256sum | trunc 8) (int .Release.Revision) -}}
 {{- end -}}
 
-{{- define "braintrust.migrations.gatewayAccount" -}}
-{{- printf "%s-migration-gate" (.Release.Name | trunc 48 | trimSuffix "-") -}}
-{{- end -}}
-
 {{- define "braintrust.migrations.initContainer" -}}
 {{- $config := include "braintrust.deploymentOrdering.config" . | fromYaml -}}
 - name: wait-for-migrations

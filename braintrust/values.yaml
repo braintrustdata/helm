@@ -387,6 +387,7 @@ aiGateway:
     deployment: {}
     service: {}
     pod: {}
+    serviceaccount: {}
   # With autoscaling, the default minReplicas.
   replicas: 2
   # Needs metrics-server; without it the HPA holds minReplicas.
@@ -409,6 +410,8 @@ aiGateway:
     type: ClusterIP
     port: 8080
     portName: http
+  serviceAccount:
+    name: "braintrust-ai-gateway"
   # Optional cloud region identifier (e.g. us-east-1). Sets GATEWAY_REGION when provided.
   region: ""
   braintrustAppUrl: "https://www.braintrust.dev"

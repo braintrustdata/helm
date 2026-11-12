@@ -54,19 +54,11 @@ subjects:
   {{- $_ := set $accounts .Values.loopRuntime.serviceAccount.name true -}}
   {{- end -}}
   {{- if .Values.aiGateway.enabled -}}
-  {{- $_ := set $accounts (include "braintrust.migrations.gatewayAccount" .) true -}}
+  {{- $_ := set $accounts (include "braintrust.aiGateway.serviceAccountName" .) true -}}
   {{- end -}}
   {{- range $account := keys $accounts | sortAlpha }}
   - kind: ServiceAccount
     name: {{ $account }}
     namespace: {{ include "braintrust.namespace" $ }}
   {{- end }}
-{{- if .Values.aiGateway.enabled }}
----
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: {{ include "braintrust.migrations.gatewayAccount" . }}
-  namespace: {{ include "braintrust.namespace" . }}
-{{- end }}
 {{- end }}

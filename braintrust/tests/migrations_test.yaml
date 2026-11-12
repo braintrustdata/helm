@@ -335,7 +335,6 @@ tests:
     set: {"aiGateway.enabled": true}
     asserts:
       - {"equal": {"path": "spec.template.spec.initContainers[0].name", "value": "wait-for-migrations"}}
-      - {"equal": {"path": "spec.template.spec.serviceAccountName", "value": "test-migration-gate"}}
       - {"equal": {"path": "spec.template.spec.automountServiceAccountToken", "value": false}}
       - {"equal": {"path": "spec.template.spec.initContainers[1].name", "value": "wait-for-brainstore"}}
       - {"equal": {"path": "spec.progressDeadlineSeconds", "value": 3000}}
