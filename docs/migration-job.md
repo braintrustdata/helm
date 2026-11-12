@@ -41,6 +41,20 @@ The migration Job, its snapshot configuration, helper code, and exact-Job read R
 
 The target revision's `pre-rollback` hook deletes that migration Job and waits for foreground deletion before removing its config/RBAC. Helm then recreates the target phase. This avoids Helm 3 retained-resource restoration errors. Do not use `--no-hooks`; failed cleanup blocks rollback. SQL changes are never reversed and must remain compatible with existing workloads.
 
+### Reinstalling after uninstall
+
+Before reinstalling the same release name in the same namespace, stop all old workloads and delete its retained migration records. Helm restarts revision numbering at 1: reusing old records can skip migrations against a new database, reuse a failed Job, or fail on an immutable Job template.
+
+```sh
+release=<release-name>
+namespace=<namespace>
+selector="braintrust.dev/migration-release=$release"
+kubectl -n "$namespace" delete job -l "$selector" --cascade=foreground --wait=true
+kubectl -n "$namespace" delete configmap,role,rolebinding -l "$selector" --wait=true
+```
+
+Run this only after uninstall, never against records needed by an active release. Wait for both commands to succeed before reinstalling; deleting the Job first prevents its migrator from outliving its configuration.
+
 ## Limits and operation
 
 These gates order **application-container startup**, not Kubernetes object updates. Helm still submits Deployment specs and ConfigMaps together. Mutable mounted configuration, externally updated Secrets, and old ReplicaSet replacements are not an atomic configuration transaction. Use separately staged migrations and versioned configuration if no object or old workload may observe changes before migrations finish. Perform a Helm upgrade after an external Secret change to roll pods; secret values are not snapshotted.
