@@ -814,7 +814,7 @@ virtualService:
 
 # Order startup as migrations -> completed Brainstore rollout -> all other apps.
 # Disable to deploy everything without chart-managed startup ordering.
-# See docs/migration-job.md for retention, rollback, and startup-only limits.
+# See README.md#release-ordering for configuration and operational limits.
 deploymentOrdering:
   enabled: true
   # Empty derives the compatible Brainstore floor from each API pool's image tag.

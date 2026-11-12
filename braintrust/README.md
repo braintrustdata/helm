@@ -558,20 +558,24 @@ Example values files for different cloud providers and configurations are locate
 
 ## Release ordering
 
-`deploymentOrdering.enabled: true` (default) runs one migration Job per Helm
-revision. Brainstore waits for migrations; all API pools, optional AI Gateway,
-and optional Loop Runtime then wait for the full compatible Brainstore rollout.
-Old or terminating live pods cannot satisfy the check, including same-image
-configuration changes. `deploymentOrdering.enabled: false` removes all
-chart-managed ordering resources and waits; there is no intermediate mode.
+`deploymentOrdering.enabled` (default `true`) runs one migration Job per Helm
+revision before Brainstore starts. All API pools, enabled AI Gateway, and enabled
+Loop Runtime then wait for the full compatible Brainstore rollout and start in
+parallel. Set it to `false` for unordered startup. This replaces
+`api.brainstoreStartupGate`; migrate existing opt-outs to the new setting.
 
-The shared `deploymentOrdering.timeoutSeconds` bounds each phase separately;
-`pollIntervalSeconds` controls observations. `minimumVersion` optionally sets a
-shared stable floor; otherwise each API pool uses its image release and the
-Gateway/Loop use the shared API release.
+Ordering gates container startup, not Kubernetes object updates. Older replacement
+pods also wait during an unfinished Brainstore rollout.
 
-Older replacement workloads also wait during a later unfinished Brainstore
-rollout, accepting a newer completed compatible release. Capacity shortages can
-therefore delay restarts. Ordering covers container startup, not Helm's object
-updates. See [migration lifecycle and input matrix](../docs/migration-job.md)
-for rollback, retained-record reinstall cleanup, and configuration limits.
+`deploymentOrdering.timeoutSeconds` bounds each phase; `minimumVersion` supplies
+a stable compatibility floor for opaque API image tags. See [values.yaml](values.yaml)
+for settings. Use `--wait --wait-for-jobs` with a sufficient Helm timeout.
+
+Migration records are retained for replacement pods. Retry failed migrations with
+a new Helm upgrade. Rollback requires hooks and does not reverse SQL changes;
+migrations must remain backward-compatible.
+
+After uninstall, before reusing a release name, delete Jobs labeled
+`braintrust.dev/migration-release=<release>` with foreground deletion and wait for
+completion, then delete labeled ConfigMaps, Roles, and RoleBindings. Never delete
+records still needed by active workloads or rollback revisions.
