@@ -73,7 +73,7 @@ tests:
           value: braintrust-api
       - equal:
           path: spec.metrics[0].pod.containers[0].endpoint.port
-          value: 8001
+          value: api-metrics
       - equal:
           path: spec.metrics[0].pod.containers[0].endpoint.path
           value: /metrics
@@ -151,7 +151,7 @@ tests:
           path: spec.behavior.scaleUp.stabilizationWindowSeconds
           value: 60
 
-  - it: should omit Deployment replicas and expose metrics port when autoscaling is enabled
+  - it: should expose a named metrics port with the startup gate when autoscaling is enabled
     template: api-deployment.yaml
     values:
       - __fixtures__/base-values.yaml
@@ -171,20 +171,25 @@ tests:
       - contains:
           path: spec.template.spec.containers[0].ports
           content:
+            name: api-metrics
             containerPort: 8001
+      - equal:
+          path: spec.template.spec.initContainers[0].name
+          value: wait-for-brainstore
       - contains:
           path: spec.template.spec.containers[0].env
           content:
             name: ENABLE_PROMETHEUS_METRICS
             value: "true"
 
-  - it: should set ENABLE_PROMETHEUS_METRICS after extraEnvVars so autoscaling wins
+  - it: should expose metrics without the startup gate and override extraEnvVars
     template: api-deployment.yaml
     values:
       - __fixtures__/base-values.yaml
     set:
       cloud: google
       api.autoscaling.enabled: true
+      api.brainstoreStartupGate.enabled: false
       api.extraEnvVars:
         - name: ENABLE_PROMETHEUS_METRICS
           value: "false"
@@ -199,6 +204,11 @@ tests:
       - equal:
           path: spec.template.spec.containers[0].env[-1].value
           value: "true"
+      - contains:
+          path: spec.template.spec.containers[0].ports
+          content:
+            name: api-metrics
+            containerPort: 8001
 
   - it: should keep Deployment replicas when autoscaling is disabled
     template: api-deployment.yaml
@@ -217,6 +227,7 @@ tests:
       - notContains:
           path: spec.template.spec.containers[0].ports
           content:
+            name: api-metrics
             containerPort: 8001
       - notContains:
           path: spec.template.spec.containers[0].env
@@ -333,6 +344,9 @@ tests:
       - equal:
           path: spec.metrics[0].pod.selector.matchLabels.app
           value: braintrust-api-ingest
+      - equal:
+          path: spec.metrics[0].pod.containers[0].endpoint.port
+          value: api-metrics
 
   - it: should omit replicas on the ingest pool when autoscaling is enabled
     template: api-deployment.yaml
@@ -355,6 +369,40 @@ tests:
           content:
             name: ENABLE_PROMETHEUS_METRICS
             value: "true"
+
+  - it: should keep a custom pool metrics port aligned with its scrape endpoint
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      cloud: google
+      api.autoscaling.enabled: true
+      api.workloadIsolation.enabled: true
+      api.workloadIsolation.background.name: custom-background
+      api.workloadIsolation.background.healthServer.port: 9091
+      api.workloadIsolation.background.extraContainers:
+        - name: sidecar
+          image: example/sidecar:v1
+          ports:
+            - containerPort: 9090
+              name: sidecar-metrics
+    documentSelector:
+      path: metadata.name
+      value: custom-background
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].ports
+          content:
+            name: api-metrics
+            containerPort: 9091
+        template: api-deployment.yaml
+      - equal:
+          path: spec.template.spec.initContainers[0].name
+          value: wait-for-brainstore
+        template: api-deployment.yaml
+      - equal:
+          path: spec.metrics[0].pod.containers[0].endpoint.port
+          value: api-metrics
+        template: api-autoscaling-metric.yaml
 
   - it: should not render an HPA for a pool with autoscaling disabled
     template: api-hpa.yaml

@@ -38,7 +38,8 @@ spec:
           app: {{ $api.name }}
       containers:
       - endpoint:
-          port: {{ $api.healthServer.port }}
+          # A named port limits discovery to the API container, excluding init containers.
+          port: api-metrics
           path: {{ $api.autoscaling.metricsPath }}
         metrics:
         - gauge:
