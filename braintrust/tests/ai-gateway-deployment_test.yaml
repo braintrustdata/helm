@@ -19,6 +19,7 @@ tests:
       - __fixtures__/base-values.yaml
     set:
       aiGateway.enabled: true
+      aiGateway.autoscaling.enabled: false
       aiGateway.image.repository: test/gateway
       aiGateway.image.tag: v1.0.0
     release:

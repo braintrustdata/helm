@@ -2,6 +2,7 @@ suite: test label merge isolation for API autoscaling resources
 templates:
   - api-autoscaling-metric.yaml
   - api-hpa.yaml
+  - ai-gateway-hpa.yaml
   - brainstore-reader-configmap.yaml
 capabilities:
   apiVersions:
@@ -84,3 +85,55 @@ tests:
           value: reader-config
       - isNull:
           path: metadata.labels["api-specific"]
+
+  - it: should give the AI Gateway HPA only global and gateway-specific labels
+    template: ai-gateway-hpa.yaml
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      aiGateway.enabled: true
+      global.labels.shared: global-autoscaling
+      global.labels.tier: global-tier
+      aiGateway.labels.tier: gateway-tier
+      aiGateway.labels.gateway-specific: gateway-autoscaling
+      api.labels.api-specific: api-autoscaling
+    release:
+      namespace: braintrust
+    asserts:
+      - equal:
+          path: metadata.labels.shared
+          value: global-autoscaling
+      - equal:
+          path: metadata.labels.tier
+          value: gateway-tier
+      - equal:
+          path: metadata.labels["gateway-specific"]
+          value: gateway-autoscaling
+      - isNull:
+          path: metadata.labels["api-specific"]
+
+  - it: should not leak AI Gateway labels into another rendered component
+    template: brainstore-reader-configmap.yaml
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      aiGateway.enabled: true
+      global.labels.shared: global-autoscaling
+      global.labels.tier: global-tier
+      aiGateway.labels.tier: gateway-tier
+      aiGateway.labels.gateway-specific: gateway-autoscaling
+      brainstore.reader.labels.reader-specific: reader-config
+    release:
+      namespace: braintrust
+    asserts:
+      - equal:
+          path: metadata.labels.shared
+          value: global-autoscaling
+      - equal:
+          path: metadata.labels.tier
+          value: global-tier
+      - equal:
+          path: metadata.labels["reader-specific"]
+          value: reader-config
+      - isNull:
+          path: metadata.labels["gateway-specific"]

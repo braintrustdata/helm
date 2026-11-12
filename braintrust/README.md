@@ -287,6 +287,12 @@ api:
 
 When enabled for a pool, that pool's `replicas` setting is ignored and the HPA controls the replica count. With `api.workloadIsolation.enabled`, ingest and background pools inherit these settings and can override `minReplicas` / `maxReplicas` under `api.workloadIsolation.<pool>.autoscaling`.
 
+## AI Gateway Autoscaling
+
+The AI Gateway autoscales by default at 70% CPU and 75% memory, the same as the AWS module. `minReplicas` defaults to `aiGateway.replicas` (2) and `maxReplicas` to the larger of 6 and `minReplicas`, so a custom `replicas` count is kept as the floor. It needs metrics-server, which GKE and AKS include; without it the gateway stays at `minReplicas`. Set `aiGateway.autoscaling.enabled: false` to use a fixed `aiGateway.replicas`.
+
+Turning on autoscaling for a running gateway briefly drops it to 1 replica, for roughly 30-60 seconds: up to about 15 seconds for the HPA to restore the count, then image pull and the readiness delay. Setting `aiGateway.autoscaling.enabled: false` only postpones this until autoscaling is turned on.
+
 ## API workload isolation
 
 `api.workloadIsolation.enabled` creates fixed-capacity `braintrust-api-ingest`
