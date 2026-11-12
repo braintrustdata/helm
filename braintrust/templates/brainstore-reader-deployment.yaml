@@ -1,4 +1,4 @@
-{{- $migration := include "braintrust.migrations.config" . | fromYaml -}}
+{{- $ordering := include "braintrust.deploymentOrdering.config" . | fromYaml -}}
 {{- $rollout := include "braintrust.deploymentRollout.config" (dict "config" .Values.brainstore.reader) | fromYaml -}}
 {{- include "braintrust.deploymentRollout.validate" (dict "path" "brainstore.reader" "config" $rollout) }}
 apiVersion: apps/v1
@@ -17,7 +17,7 @@ metadata:
 spec:
   replicas: {{ .Values.brainstore.reader.replicas }}
   minReadySeconds: {{ $rollout.minReadySeconds }}
-  progressDeadlineSeconds: {{ add (int $rollout.progressDeadlineSeconds) (ternary (int $migration.timeoutSeconds) 0 $migration.enabled) }}
+  progressDeadlineSeconds: {{ add (int $rollout.progressDeadlineSeconds) (ternary (int $ordering.timeoutSeconds) 0 $ordering.enabled) }}
   strategy:
     type: {{ $rollout.strategy.type }}
     {{- if eq $rollout.strategy.type "RollingUpdate" }}
@@ -67,7 +67,7 @@ spec:
       affinity:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- if $migration.enabled }}
+      {{- if $ordering.enabled }}
       initContainers:
         {{- include "braintrust.migrations.initContainer" . | nindent 8 }}
       {{- end }}
@@ -160,7 +160,7 @@ spec:
       {{- toYaml . | nindent 8 }}
       {{- end }}
       volumes:
-        {{- if $migration.enabled }}
+        {{- if $ordering.enabled }}
         {{- include "braintrust.migrations.volumes" . | nindent 8 }}
         {{- end }}
         - name: cache-volume

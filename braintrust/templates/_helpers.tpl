@@ -297,8 +297,8 @@ and normal writable-layer/log overhead.
 {{- $_ := set $annotations "iam.gke.io/gcp-service-account" (required "brainstore.serviceAccount.googleServiceAccount is required when cloud is google" $root.Values.brainstore.serviceAccount.googleServiceAccount) -}}
 {{- end -}}
 {{- $annotations = mergeOverwrite $annotations (deepCopy (.config.annotations.pod | default dict)) -}}
-{{- $migration := include "braintrust.migrations.config" $root | fromYaml -}}
-{{- if $migration.enabled -}}
+{{- $ordering := include "braintrust.deploymentOrdering.config" $root | fromYaml -}}
+{{- if $ordering.enabled -}}
 {{/* Release identity rejects a previous Ready generation before Helm updates it. */}}
 {{- $_ := set $annotations "braintrust.dev/release-revision" (toString $root.Release.Revision) -}}
 {{- end -}}

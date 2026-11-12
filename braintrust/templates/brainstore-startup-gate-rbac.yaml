@@ -1,4 +1,4 @@
-{{- $gate := include "braintrust.brainstoreStartupGate.config" . | fromYaml -}}
+{{- $gate := include "braintrust.deploymentOrdering.config" . | fromYaml -}}
 {{- if $gate.enabled }}
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
@@ -38,6 +38,12 @@ subjects:
   {{- $accounts := dict -}}
   {{- range $pool := include "braintrust.apiPools" . | fromYamlArray -}}
   {{- $_ := set $accounts $pool.config.serviceAccount.name true -}}
+  {{- end -}}
+  {{- if .Values.aiGateway.enabled -}}
+  {{- $_ := set $accounts (include "braintrust.migrations.gatewayAccount" .) true -}}
+  {{- end -}}
+  {{- if include "braintrust.loopRuntime.enabled" . -}}
+  {{- $_ := set $accounts .Values.loopRuntime.serviceAccount.name true -}}
   {{- end -}}
   {{- range $name := keys $accounts | sortAlpha }}
   - kind: ServiceAccount

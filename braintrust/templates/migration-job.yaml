@@ -1,9 +1,9 @@
-{{- $config := include "braintrust.migrations.config" . | fromYaml -}}
+{{- $config := include "braintrust.deploymentOrdering.config" . | fromYaml -}}
 {{- if $config.enabled -}}
 {{- $name := include "braintrust.migrations.name" . -}}
 {{- $api := include "braintrust.apiPoolConfig" (dict "root" . "overrides" (dict)) | fromYaml -}}
 {{/* Reuse the API pod contract so identity, TLS, secrets, security and scheduling
-stay in sync. The migrationJob flag suppresses both startup gates. Only the main
+stay in sync. The migrationJob flag suppresses release ordering. Only the main
 container is retained: sidecars and HTTP probes must not keep this Job alive. */}}
 {{- $deployment := include "braintrust.apiDeployment" (dict "root" . "api" $api "role" "migration" "migrationJob" true) | fromYaml -}}
 {{- $pod := $deployment.spec.template -}}

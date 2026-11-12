@@ -1,8 +1,8 @@
-"""Wait for compatible Brainstore capacity and required rollouts before API startup.
+"""Wait for compatible Brainstore rollouts before application startup.
 
 Uses only Python's standard library and read-only Kubernetes API requests.
-The required version is fixed in the API Pod's environment, not a ConfigMap that
-changes underneath an older API Pod when the next release is installed.
+The required version is fixed in the application's Pod environment, not a
+ConfigMap that changes underneath an older Pod when the next release is installed.
 """
 
 import json
@@ -76,14 +76,13 @@ def ready(pod, container):
     )
 
 
-def check_deployment(deployment, pods, container, minimum, minimum_revision=0):
-    """Return a wait reason, or None when compatible backends satisfy the gate.
+def check_deployment(deployment, pods, container, minimum, minimum_revision):
+    """Return a wait reason, or None when the compatible rollout is complete.
 
-    A release revision requires the current Deployment rollout to finish, even
-    for an older API restarting during a later compatible release. Without a
-    revision floor, compatible capacity suffices during an ongoing rollout.
-    Incompatible terminating Pods always block because connections may remain
-    usable until their process exits.
+    The current Deployment rollout must finish, even for an older application
+    restarting during a later compatible release. All live Service backends
+    must belong to that rollout, and terminating Pods must disappear because
+    connections may remain usable until their process exits.
 
     Deployment rollouts replace Pods, so use each Pod's declared release tag.
     Container status can report a different alias or only a digest. Neither is
@@ -94,6 +93,8 @@ def check_deployment(deployment, pods, container, minimum, minimum_revision=0):
     spec = deployment.get("spec", {})
     status = deployment.get("status", {})
     name = metadata.get("name", "unknown")
+    if minimum_revision <= 0:
+        return f"{name}: minimum release revision must be positive"
     if metadata.get("deletionTimestamp"):
         return f"{name}: deployment is being deleted"
     # Do not trust availability status from before the latest spec update.
@@ -103,43 +104,39 @@ def check_deployment(deployment, pods, container, minimum, minimum_revision=0):
     template = spec.get("template", {})
     revision_key = "braintrust.dev/release-revision"
     revision = template.get("metadata", {}).get("annotations", {}).get(revision_key)
-    if minimum_revision > 0:
-        try:
-            current_revision = int(revision)
-        except (TypeError, ValueError):
-            return f"{name}: desired release revision is missing or invalid"
-        if current_revision < minimum_revision:
-            return f"{name}: waiting for release revision {minimum_revision} or later"
+    try:
+        current_revision = int(revision)
+    except (TypeError, ValueError):
+        return f"{name}: desired release revision is missing or invalid"
+    if current_revision < minimum_revision:
+        return f"{name}: waiting for release revision {minimum_revision} or later"
     live = [pod for pod in pods if pod.get("status", {}).get("phase") not in TERMINAL_PHASES]
-    if desired == 0 and minimum_revision == 0:
-        return f"{name}: waiting for scaled-down Pods to disappear" if live else None
-    # Check desired state too: compatible Pods are insufficient if the
-    # Deployment is about to replace them with an incompatible image.
-    image = container_image(template.get("spec", {}), container)
-    if not compatible(image, minimum):
-        return f"{name}: desired image {image!r} is below or outside the required release"
+    if desired == 0:
+        if live:
+            return f"{name}: waiting for scaled-down Pods to disappear"
+    else:
+        # Compatible Pods cannot compensate for an incompatible desired image.
+        image = container_image(template.get("spec", {}), container)
+        if not compatible(image, minimum):
+            return f"{name}: desired image {image!r} is below or outside the required release"
     for pod in live:
         image = container_image(pod.get("spec", {}), container)
         if not compatible(image, minimum):
             pod_name = pod.get("metadata", {}).get("name", "unknown")
             return f"{name}: incompatible Pod {pod_name} still exists ({image!r})"
-        if minimum_revision > 0:
-            pod_metadata = pod.get("metadata", {})
-            if pod_metadata.get("annotations", {}).get(revision_key) != revision:
-                return f"{name}: waiting for Pods from the current release revision"
-            if pod_metadata.get("deletionTimestamp"):
-                return f"{name}: waiting for terminating Pods to disappear"
+        pod_metadata = pod.get("metadata", {})
+        if pod_metadata.get("annotations", {}).get(revision_key) != revision:
+            return f"{name}: waiting for Pods from the current release revision"
+        if pod_metadata.get("deletionTimestamp"):
+            return f"{name}: waiting for terminating Pods to disappear"
     # Require both current Pod readiness and Deployment availability; the
     # latter also accounts for the Deployment's minReadySeconds setting.
     ready_count = sum(ready(pod, container) for pod in live)
-    if minimum_revision > 0:
-        counters = ("updatedReplicas", "readyReplicas", "availableReplicas", "replicas")
-        if any(status.get(counter, 0) != desired for counter in counters):
-            return f"{name}: waiting for all {desired} replicas to complete the current rollout"
-        if len(live) != desired or ready_count != desired:
-            return f"{name}: waiting for exactly {desired} current Ready Pods"
-    if ready_count < desired or status.get("availableReplicas", 0) < desired:
-        return f"{name}: waiting for {desired} available compatible Pods ({ready_count} ready)"
+    counters = ("updatedReplicas", "readyReplicas", "availableReplicas", "replicas")
+    if any(status.get(counter, 0) != desired for counter in counters):
+        return f"{name}: waiting for all {desired} replicas to complete the current rollout"
+    if len(live) != desired or ready_count != desired:
+        return f"{name}: waiting for exactly {desired} current Ready Pods"
     return None
 
 
@@ -205,7 +202,7 @@ def check_fleet(client, targets, minimum, deadline):
         # with that label too; they can receive traffic regardless of ownership.
         pods = client.pods("app=" + target["deployment"], deadline)
         reason = check_deployment(
-            deployment, pods, target["container"], minimum, target.get("minimumRevision", 0),
+            deployment, pods, target["container"], minimum, target["minimumRevision"],
         )
         if reason:
             return reason
@@ -222,7 +219,7 @@ def wait_for_fleet(client, targets, minimum, timeout, interval,
         try:
             reason = check_fleet(client, targets, minimum, deadline)
         except urllib.error.HTTPError as error:
-            # RBAC and Deployments may be applied after the API Pod is created.
+            # RBAC and Deployments may be applied after the application Pod is created.
             path = urllib.parse.urlsplit(error.url).path
             reason = f"Kubernetes API returned HTTP {error.code} for {path}"
             error.close()
@@ -235,9 +232,9 @@ def wait_for_fleet(client, targets, minimum, timeout, interval,
         if reason is None:
             successes += 1
             if successes == 2:
-                log("Brainstore startup gate complete: compatible capacity is available", flush=True)
+                log("Brainstore startup gate complete: compatible rollouts are complete", flush=True)
                 return
-            last_reason = "confirming compatible capacity (1/2)"
+            last_reason = "confirming completed compatible rollouts (1/2)"
         else:
             # An unhealthy role or failed API read resets the confirmation count.
             successes = 0
@@ -263,5 +260,5 @@ if __name__ == "__main__":
         main()
     except (OSError, ValueError, KeyError, TypeError) as error:
         print(str(error), file=sys.stderr, flush=True)
-        # Fail closed: Kubernetes retries this init container; the API stays stopped.
+        # Fail closed: Kubernetes retries this init container; the application stays stopped.
         sys.exit(1)

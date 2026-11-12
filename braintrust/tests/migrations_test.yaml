@@ -334,6 +334,8 @@ tests:
       - {"equal": {"path": "spec.template.spec.initContainers[0].name", "value": "wait-for-migrations"}}
       - {"equal": {"path": "spec.template.spec.serviceAccountName", "value": "test-migration-gate"}}
       - {"equal": {"path": "spec.template.spec.automountServiceAccountToken", "value": false}}
+      - {"equal": {"path": "spec.template.spec.initContainers[1].name", "value": "wait-for-brainstore"}}
+      - {"equal": {"path": "spec.progressDeadlineSeconds", "value": 3000}}
 
   - it: gates the optional Loop runtime
     values:
@@ -342,6 +344,8 @@ tests:
     set: {"cloud": "google", "loopRuntime.enabled": true, "loopRuntime.serviceAccount.googleServiceAccount": "loop@example.iam.gserviceaccount.com", "brainstore.serviceAccount.googleServiceAccount": "bs@example.iam.gserviceaccount.com"}
     asserts:
       - {"equal": {"path": "spec.template.spec.initContainers[0].name", "value": "wait-for-migrations"}}
+      - {"equal": {"path": "spec.template.spec.initContainers[1].name", "value": "wait-for-brainstore"}}
+      - {"equal": {"path": "spec.progressDeadlineSeconds", "value": 3000}}
 
   - it: binds the Loop runtime identity
     values:
@@ -354,84 +358,69 @@ tests:
 
   - it: omits migration-job.yaml when disabled
     template: migration-job.yaml
-    set: {"migrations.enabled": false}
+    set: {"deploymentOrdering.enabled": false}
     asserts:
       - {"hasDocuments": {"count": 0}}
 
   - it: omits migration-gate.yaml when disabled
     template: migration-gate.yaml
-    set: {"migrations.enabled": false}
+    set: {"deploymentOrdering.enabled": false}
     asserts:
       - {"hasDocuments": {"count": 0}}
 
   - it: removes migration wait when disabled in api-deployment.yaml
     template: api-deployment.yaml
-    set: {"migrations.enabled": false, "aiGateway.enabled": true, "api.brainstoreStartupGate.enabled": false}
+    set: {"deploymentOrdering.enabled": false, "aiGateway.enabled": true}
     asserts:
       - {"isNull": {"path": "spec.template.spec.initContainers"}}
 
   - it: removes migration wait when disabled in brainstore-reader-deployment.yaml
     template: brainstore-reader-deployment.yaml
-    set: {"migrations.enabled": false, "aiGateway.enabled": true, "api.brainstoreStartupGate.enabled": false}
+    set: {"deploymentOrdering.enabled": false, "aiGateway.enabled": true}
     asserts:
       - {"isNull": {"path": "spec.template.spec.initContainers"}}
 
   - it: removes migration wait when disabled in brainstore-writer-deployment.yaml
     template: brainstore-writer-deployment.yaml
-    set: {"migrations.enabled": false, "aiGateway.enabled": true, "api.brainstoreStartupGate.enabled": false}
+    set: {"deploymentOrdering.enabled": false, "aiGateway.enabled": true}
     asserts:
       - {"isNull": {"path": "spec.template.spec.initContainers"}}
 
   - it: removes migration wait when disabled in brainstore-fastreader-deployment.yaml
     template: brainstore-fastreader-deployment.yaml
-    set: {"migrations.enabled": false, "aiGateway.enabled": true, "api.brainstoreStartupGate.enabled": false}
+    set: {"deploymentOrdering.enabled": false, "aiGateway.enabled": true}
     asserts:
       - {"isNull": {"path": "spec.template.spec.initContainers"}}
 
   - it: removes migration wait when disabled in brainstore-automationwriter-deployment.yaml
     template: brainstore-automationwriter-deployment.yaml
-    set: {"migrations.enabled": false, "aiGateway.enabled": true, "api.brainstoreStartupGate.enabled": false}
+    set: {"deploymentOrdering.enabled": false, "aiGateway.enabled": true}
     asserts:
       - {"isNull": {"path": "spec.template.spec.initContainers"}}
 
   - it: removes migration wait when disabled in ai-gateway-deployment.yaml
     template: ai-gateway-deployment.yaml
-    set: {"migrations.enabled": false, "aiGateway.enabled": true, "api.brainstoreStartupGate.enabled": false}
+    set: {"deploymentOrdering.enabled": false, "aiGateway.enabled": true}
     asserts:
       - {"isNull": {"path": "spec.template.spec.initContainers"}}
 
-  - it: gates APIs independently of the compatibility gate
-    template: api-deployment.yaml
-    set: {"api.brainstoreStartupGate.enabled": false}
-    asserts:
-      - {"equal": {"path": "spec.template.spec.initContainers[0].name", "value": "wait-for-migrations"}}
-      - {"lengthEqual": {"path": "spec.template.spec.initContainers", "count": 1}}
-      - {"equal": {"path": "spec.progressDeadlineSeconds", "value": 1500}}
-
   - it: defaults a missing or null feature map on reused values
     template: api-deployment.yaml
-    set: {"migrations": null}
+    set: {"deploymentOrdering": null}
     asserts:
       - {"equal": {"path": "spec.template.spec.initContainers[0].name", "value": "wait-for-migrations"}}
 
   - it: merges partial reused values with defaults
     template: migration-job.yaml
     documentIndex: 0
-    set: {"migrations": null, "migrations.backoffLimit": 0}
+    set: {"deploymentOrdering": null, "deploymentOrdering.backoffLimit": 0}
     asserts:
       - {"equal": {"path": "spec.backoffLimit", "value": 0}}
       - {"equal": {"path": "spec.activeDeadlineSeconds", "value": 1200}}
 
-  - it: allows zero retries
-    template: migration-job.yaml
-    documentIndex: 0
-    set: {"migrations.backoffLimit": 0}
-    asserts:
-      - {"equal": {"path": "spec.backoffLimit", "value": 0}}
-
   - it: uses custom timing and a mirrored helper image
     template: brainstore-reader-deployment.yaml
-    set: {"migrations.timeoutSeconds": 1800, "migrations.pollIntervalSeconds": 10, "migrations.image": "mirror/python:3.13"}
+    set: {"deploymentOrdering.timeoutSeconds": 1800, "deploymentOrdering.pollIntervalSeconds": 10, "deploymentOrdering.image": "mirror/python:3.13"}
     asserts:
       - {"equal": {"path": "spec.template.spec.initContainers[0].image", "value": "mirror/python:3.13"}}
       - {"equal": {"path": "spec.template.spec.initContainers[0].env[2].value", "value": "1800"}}
@@ -440,20 +429,21 @@ tests:
 
   - it: rejects invalid timeoutSeconds 0
     template: migration-rollback.yaml
-    set: {"migrations.timeoutSeconds": 0}
+    set: {"deploymentOrdering.timeoutSeconds": 0}
     asserts:
-      - failedTemplate: {}
+      - failedTemplate:
+          errorMessage: deploymentOrdering timing values must be positive integers
 
   - it: rejects invalid timeoutSeconds 
     template: migration-rollback.yaml
-    set: {"migrations.timeoutSeconds": ""}
+    set: {"deploymentOrdering.timeoutSeconds": ""}
     asserts:
       - failedTemplate: {}
 
   - it: defaults a null timeoutSeconds after Helm coalesces values
     template: migration-job.yaml
     documentIndex: 0
-    set: {migrations.timeoutSeconds: null}
+    set: {deploymentOrdering.timeoutSeconds: null}
     asserts:
       - equal:
           path: spec.activeDeadlineSeconds
@@ -461,60 +451,54 @@ tests:
 
   - it: rejects invalid timeoutSeconds -1
     template: migration-rollback.yaml
-    set: {"migrations.timeoutSeconds": -1}
+    set: {"deploymentOrdering.timeoutSeconds": -1}
     asserts:
       - failedTemplate: {}
 
   - it: rejects invalid pollIntervalSeconds 0
     template: migration-rollback.yaml
-    set: {"migrations.pollIntervalSeconds": 0}
+    set: {"deploymentOrdering.pollIntervalSeconds": 0}
     asserts:
       - failedTemplate: {}
 
   - it: rejects invalid pollIntervalSeconds 
     template: migration-rollback.yaml
-    set: {"migrations.pollIntervalSeconds": ""}
+    set: {"deploymentOrdering.pollIntervalSeconds": ""}
     asserts:
       - failedTemplate: {}
 
-  - it: defaults a null pollIntervalSeconds after Helm coalesces values
-    template: migration-job.yaml
-    documentIndex: 0
-    set: {migrations.pollIntervalSeconds: null}
-    asserts:
-      - equal:
-          path: spec.activeDeadlineSeconds
-          value: 1200
-
   - it: rejects invalid pollIntervalSeconds -1
     template: migration-rollback.yaml
-    set: {"migrations.pollIntervalSeconds": -1}
+    set: {"deploymentOrdering.pollIntervalSeconds": -1}
     asserts:
       - failedTemplate: {}
 
   - it: rejects a poll interval outside the budget
     template: migration-rollback.yaml
-    set: {"migrations.pollIntervalSeconds": 1200}
+    set: {"deploymentOrdering.pollIntervalSeconds": 1200}
     asserts:
-      - failedTemplate: {}
+      - failedTemplate:
+          errorMessage: deploymentOrdering.timeoutSeconds must exceed pollIntervalSeconds
 
   - it: rejects an empty helper image
     template: migration-rollback.yaml
-    set: {"migrations.image": ""}
+    set: {"deploymentOrdering.image": ""}
     asserts:
-      - failedTemplate: {}
+      - failedTemplate:
+          errorMessage: deploymentOrdering.image is required
 
   - it: does not validate unused disabled settings
     template: migration-job.yaml
-    set: {"migrations.enabled": false, "migrations.image": "", "migrations.timeoutSeconds": 0}
+    set: {"deploymentOrdering.enabled": false, "deploymentOrdering.image": "", "deploymentOrdering.timeoutSeconds": 0}
     asserts:
       - {"hasDocuments": {"count": 0}}
 
   - it: rejects a negative retry count
     template: migration-rollback.yaml
-    set: {"migrations.backoffLimit": -1}
+    set: {"deploymentOrdering.backoffLimit": -1}
     asserts:
-      - failedTemplate: {}
+      - failedTemplate:
+          errorMessage: deploymentOrdering.backoffLimit must be a nonnegative integer
 
   - it: preserves revision suffix with long release names
     template: migration-job.yaml
@@ -600,7 +584,7 @@ tests:
   - it: does not render rollback hooks when migrations are disabled
     template: migration-rollback.yaml
     set:
-      migrations.enabled: false
+      deploymentOrdering.enabled: false
     asserts:
       - hasDocuments:
           count: 0
@@ -622,9 +606,40 @@ tests:
   - it: gives the API time for migration and one direct rollout check
     template: api-deployment.yaml
     set:
-      migrations.timeoutSeconds: 900
-      api.brainstoreStartupGate.timeoutSeconds: 300
+      deploymentOrdering.timeoutSeconds: 900
     asserts:
       - equal:
           path: spec.progressDeadlineSeconds
-          value: 1500
+          value: 2100
+
+  - it: removes both Loop waits when ordering is disabled
+    template: loop-runtime-deployment.yaml
+    values:
+      - __fixtures__/loop-runtime-values.yaml
+    set:
+      deploymentOrdering.enabled: false
+    asserts:
+      - isNull:
+          path: spec.template.spec.initContainers
+
+  - it: uses the shared API floor for Gateway startup
+    template: ai-gateway-deployment.yaml
+    set:
+      aiGateway.enabled: true
+      api.image.tag: v2.15.0
+    asserts:
+      - contains:
+          path: spec.template.spec.initContainers[1].env
+          content: {name: BRAINSTORE_MINIMUM_VERSION, value: "2.15.0"}
+
+  - it: applies the explicit shared floor to Loop startup
+    template: loop-runtime-deployment.yaml
+    values:
+      - __fixtures__/loop-runtime-values.yaml
+    set:
+      api.image.tag: deadbeef
+      deploymentOrdering.minimumVersion: v2.15.0
+    asserts:
+      - contains:
+          path: spec.template.spec.initContainers[1].env
+          content: {name: BRAINSTORE_MINIMUM_VERSION, value: "2.15.0"}

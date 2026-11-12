@@ -1,4 +1,4 @@
-{{- $config := include "braintrust.migrations.config" . | fromYaml -}}
+{{- $config := include "braintrust.deploymentOrdering.config" . | fromYaml -}}
 {{- if $config.enabled -}}
 {{- $name := include "braintrust.migrations.name" . -}}
 {{- $hook := printf "%s-reset" $name -}}

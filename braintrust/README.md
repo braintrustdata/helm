@@ -552,18 +552,20 @@ Example values files for different cloud providers and configurations are locate
 
 ## Release ordering
 
-Each Helm release runs one migration Job. All new application containers wait
-for it. The existing API startup gate then directly checks that the reader/writer
-Deployments have observed the intended release and fully rolled out: updated,
-Ready, Available, with no old or terminating pods. Same-image environment changes
-cannot pass using old Ready writers. There is no separate rollout Job or snapshot.
+`deploymentOrdering.enabled: true` (default) runs one migration Job per Helm
+revision. Brainstore waits for migrations; all API pools, optional AI Gateway,
+and optional Loop Runtime then wait for the full compatible Brainstore rollout.
+Old or terminating live pods cannot satisfy the check, including same-image
+configuration changes. `deploymentOrdering.enabled: false` removes all
+chart-managed ordering resources and waits; there is no intermediate mode.
 
-An older API replacement also waits during a later unfinished Brainstore rollout,
-but accepts a later completed compatible release. This deliberately favors simpler
-ordering over restarting that API while a future rollout is blocked on capacity.
+The shared `deploymentOrdering.timeoutSeconds` bounds each phase separately;
+`pollIntervalSeconds` controls observations. `minimumVersion` optionally sets a
+shared stable floor; otherwise each API pool uses its image release and the
+Gateway/Loop use the shared API release.
 
-`migrations.enabled: false` keeps compatibility-only/API-startup migration behavior;
-disabling `api.brainstoreStartupGate.enabled` leaves migration-only ordering.
-These gates order container startup, not Helm's updates to configuration objects.
-See [migration lifecycle and input matrix](../docs/migration-job.md) for rollback,
-retention, timeouts, and configuration limits.
+Older replacement workloads also wait during a later unfinished Brainstore
+rollout, accepting a newer completed compatible release. Capacity shortages can
+therefore delay restarts. Ordering covers container startup, not Helm's object
+updates. See [migration lifecycle and input matrix](../docs/migration-job.md)
+for rollback, retained-record reinstall cleanup, and configuration limits.

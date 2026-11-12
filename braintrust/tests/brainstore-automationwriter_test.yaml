@@ -2,9 +2,9 @@ suite: test Brainstore Automation Writer deployment template
 templates:
   - brainstore-automationwriter-deployment.yaml
   - brainstore-automationwriter-configmap.yaml
-# Existing workload behavior without the independent migration gate.
+# Test workload details independently of release ordering.
 set:
-  migrations.enabled: false
+  deploymentOrdering.enabled: false
 tests:
   - it: should render Brainstore Automation Writer deployment with default values
     template: brainstore-automationwriter-deployment.yaml

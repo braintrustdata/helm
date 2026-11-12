@@ -1,26 +1,27 @@
 {{/* Defaults also cover pre-feature helm upgrade --reuse-values. */}}
-{{- define "braintrust.migrations.config" -}}
+{{- define "braintrust.deploymentOrdering.config" -}}
 {{- $defaults := dict
   "enabled" true
+  "minimumVersion" ""
   "timeoutSeconds" 1200
   "pollIntervalSeconds" 5
   "backoffLimit" 2
   "image" "python:3.13-alpine@sha256:79e7a9b9ff1cbceff819f856fb374477792a5967759d94df266de7b7b4120e6f"
   "resources" (dict "requests" (dict "cpu" "25m" "memory" "32Mi") "limits" (dict "cpu" "100m" "memory" "128Mi"))
 -}}
-{{- $config := mergeOverwrite (deepCopy $defaults) (deepCopy (.Values.migrations | default dict)) -}}
+{{- $config := mergeOverwrite (deepCopy $defaults) (deepCopy (.Values.deploymentOrdering | default dict)) -}}
 {{- if $config.enabled -}}
-{{- $_ := required "migrations.image is required" $config.image -}}
+{{- $_ := required "deploymentOrdering.image is required" $config.image -}}
 {{- range $field := list "timeoutSeconds" "pollIntervalSeconds" -}}
 {{- if not (regexMatch "^[1-9][0-9]*$" (toString (index $config $field))) -}}
-{{- fail "migrations timing values must be positive integers" -}}
+{{- fail "deploymentOrdering timing values must be positive integers" -}}
 {{- end -}}
 {{- end -}}
 {{- if ge (int $config.pollIntervalSeconds) (int $config.timeoutSeconds) -}}
-{{- fail "migrations.timeoutSeconds must exceed pollIntervalSeconds" -}}
+{{- fail "deploymentOrdering.timeoutSeconds must exceed pollIntervalSeconds" -}}
 {{- end -}}
 {{- if not (regexMatch "^(0|[1-9][0-9]*)$" (toString $config.backoffLimit)) -}}
-{{- fail "migrations.backoffLimit must be a nonnegative integer" -}}
+{{- fail "deploymentOrdering.backoffLimit must be a nonnegative integer" -}}
 {{- end -}}
 {{- end -}}
 {{- toYaml $config -}}
@@ -36,7 +37,7 @@
 {{- end -}}
 
 {{- define "braintrust.migrations.initContainer" -}}
-{{- $config := include "braintrust.migrations.config" . | fromYaml -}}
+{{- $config := include "braintrust.deploymentOrdering.config" . | fromYaml -}}
 - name: wait-for-migrations
   image: {{ $config.image | quote }}
   imagePullPolicy: IfNotPresent

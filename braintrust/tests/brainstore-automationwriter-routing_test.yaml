@@ -3,9 +3,6 @@ templates:
   - api-configmap.yaml
   - api-deployment.yaml
   - brainstore-startup-gate-rbac.yaml
-# Existing workload behavior without the independent migration gate.
-set:
-  migrations.enabled: false
 tests:
   - it: should preserve writer fallback when the pool is disabled
     template: api-configmap.yaml
@@ -126,7 +123,7 @@ tests:
     template: api-deployment.yaml
     set:
       <<: *enabled
-      api.brainstoreStartupGate.enabled: false
+      deploymentOrdering.enabled: false
     asserts:
       - isNull:
           path: spec.template.spec.initContainers
