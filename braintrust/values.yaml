@@ -407,7 +407,18 @@ aiGateway:
     deployment: {}
     service: {}
     pod: {}
+  # With autoscaling, the default minReplicas.
   replicas: 2
+  # Needs metrics-server; without it the HPA holds minReplicas.
+  autoscaling:
+    enabled: true
+    # minReplicas defaults to replicas, maxReplicas to max(6, minReplicas).
+    # minReplicas: 2
+    # maxReplicas: 6
+    cpu:
+      targetAverageUtilization: 70
+    memory:
+      targetAverageUtilization: 75
   image:
     repository: public.ecr.aws/braintrust/gateway
     tag: v2.22.0
