@@ -561,8 +561,13 @@ Example values files for different cloud providers and configurations are locate
 `deploymentOrdering.enabled` (default `true`) runs one migration Job per Helm
 revision before Brainstore starts. All API pools, enabled AI Gateway, and enabled
 Loop Runtime then wait for the full compatible Brainstore rollout and start in
-parallel. Set it to `false` for unordered startup. This replaces
-`api.brainstoreStartupGate`; migrate existing opt-outs to the new setting.
+parallel. Each ordered upgrade deliberately restarts Brainstore, even with
+unchanged images: the revision-specific migration wait and release marker prevent
+an older Ready rollout from admitting new applications before migrations finish.
+
+**Upgrade:** `api.brainstoreStartupGate` is no longer read. Existing opt-outs must
+set `deploymentOrdering.enabled: false`; the old `false` value does not disable
+the new ordering.
 
 Gateway has its own Kubernetes ServiceAccount regardless of ordering; configure
 its name with `aiGateway.serviceAccount.name`.
@@ -570,13 +575,20 @@ its name with `aiGateway.serviceAccount.name`.
 Ordering gates container startup, not Kubernetes object updates. Older replacement
 pods also wait during an unfinished Brainstore rollout.
 
-`deploymentOrdering.timeoutSeconds` bounds each phase; `minimumVersion` supplies
-a stable compatibility floor for opaque API image tags. See [values.yaml](values.yaml)
-for settings. Use `--wait --wait-for-jobs` with a sufficient Helm timeout.
+`deploymentOrdering.timeoutSeconds` bounds each phase. Stable tags select a
+migration bundle covering the newest API pool or Brainstore release. Opaque
+API/Brainstore pins require both a stable `minimumVersion` compatibility assertion
+and an explicit standalone-API `migrationImage` containing all required migrations.
+Known stable images still undergo version checks; opaque Brainstore pods must
+match their Deployment's exact image and declared release. See [values.yaml](values.yaml).
+Use `--wait --wait-for-jobs` with a sufficient Helm timeout.
 
 Migration records are retained for replacement pods. Retry failed migrations with
 a new Helm upgrade. Rollback requires hooks and does not reverse SQL changes;
 migrations must remain backward-compatible.
+
+The legacy startup-gate ConfigMap is preserved unchanged while old API replicas
+may still need it; new pods use their revision-specific helper ConfigMap.
 
 After uninstall, before reusing a release name, delete Jobs labeled
 `braintrust.dev/migration-release=<release>` with foreground deletion and wait for

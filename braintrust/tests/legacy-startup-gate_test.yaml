@@ -1,0 +1,172 @@
+suite: retain existing legacy Brainstore startup gate ConfigMaps
+templates:
+  - brainstore-startup-gate-configmap.yaml
+  - api-configmap.yaml
+release:
+  name: legacy
+  namespace: release-ns
+kubernetesProvider:
+  scheme:
+    v1/ConfigMap:
+      gvr:
+        version: v1
+        resource: configmaps
+      namespaced: true
+  objects:
+    # Keep the fake provider active even when the requested legacy gate is absent.
+    - apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        name: unrelated-configmap
+        namespace: release-ns
+tests:
+  - it: preserves every original text and binary entry instead of substituting the new gate
+    template: brainstore-startup-gate-configmap.yaml
+    kubernetesProvider: &existingGate
+      objects:
+        - apiVersion: v1
+          kind: ConfigMap
+          metadata:
+            name: legacy-brainstore-startup
+            namespace: release-ns
+          data: &legacyData
+            gate.py: |
+              # Original legacy script; it has no rollout-revision arguments.
+              print("keep original script: {{ do not evaluate }}")
+            other-key: "literal: value\nwith a trailing newline\n"
+            empty-key: ""
+          binaryData: &legacyBinaryData
+            original.bin: AAEC/w==
+            empty.bin: ""
+    set:
+      global.labels.shared: global
+      global.labels.global-only: retained
+      api.labels.shared: api
+      api.annotations.configmap:
+        operator-note: retained
+        helm.sh/resource-policy: delete
+    asserts:
+      - hasDocuments:
+          count: 1
+      - isKind:
+          of: ConfigMap
+      - equal:
+          path: metadata.name
+          value: legacy-brainstore-startup
+      - equal:
+          path: metadata.namespace
+          value: release-ns
+      - equal:
+          path: metadata.labels
+          value:
+            shared: api
+            global-only: retained
+      - equal:
+          path: metadata.annotations
+          value:
+            operator-note: retained
+            helm.sh/resource-policy: keep
+      - equal:
+          path: data
+          value: *legacyData
+      - equal:
+          path: binaryData
+          value: *legacyBinaryData
+
+  - it: retains the original gate even when deployment ordering is disabled
+    template: brainstore-startup-gate-configmap.yaml
+    kubernetesProvider: *existingGate
+    set:
+      deploymentOrdering.enabled: false
+    asserts:
+      - hasDocuments:
+          count: 1
+      - equal:
+          path: data
+          value: *legacyData
+      - equal:
+          path: binaryData
+          value: *legacyBinaryData
+      - equal:
+          path: metadata.annotations["helm.sh/resource-policy"]
+          value: keep
+
+  - it: looks up the actual workload namespace rather than the release namespace
+    template: brainstore-startup-gate-configmap.yaml
+    set:
+      global.createNamespace: true
+      global.namespace: workload-ns
+    kubernetesProvider:
+      objects:
+        - apiVersion: v1
+          kind: ConfigMap
+          metadata:
+            name: legacy-brainstore-startup
+            namespace: workload-ns
+          data:
+            gate.py: original workload namespace script
+        - apiVersion: v1
+          kind: ConfigMap
+          metadata:
+            name: legacy-brainstore-startup
+            namespace: release-ns
+          data:
+            gate.py: wrong release namespace script
+    asserts:
+      - hasDocuments:
+          count: 1
+      - equal:
+          path: metadata.namespace
+          value: workload-ns
+      - equal:
+          path: data
+          value:
+            gate.py: original workload namespace script
+
+  - it: does not create a gate on fresh installs without an existing object
+    template: brainstore-startup-gate-configmap.yaml
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: does not retain a same-named object outside the workload namespace
+    template: brainstore-startup-gate-configmap.yaml
+    kubernetesProvider: *existingGate
+    set:
+      global.createNamespace: true
+      global.namespace: workload-ns
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: preserves binary-only objects without inventing text data
+    template: brainstore-startup-gate-configmap.yaml
+    kubernetesProvider:
+      objects:
+        - apiVersion: v1
+          kind: ConfigMap
+          metadata:
+            name: legacy-brainstore-startup
+            namespace: release-ns
+          binaryData: *legacyBinaryData
+    asserts:
+      - hasDocuments:
+          count: 1
+      - isNull:
+          path: data
+      - equal:
+          path: binaryData
+          value: *legacyBinaryData
+
+  - it: does not leak retention annotations into application ConfigMaps
+    template: api-configmap.yaml
+    kubernetesProvider: *existingGate
+    set:
+      api.annotations.configmap:
+        operator-note: preserved
+    asserts:
+      - equal:
+          path: metadata.annotations.operator-note
+          value: preserved
+      - isNull:
+          path: metadata.annotations["helm.sh/resource-policy"]

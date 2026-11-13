@@ -23,7 +23,7 @@ release:
   namespace: workload
   revision: 7
 tests:
-  - it: runs a regular bounded migration Job using the target API image
+  - it: runs a regular bounded migration Job using the newest standalone API bundle
     template: migration-job.yaml
     documentIndex: 0
     set:
@@ -56,7 +56,7 @@ tests:
           value: [/braintrust/venv/bin/python, /braintrust/api-schema/lambda_function.py, --execute]
       - equal:
           path: spec.template.spec.containers[0].image
-          value: registry.example/custom-api:v2.15.0
+          value: registry.example/custom-api:v2.23.0
       - isNull:
           path: spec.template.spec.initContainers
       - isNull:
@@ -277,6 +277,29 @@ tests:
           value: api
       - isNull:
           path: metadata.labels["reader-only"]
+
+  - it: keeps the serving API image unchanged when Brainstore selects a newer bundle
+    template: api-deployment.yaml
+    set:
+      api.image.repository: registry.example/custom-api
+      api.image.tag: v2.21.0
+      brainstore.image.tag: v2.22.0
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: registry.example/custom-api:v2.21.0
+
+  - it: keeps the Brainstore image and digest unchanged when selecting an API bundle
+    template: brainstore-reader-deployment.yaml
+    set:
+      api.image.repository: registry.example/custom-api
+      api.image.tag: v2.21.0
+      brainstore.image.repository: registry.example/custom-brainstore
+      brainstore.image.tag: v2.22.0@sha256:brainstore
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: registry.example/custom-brainstore:v2.22.0@sha256:brainstore
 
   - it: gates the reader pool
     template: brainstore-reader-deployment.yaml
@@ -617,6 +640,7 @@ tests:
     set:
       api.image.tag: deadbeef
       deploymentOrdering.minimumVersion: v2.15.0
+      deploymentOrdering.migrationImage: public.ecr.aws/braintrust/standalone-api:v2.23.0
     asserts:
       - contains:
           path: spec.template.spec.initContainers[1].env

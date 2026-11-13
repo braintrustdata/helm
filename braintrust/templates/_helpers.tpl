@@ -306,6 +306,7 @@ and normal writable-layer/log overhead.
 {{- if $ordering.enabled -}}
 {{/* Release identity rejects a previous Ready generation before Helm updates it. */}}
 {{- $_ := set $annotations "braintrust.dev/release-revision" (toString $root.Release.Revision) -}}
+{{- $_ := set $annotations "braintrust.dev/brainstore-version" (include "braintrust.brainstoreStartupGate.brainstoreVersion" $root) -}}
 {{- end -}}
 {{- toYaml $annotations -}}
 {{- end -}}

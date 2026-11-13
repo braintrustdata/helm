@@ -2,11 +2,24 @@
 An API-only image bump must not silently accept the still-old Brainstore fleet.
 */}}
 {{- define "braintrust.brainstoreStartupGate.minimumVersion" -}}
-{{- $minimum := .gate.minimumVersion | default (first (splitList "@" .api.image.tag)) -}}
+{{- $minimum := .gate.minimumVersion | default (first (splitList "@" (toString .api.image.tag))) -}}
 {{- if not (regexMatch "^v?(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$" $minimum) -}}
 {{- fail "deploymentOrdering requires a stable API release tag or an explicit stable minimumVersion" -}}
 {{- end -}}
 {{- trimPrefix "v" $minimum -}}
+{{- end -}}
+
+{{/* Opaque builds need an operator-supplied release assertion, not a version guess. */}}
+{{- define "braintrust.brainstoreStartupGate.brainstoreVersion" -}}
+{{- $version := first (splitList "@" (toString .Values.brainstore.image.tag)) -}}
+{{- if not (regexMatch "^v?(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$" $version) -}}
+{{- $config := include "braintrust.deploymentOrdering.config" . | fromYaml -}}
+{{- $version = required "deploymentOrdering.minimumVersion is required for opaque Brainstore image tags" $config.minimumVersion -}}
+{{- end -}}
+{{- if not (regexMatch "^v?(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$" $version) -}}
+{{- fail "deploymentOrdering.minimumVersion must be a stable release version" -}}
+{{- end -}}
+{{- trimPrefix "v" $version -}}
 {{- end -}}
 
 {{- define "braintrust.brainstoreStartupGate.name" -}}

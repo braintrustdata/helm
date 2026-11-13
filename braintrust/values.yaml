@@ -820,14 +820,17 @@ virtualService:
 # See README.md#release-ordering for configuration and operational limits.
 deploymentOrdering:
   enabled: true
-  # Empty derives the compatible Brainstore floor from each API pool's image tag.
-  # Opaque API tags require an explicit stable minimumVersion.
+  # Empty derives the API compatibility floor from each pool's stable image tag.
+  # Required for opaque API/Brainstore tags; asserts the opaque Brainstore release.
   minimumVersion: ""
+  # Full standalone-API image containing migrations for all selected service images.
+  # Empty selects the newest stable API/Brainstore release; required for opaque pins.
+  migrationImage: ""
   # Separate budget for each phase (migration Job/wait, then Brainstore rollout).
   timeoutSeconds: 1200
   pollIntervalSeconds: 15
   backoffLimit: 2
-  # Small read-only init-container helper; migration itself uses api.image.
+  # Small read-only init-container helper; separate from the migration bundle above.
   image: "python:3.13-alpine@sha256:79e7a9b9ff1cbceff819f856fb374477792a5967759d94df266de7b7b4120e6f"
   resources:
     requests:

@@ -12,6 +12,7 @@ container is retained: sidecars and HTTP probes must not keep this Job alive. */
 {{- $_ := unset $container $key -}}
 {{- end -}}
 {{- $_ := set $container "name" "migrate" -}}
+{{- $_ := set $container "image" (include "braintrust.migrations.image" .) -}}
 {{- $_ := set $container "command" (list "/braintrust/venv/bin/python" "/braintrust/api-schema/lambda_function.py" "--execute") -}}
 {{- $_ := set $container "envFrom" (list (dict "configMapRef" (dict "name" (printf "%s-config" $name)))) -}}
 {{- $_ := set $pod.spec "containers" (list $container) -}}

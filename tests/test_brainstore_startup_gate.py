@@ -15,27 +15,33 @@ spec.loader.exec_module(gate)
 
 
 def pod(version="v2.15.0", uid="new", is_ready=True, revision=8,
-        container="brainstore-reader", **metadata):
+        container="brainstore-reader", image=None, declared_version=None, **metadata):
+    image = image if image is not None else "registry/brainstore:" + version
     if revision is not None:
-        metadata["annotations"] = {"braintrust.dev/release-revision": str(revision)}
+        metadata.setdefault("annotations", {})["braintrust.dev/release-revision"] = str(revision)
+    if declared_version is not None:
+        metadata.setdefault("annotations", {})["braintrust.dev/brainstore-version"] = declared_version
     return {
         "metadata": {"name": uid, "uid": uid, **metadata},
-        "spec": {"containers": [{"name": container, "image": "registry/brainstore:" + version}]},
+        "spec": {"containers": [{"name": container, "image": image}]},
         "status": {
             "phase": "Running",
             "conditions": [{"type": "Ready", "status": "True" if is_ready else "False"}],
-            "containerStatuses": [{"name": container, "image": "registry/brainstore:" + version,
+            "containerStatuses": [{"name": container, "image": image,
                                    "ready": is_ready, "state": {"running": {}}}],
         },
     }
 
 
-def deployment(version="v2.15.0", replicas=1, revision=8, container="brainstore-reader"):
+def deployment(version="v2.15.0", replicas=1, revision=8, container="brainstore-reader",
+               image=None, declared_version=None):
     return {
         "metadata": {"name": "reader", "uid": "reader-deployment", "generation": 2},
         "spec": {"replicas": replicas, "template": {
-            "metadata": {"annotations": pod(revision=revision)["metadata"].get("annotations", {})},
-            "spec": pod(version, container=container)["spec"],
+            "metadata": {"annotations": pod(
+                revision=revision, declared_version=declared_version,
+            )["metadata"].get("annotations", {})},
+            "spec": pod(version, container=container, image=image)["spec"],
         }},
         "status": {"observedGeneration": 2, "updatedReplicas": replicas,
                    "readyReplicas": replicas, "availableReplicas": replicas, "replicas": replicas},
@@ -104,6 +110,176 @@ class CompatibilityTests(unittest.TestCase):
         current = pod("v2.14.0")
         current["status"]["containerStatuses"][0]["image"] = "registry/brainstore:v2.15.0"
         self.assertIsNotNone(self.check(pods=[current]))
+
+
+class OpaqueImageTests(unittest.TestCase):
+    def rollout(self, image="registry/brainstore:deadbeef", declared_version="2.15.0",
+                revision=8):
+        return (
+            deployment(image=image, declared_version=declared_version, revision=revision),
+            pod(image=image, declared_version=declared_version, revision=revision),
+        )
+
+    def check(self, resource, pods, minimum="2.15.0"):
+        return gate.check_deployment(
+            resource, pods, "brainstore-reader", gate.release_version(minimum), 8,
+        )
+
+    def test_sha_custom_prerelease_and_digest_pins_accept_explicit_assertions(self):
+        for image in (
+            "registry/brainstore:deadbeef", "registry/brainstore:" + "a" * 40,
+            "registry/brainstore:0123456", "registry/brainstore:" + "0" * 40,
+            "registry/brainstore:custom-build", "registry/brainstore:latest",
+            "registry/brainstore:v2.15.0-rc.1",
+            "localhost:5000/brainstore@sha256:abc",
+            "registry/brainstore:deadbeef@sha256:abc",
+        ):
+            for declared_version in ("2.15.0", "v2.16.0"):
+                with self.subTest(image=image, declared_version=declared_version):
+                    resource, current = self.rollout(image, declared_version)
+                    self.assertIsNone(self.check(resource, [current]))
+
+    def test_missing_or_invalid_template_assertion_blocks_matching_pods(self):
+        for declared_version in (None, "", "unknown", "2.015.0", "2.15",
+                                 "2.15.0-rc.1", "2.15.0+build", "2.15.0\n", 215, True):
+            with self.subTest(declared_version=declared_version):
+                resource, current = self.rollout(declared_version=declared_version)
+                self.assertIsNotNone(self.check(resource, [current]))
+
+    def test_lower_or_other_major_template_assertions_cannot_be_overridden_by_pods(self):
+        for declared_version in ("2.14.99", "1.99.0", "3.0.0"):
+            with self.subTest(declared_version=declared_version):
+                resource, current = self.rollout(declared_version=declared_version)
+                self.assertIsNotNone(self.check(resource, [current]))
+                current["metadata"]["annotations"]["braintrust.dev/brainstore-version"] = "2.15.0"
+                self.assertIsNotNone(self.check(resource, [current]))
+
+    def test_every_live_pod_must_have_the_exact_template_assertion(self):
+        for declared_version in (None, "", "unknown", "2.14.0", "3.0.0",
+                                 "2.16.0", "v2.15.0", 215):
+            with self.subTest(declared_version=declared_version):
+                resource, _ = self.rollout()
+                current = pod(image="registry/brainstore:deadbeef",
+                              declared_version=declared_version)
+                self.assertIsNotNone(self.check(resource, [current]))
+                resource["spec"]["replicas"] = 2
+                for counter in ("updatedReplicas", "readyReplicas", "availableReplicas", "replicas"):
+                    resource["status"][counter] = 2
+                stray = pod(uid="stray", image="registry/brainstore:deadbeef",
+                            declared_version="2.15.0")
+                self.assertIsNotNone(self.check(resource, [stray, current]))
+
+    def test_matching_assertion_does_not_allow_a_different_image_or_stray_backend(self):
+        for desired_image, other_image in (
+            ("registry/brainstore:deadbeef", "registry/brainstore:feedface"),
+            ("registry/brainstore:deadbeef", "other/brainstore:deadbeef"),
+            ("registry/brainstore:deadbeef", "registry/brainstore:v2.15.0"),
+            ("registry/brainstore:deadbeef@sha256:abc", "registry/brainstore:deadbeef"),
+            ("registry/brainstore@sha256:abc", "registry/brainstore@sha256:def"),
+        ):
+            with self.subTest(desired_image=desired_image, other_image=other_image):
+                resource, _ = self.rollout(desired_image)
+                stray = pod(uid="stray", image=other_image, declared_version="2.15.0")
+                self.assertIsNotNone(self.check(resource, [stray]))
+                resource["spec"]["replicas"] = 2
+                for counter in ("updatedReplicas", "readyReplicas", "availableReplicas", "replicas"):
+                    resource["status"][counter] = 2
+                current = pod(image=desired_image, declared_version="2.15.0")
+                self.assertIsNotNone(self.check(resource, [current, stray]))
+
+    def test_assertion_does_not_replace_a_missing_desired_or_pod_container(self):
+        resource, current = self.rollout()
+        current["spec"]["containers"] = []
+        self.assertIsNotNone(self.check(resource, [current]))
+        resource, current = self.rollout()
+        resource["spec"]["template"]["spec"]["containers"] = []
+        self.assertIsNotNone(self.check(resource, [current]))
+
+    def test_forged_assertions_cannot_override_stable_image_versions(self):
+        for image in ("registry/brainstore:v2.14.0", "registry/brainstore:v3.0.0",
+                      "registry/brainstore:v2.14.0@sha256:abc",
+                      "registry/brainstore:v3.0.0@sha256:abc"):
+            with self.subTest(image=image):
+                resource, current = self.rollout(image)
+                self.assertIsNotNone(self.check(resource, [current]))
+                compatible_pod = pod(declared_version="2.15.0")
+                self.assertIsNotNone(self.check(resource, [compatible_pod]))
+                resource = deployment(declared_version="2.15.0")
+                self.assertIsNotNone(self.check(resource, [current]))
+
+    def test_stable_images_use_actual_versions_not_assertions(self):
+        for declared_version in (None, "invalid", "1.0.0", "3.0.0"):
+            with self.subTest(declared_version=declared_version):
+                resource, current = self.rollout("registry/brainstore:v2.16.0",
+                                                 declared_version)
+                self.assertIsNone(self.check(resource, [current]))
+        resource = deployment()
+        _, opaque = self.rollout()
+        self.assertIsNotNone(self.check(resource, [opaque]))
+
+    def test_current_assertion_still_requires_a_completed_observed_rollout(self):
+        for change in ("generation", "revision", "pod_revision", "terminating",
+                       "unready", "missing_pod", "surge",
+                       "updatedReplicas", "readyReplicas", "availableReplicas", "replicas"):
+            with self.subTest(change=change):
+                resource, current = self.rollout()
+                pods = [current]
+                if change == "generation":
+                    resource["status"]["observedGeneration"] = 1
+                elif change == "revision":
+                    resource["spec"]["template"]["metadata"]["annotations"][
+                        "braintrust.dev/release-revision"] = "7"
+                elif change == "pod_revision":
+                    current["metadata"]["annotations"]["braintrust.dev/release-revision"] = "7"
+                elif change == "terminating":
+                    current["metadata"]["deletionTimestamp"] = "2026-09-30T12:00:00Z"
+                elif change == "unready":
+                    current["status"]["containerStatuses"][0]["ready"] = False
+                elif change == "missing_pod":
+                    pods = []
+                elif change == "surge":
+                    pods.append(pod(uid="surge", image="registry/brainstore:deadbeef",
+                                    declared_version="2.15.0"))
+                else:
+                    resource["status"][change] = 0
+                self.assertIsNotNone(self.check(resource, pods))
+
+    def test_older_api_uses_later_opaque_rollouts_own_assertion(self):
+        resource, current = self.rollout("registry/brainstore:later-sha", "2.16.0", revision=9)
+        self.assertIsNone(self.check(resource, [current]))
+        self.assertIsNotNone(self.check(resource, [current], minimum="2.17.0"))
+        current["metadata"]["annotations"]["braintrust.dev/brainstore-version"] = "2.15.0"
+        self.assertIsNotNone(self.check(resource, [current]))
+        resource, current = self.rollout("registry/brainstore:major-three", "3.0.0", revision=10)
+        self.assertIsNotNone(self.check(resource, [current]))
+        self.assertIsNone(self.check(resource, [current], minimum="3.0.0"))
+
+
+    def test_later_opaque_major_rollout_resets_an_older_apis_confirmation(self):
+        first, first_pod = self.rollout()
+        later, later_pod = self.rollout("registry/brainstore:major-three", "3.0.0", revision=9)
+        client = Mock()
+        client.deployment.side_effect = [first, later, later]
+        client.pods.side_effect = [[first_pod], [later_pod], [later_pod]]
+        clock = FakeClock()
+        with self.assertRaisesRegex(TimeoutError, "declared Brainstore version"):
+            gate.wait_for_fleet(
+                client, [{"deployment": "reader", "container": "brainstore-reader"}],
+                (2, 15, 0), 8, 45, 15, clock.clock, clock.sleep, Mock(),
+            )
+        self.assertEqual(client.deployment.call_count, 3)
+
+    def test_opaque_zero_role_needs_drain_not_a_compatible_assertion(self):
+        for declared_version in (None, "invalid", "1.0.0", "3.0.0"):
+            with self.subTest(declared_version=declared_version):
+                resource = deployment(replicas=0, image="registry/brainstore@sha256:abc",
+                                      declared_version=declared_version)
+                self.assertIsNone(self.check(resource, []))
+                current = pod(image="registry/brainstore@sha256:abc",
+                              declared_version=declared_version)
+                self.assertIsNotNone(self.check(resource, [current]))
+                resource["status"]["replicas"] = 1
+                self.assertIsNotNone(self.check(resource, []))
 
 
 class RolloutTests(unittest.TestCase):

@@ -1,0 +1,25 @@
+{{- $namespace := include "braintrust.namespace" . -}}
+{{- $name := include "braintrust.brainstoreStartupGate.name" . -}}
+{{- $existing := lookup "v1" "ConfigMap" $namespace $name -}}
+{{- if $existing }}
+{{/* Old ReplicaSets require their original script and environment contract. */}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $name }}
+  namespace: {{ $namespace }}
+  {{- with (mergeOverwrite (deepCopy .Values.global.labels) (deepCopy .Values.api.labels)) }}
+  labels:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  annotations:
+    {{- mergeOverwrite (deepCopy (.Values.api.annotations.configmap | default dict)) (dict "helm.sh/resource-policy" "keep") | toYaml | nindent 4 }}
+{{- if hasKey $existing "data" }}
+data:
+  {{- toYaml $existing.data | nindent 2 }}
+{{- end }}
+{{- if hasKey $existing "binaryData" }}
+binaryData:
+  {{- toYaml $existing.binaryData | nindent 2 }}
+{{- end }}
+{{- end }}

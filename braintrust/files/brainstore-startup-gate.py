@@ -43,7 +43,7 @@ def compatible(image, minimum):
         return False
     # This assumes Brainstore preserves compatibility with older APIs within
     # a major release; version numbers alone cannot establish that contract.
-    # Unknown tags and major-version migrations must not pass this gate.
+    # Unknown tags cannot establish compatibility without a template assertion.
     return version[0] == minimum[0] and version >= minimum
 
 
@@ -84,10 +84,10 @@ def check_deployment(deployment, pods, container, minimum, minimum_revision):
     must belong to that rollout, and terminating Pods must disappear because
     connections may remain usable until their process exits.
 
-    Deployment rollouts replace Pods, so use each Pod's declared release tag.
-    Container status can report a different alias or only a digest. Neither is
-    a portable release identifier; manual in-place Pod image changes are outside
-    this check's contract.
+    Stable image tags establish compatibility directly. Opaque image pins
+    instead require the template's declared version and exact image/annotation
+    matches on every live Pod. Container status may report only an alias or
+    digest; manual in-place Pod image changes are outside this check's contract.
     """
     metadata = deployment.get("metadata", {})
     spec = deployment.get("spec", {})
@@ -103,7 +103,8 @@ def check_deployment(deployment, pods, container, minimum, minimum_revision):
     desired = spec.get("replicas", 1)
     template = spec.get("template", {})
     revision_key = "braintrust.dev/release-revision"
-    revision = template.get("metadata", {}).get("annotations", {}).get(revision_key)
+    template_annotations = template.get("metadata", {}).get("annotations", {})
+    revision = template_annotations.get(revision_key)
     try:
         current_revision = int(revision)
     except (TypeError, ValueError):
@@ -111,20 +112,41 @@ def check_deployment(deployment, pods, container, minimum, minimum_revision):
     if current_revision < minimum_revision:
         return f"{name}: waiting for release revision {minimum_revision} or later"
     live = [pod for pod in pods if pod.get("status", {}).get("phase") not in TERMINAL_PHASES]
+    opaque_image = None
     if desired == 0:
         if live:
             return f"{name}: waiting for scaled-down Pods to disappear"
     else:
-        # Compatible Pods cannot compensate for an incompatible desired image.
-        image = container_image(template.get("spec", {}), container)
-        if not compatible(image, minimum):
-            return f"{name}: desired image {image!r} is below or outside the required release"
+        # An assertion must never override a known incompatible stable image.
+        desired_image = container_image(template.get("spec", {}), container)
+        if not desired_image:
+            return f"{name}: desired Brainstore image is missing"
+        try:
+            image_version(desired_image)
+        except ValueError:
+            version_key = "braintrust.dev/brainstore-version"
+            declared_version = template_annotations.get(version_key)
+            try:
+                version = release_version(declared_version)
+            except (TypeError, ValueError):
+                return f"{name}: opaque desired image requires a stable declared Brainstore version"
+            if version[0] != minimum[0] or version < minimum:
+                return f"{name}: declared Brainstore version is below or outside the required release"
+            opaque_image = desired_image
+        else:
+            if not compatible(desired_image, minimum):
+                return f"{name}: desired image {desired_image!r} is below or outside the required release"
     for pod in live:
         image = container_image(pod.get("spec", {}), container)
-        if not compatible(image, minimum):
-            pod_name = pod.get("metadata", {}).get("name", "unknown")
-            return f"{name}: incompatible Pod {pod_name} still exists ({image!r})"
         pod_metadata = pod.get("metadata", {})
+        if opaque_image is not None:
+            if image != opaque_image:
+                return f"{name}: waiting for Pods with the exact desired opaque image"
+            if pod_metadata.get("annotations", {}).get(version_key) != declared_version:
+                return f"{name}: waiting for Pods with the declared Brainstore version"
+        elif not compatible(image, minimum):
+            pod_name = pod_metadata.get("name", "unknown")
+            return f"{name}: incompatible Pod {pod_name} still exists ({image!r})"
         if pod_metadata.get("annotations", {}).get(revision_key) != revision:
             return f"{name}: waiting for Pods from the current release revision"
         if pod_metadata.get("deletionTimestamp"):

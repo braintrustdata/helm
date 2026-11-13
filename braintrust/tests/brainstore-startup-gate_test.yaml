@@ -189,9 +189,9 @@ tests:
     set:
       deploymentOrdering.enabled: true
       api.image.tag: deadbeef
+      deploymentOrdering.migrationImage: public.ecr.aws/braintrust/standalone-api:v2.23.0
     asserts:
-      - failedTemplate:
-          errorMessage: deploymentOrdering requires a stable API release tag or an explicit stable minimumVersion
+      - failedTemplate: {}
 
   - it: should protect an API-only image bump while Brainstore is still old
     template: api-deployment.yaml
@@ -302,3 +302,36 @@ tests:
       - contains:
           path: subjects
           content: {kind: ServiceAccount, name: braintrust-loop-runtime, namespace: workload}
+
+  - it: requires an explicit compatibility assertion for opaque Brainstore images
+    template: brainstore-reader-deployment.yaml
+    set:
+      brainstore.image.tag: deadbeef
+      deploymentOrdering.migrationImage: public.ecr.aws/braintrust/standalone-api:v2.23.0
+    asserts:
+      - failedTemplate: {}
+
+  - it: reserves the actual stable Brainstore version against annotation overrides
+    template: brainstore-reader-deployment.yaml
+    set:
+      brainstore.image.tag: v2.22.0@sha256:abc
+      brainstore.reader.annotations.pod:
+        braintrust.dev/brainstore-version: "9.0.0"
+      deploymentOrdering.minimumVersion: "2.21.0"
+    asserts:
+      - equal:
+          path: spec.template.metadata.annotations["braintrust.dev/brainstore-version"]
+          value: "2.22.0"
+
+  - it: reserves the explicit compatibility assertion for opaque Brainstore builds
+    template: brainstore-reader-deployment.yaml
+    set:
+      brainstore.image.tag: deadbeef
+      deploymentOrdering.minimumVersion: "2.22.0"
+      deploymentOrdering.migrationImage: public.ecr.aws/braintrust/standalone-api:release-bundle
+      brainstore.reader.annotations.pod:
+        braintrust.dev/brainstore-version: "9.0.0"
+    asserts:
+      - equal:
+          path: spec.template.metadata.annotations["braintrust.dev/brainstore-version"]
+          value: "2.22.0"

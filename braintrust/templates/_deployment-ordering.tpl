@@ -3,6 +3,7 @@
 {{- $defaults := dict
   "enabled" true
   "minimumVersion" ""
+  "migrationImage" ""
   "timeoutSeconds" 1200
   "pollIntervalSeconds" 15
   "backoffLimit" 2
@@ -30,6 +31,83 @@
 {{/* Preserve the revision suffix even for long release names. */}}
 {{- define "braintrust.migrations.name" -}}
 {{- printf "%s-%s-migrate-r%d" (.Release.Name | trunc 24 | trimSuffix "-") (.Release.Name | sha256sum | trunc 8) (int .Release.Revision) -}}
+{{- end -}}
+
+{{/* Migration scripts ship in standalone-api, never in the Brainstore or gate
+helper image. Preserve API pins, but translate a newer Brainstore release to
+the shared API repository without carrying over the Brainstore digest. */}}
+{{- define "braintrust.migrations.image" -}}
+{{- $config := include "braintrust.deploymentOrdering.config" . | fromYaml -}}
+{{- if $config.enabled -}}
+{{- $stableRelease := "^v?(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$" -}}
+{{- $images := list -}}
+{{- range $pool := include "braintrust.apiPools" . | fromYamlArray -}}
+{{- $images = append $images (dict "repository" $pool.config.image.repository "tag" (toString $pool.config.image.tag) "brainstore" false) -}}
+{{- end -}}
+{{- $images = append $images (dict "repository" .Values.api.image.repository "tag" (toString .Values.brainstore.image.tag) "brainstore" true) -}}
+{{- $selectedImage := "" -}}
+{{- $selectedVersion := "" -}}
+{{- $major := "" -}}
+{{- $opaque := false -}}
+{{- range $image := $images -}}
+{{- $tag := first (splitList "@" $image.tag) -}}
+{{- if regexMatch $stableRelease $tag -}}
+{{- $version := trimPrefix "v" $tag -}}
+{{- $imageMajor := first (splitList "." $version) -}}
+{{- if and $major (ne $major $imageMajor) -}}
+{{- fail "deploymentOrdering cannot migrate API and Brainstore service images from different major releases" -}}
+{{- end -}}
+{{- $major = $imageMajor -}}
+{{- if or (not $selectedVersion) (semverCompare (printf ">%s" $selectedVersion) $version) -}}
+{{- $selectedVersion = $version -}}
+{{- $selectedTag := $image.tag -}}
+{{- if $image.brainstore -}}
+{{- $selectedTag = $tag -}}
+{{- end -}}
+{{- $selectedImage = printf "%s:%s" $image.repository $selectedTag -}}
+{{- end -}}
+{{- else -}}
+{{- $opaque = true -}}
+{{- end -}}
+{{- end -}}
+{{- $override := $config.migrationImage -}}
+{{- if kindIs "invalid" $override -}}
+{{- $override = "" -}}
+{{- end -}}
+{{- if not (kindIs "string" $override) -}}
+{{- fail "deploymentOrdering.migrationImage must be a full standalone-API image reference" -}}
+{{- end -}}
+{{- if and $opaque (not $override) -}}
+{{- fail "deploymentOrdering.migrationImage is required for opaque API or Brainstore service image tags; minimumVersion cannot select a migration bundle" -}}
+{{- end -}}
+{{- $minimum := $config.minimumVersion | default "" | toString -}}
+{{- if and $opaque (not $minimum) -}}
+{{- fail "deploymentOrdering.minimumVersion is required for opaque API or Brainstore service image tags" -}}
+{{- end -}}
+{{- if and $minimum (not (regexMatch $stableRelease $minimum)) -}}
+{{- fail "deploymentOrdering.minimumVersion must be a stable release version" -}}
+{{- end -}}
+{{- if $override -}}
+{{- $reference := first (splitList "@" $override) -}}
+{{- $lastComponent := last (splitList "/" $reference) -}}
+{{- $overrideTag := "" -}}
+{{- if contains ":" $lastComponent -}}
+{{- $overrideTag = last (splitList ":" $lastComponent) -}}
+{{- end -}}
+{{- if regexMatch $stableRelease $overrideTag -}}
+{{- $requiredVersion := $selectedVersion -}}
+{{- if and $minimum (or (not $requiredVersion) (semverCompare (printf ">%s" $requiredVersion) $minimum)) -}}
+{{- $requiredVersion = trimPrefix "v" $minimum -}}
+{{- end -}}
+{{- if and $requiredVersion (semverCompare (printf "<%s" $requiredVersion) $overrideTag) -}}
+{{- fail (printf "deploymentOrdering.migrationImage release %s is older than required release %s" $overrideTag $requiredVersion) -}}
+{{- end -}}
+{{- end -}}
+{{- $override -}}
+{{- else -}}
+{{- $selectedImage -}}
+{{- end -}}
+{{- end -}}
 {{- end -}}
 
 {{- define "braintrust.migrations.initContainer" -}}
