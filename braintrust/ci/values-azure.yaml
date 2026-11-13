@@ -88,6 +88,7 @@ brainstore:
     volume:
       size: "100Gi"
   automationwriter:
+    replicas: 0
     volume:
       size: "200Gi"
   writer:

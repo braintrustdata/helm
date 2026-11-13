@@ -62,6 +62,7 @@ tests:
     set:
       api.brainstoreStartupGate.enabled: true
       api.image.tag: v2.15.0
+      brainstore.automationwriter.replicas: 0
       brainstore.image.tag: v2.15.0
     asserts:
       - equal:
@@ -113,6 +114,7 @@ tests:
       api.brainstoreStartupGate.enabled: true
       api.brainstoreStartupGate.minimumVersion: v2.15.0
       api.brainstoreStartupGate.image: registry.example/python:3.13
+      brainstore.automationwriter.replicas: 0
       brainstore.image.tag: v2.15.1
     asserts:
       - equal:
@@ -265,6 +267,7 @@ tests:
     set:
       api.brainstoreStartupGate.enabled: true
       api.image.tag: v2.15.0
+      brainstore.automationwriter.replicas: 0
       brainstore.image.tag: v2.14.0
     asserts:
       - contains:
