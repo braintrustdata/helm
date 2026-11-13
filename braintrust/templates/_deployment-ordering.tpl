@@ -28,9 +28,46 @@
 {{- toYaml $config -}}
 {{- end -}}
 
-{{/* Preserve the revision suffix even for long release names. */}}
+{{/* Workloads reference only this stable desired-state ConfigMap, never a Job. */}}
+{{- define "braintrust.deploymentOrdering.name" -}}
+{{- printf "%s-%s-ordering" (.Release.Name | trunc 40 | trimSuffix "-") (.Release.Name | sha256sum | trunc 8) -}}
+{{- end -}}
+
+{{/* One execution contract supplies both the content hash and the actual Job.
+Use a fixed name when hashing to avoid self-referential labels and snapshot refs. */}}
+{{- define "braintrust.migrations.execution" -}}
+{{- $root := .root -}}
+{{- $name := .name -}}
+{{- $config := include "braintrust.deploymentOrdering.config" $root | fromYaml -}}
+{{- $apiConfig := include (print $root.Template.BasePath "/api-configmap.yaml") $root | fromYaml -}}
+{{- $api := include "braintrust.apiPoolConfig" (dict "root" $root "overrides" (dict)) | fromYaml -}}
+{{- $deployment := include "braintrust.apiDeployment" (dict "root" $root "api" $api "role" "migration" "migrationJob" true) | fromYaml -}}
+{{- $pod := $deployment.spec.template -}}
+{{- $container := first $pod.spec.containers -}}
+{{- range $key := list "ports" "livenessProbe" "readinessProbe" "startupProbe" -}}
+{{- $_ := unset $container $key -}}
+{{- end -}}
+{{- $_ := set $container "name" "migrate" -}}
+{{- $_ := set $container "image" (include "braintrust.migrations.image" $root) -}}
+{{- $_ := set $container "command" (list "/braintrust/venv/bin/python" "/braintrust/api-schema/lambda_function.py" "--execute") -}}
+{{- $_ := set $container "envFrom" (list (dict "configMapRef" (dict "name" (printf "%s-config" $name)))) -}}
+{{- $_ := set $pod.spec "containers" (list $container) -}}
+{{- $_ := set $pod.spec "restartPolicy" "Never" -}}
+{{- $_ := set $pod.spec "automountServiceAccountToken" false -}}
+{{- $_ := unset $pod.spec "topologySpreadConstraints" -}}
+{{/* The snapshot's data, not mutable API ConfigMap metadata, drives execution. */}}
+{{- $_ := set $pod.metadata.annotations "checksum/config" ($apiConfig.data | toJson | sha256sum) -}}
+{{/* A migration pod must never match API Service / Deployment selectors. */}}
+{{- $_ := set $pod.metadata.labels "app" $name -}}
+{{- $_ := set $pod.metadata.labels "braintrust.dev/api-pool" "migration" -}}
+{{- dict "pod" $pod "apiConfig" $apiConfig.data "settings" (dict "backoffLimit" (int $config.backoffLimit) "activeDeadlineSeconds" (int $config.timeoutSeconds)) | toYaml -}}
+{{- end -}}
+
+{{/* Leave room for the immutable configuration snapshot suffix, even at the
+maximum release-name length. Release revisions are deliberately not inputs. */}}
 {{- define "braintrust.migrations.name" -}}
-{{- printf "%s-%s-migrate-r%d" (.Release.Name | trunc 24 | trimSuffix "-") (.Release.Name | sha256sum | trunc 8) (int .Release.Revision) -}}
+{{- $execution := include "braintrust.migrations.execution" (dict "root" . "name" "migration-content") | fromYaml -}}
+{{- printf "%s-%s-migrate-%s" (.Release.Name | trunc 20 | trimSuffix "-") (.Release.Name | sha256sum | trunc 8) ($execution | toJson | sha256sum | trunc 16) -}}
 {{- end -}}
 
 {{/* Migration scripts ship in standalone-api, never in the Brainstore or gate
@@ -133,8 +170,8 @@ the shared API repository without carrying over the Brainstore digest. */}}
       valueFrom:
         fieldRef:
           fieldPath: metadata.namespace
-    - name: JOB_NAME
-      value: {{ include "braintrust.migrations.name" . | quote }}
+    - name: ORDERING_CONFIGMAP
+      value: {{ include "braintrust.deploymentOrdering.name" . | quote }}
     - name: JOB_TIMEOUT_SECONDS
       value: {{ $config.timeoutSeconds | quote }}
     - name: JOB_POLL_SECONDS
@@ -151,7 +188,7 @@ the shared API repository without carrying over the Brainstore digest. */}}
 {{- define "braintrust.migrations.volumes" -}}
 - name: migration-gate-code
   configMap:
-    name: {{ include "braintrust.migrations.name" . }}-gate
+    name: {{ include "braintrust.deploymentOrdering.name" . }}
 - name: migration-gate-credentials
   projected:
     sources:

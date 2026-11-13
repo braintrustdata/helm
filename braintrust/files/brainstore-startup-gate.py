@@ -1,8 +1,8 @@
 """Wait for compatible Brainstore rollouts before application startup.
 
 Uses only Python's standard library and read-only Kubernetes API requests.
-The required version is fixed in the application's Pod environment, not a
-ConfigMap that changes underneath an older Pod when the next release is installed.
+The required version is fixed in the application's Pod environment. The expected
+fleet is read from the stable ordering ConfigMap on every observation.
 """
 
 import json
@@ -19,6 +19,8 @@ from pathlib import Path
 
 VERSION = re.compile(r"v?(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\Z")
 TERMINAL_PHASES = {"Failed", "Succeeded"}
+TEMPLATE_ANNOTATION = "braintrust.dev/pod-template"
+TEMPLATE_HASH = re.compile(r"[0-9a-f]{64}\Z")
 
 
 def release_version(value):
@@ -76,7 +78,7 @@ def ready(pod, container):
     )
 
 
-def check_deployment(deployment, pods, container, minimum, minimum_revision):
+def check_deployment(deployment, pods, target, minimum):
     """Return a wait reason, or None when the compatible rollout is complete.
 
     The current Deployment rollout must finish, even for an older application
@@ -93,24 +95,26 @@ def check_deployment(deployment, pods, container, minimum, minimum_revision):
     spec = deployment.get("spec", {})
     status = deployment.get("status", {})
     name = metadata.get("name", "unknown")
-    if minimum_revision <= 0:
-        return f"{name}: minimum release revision must be positive"
+    container = target["container"]
     if metadata.get("deletionTimestamp"):
         return f"{name}: deployment is being deleted"
     # Do not trust availability status from before the latest spec update.
-    if status.get("observedGeneration", 0) < metadata.get("generation", 1):
+    generation = metadata.get("generation")
+    observed = status.get("observedGeneration", 0)
+    if (type(generation) is not int or generation <= 0
+            or type(observed) is not int or observed < generation):
         return f"{name}: controller has not observed the desired generation"
-    desired = spec.get("replicas", 1)
+    desired = target["replicas"]
+    if type(spec.get("replicas", 1)) is not int or spec.get("replicas", 1) != desired:
+        return f"{name}: waiting for the expected {desired} replicas in the Deployment spec"
+    min_ready = target["minReadySeconds"]
+    if (type(spec.get("minReadySeconds", 0)) is not int
+            or spec.get("minReadySeconds", 0) != min_ready):
+        return f"{name}: waiting for the expected minReadySeconds in the Deployment spec"
     template = spec.get("template", {})
-    revision_key = "braintrust.dev/release-revision"
     template_annotations = template.get("metadata", {}).get("annotations", {})
-    revision = template_annotations.get(revision_key)
-    try:
-        current_revision = int(revision)
-    except (TypeError, ValueError):
-        return f"{name}: desired release revision is missing or invalid"
-    if current_revision < minimum_revision:
-        return f"{name}: waiting for release revision {minimum_revision} or later"
+    if template_annotations.get(TEMPLATE_ANNOTATION) != target["template"]:
+        return f"{name}: waiting for the expected Pod template in the Deployment spec"
     live = [pod for pod in pods if pod.get("status", {}).get("phase") not in TERMINAL_PHASES]
     opaque_image = None
     if desired == 0:
@@ -147,15 +151,16 @@ def check_deployment(deployment, pods, container, minimum, minimum_revision):
         elif not compatible(image, minimum):
             pod_name = pod_metadata.get("name", "unknown")
             return f"{name}: incompatible Pod {pod_name} still exists ({image!r})"
-        if pod_metadata.get("annotations", {}).get(revision_key) != revision:
-            return f"{name}: waiting for Pods from the current release revision"
+        if pod_metadata.get("annotations", {}).get(TEMPLATE_ANNOTATION) != target["template"]:
+            return f"{name}: waiting for Pods with the expected Pod template"
         if pod_metadata.get("deletionTimestamp"):
             return f"{name}: waiting for terminating Pods to disappear"
     # Require both current Pod readiness and Deployment availability; the
     # latter also accounts for the Deployment's minReadySeconds setting.
     ready_count = sum(ready(pod, container) for pod in live)
     counters = ("updatedReplicas", "readyReplicas", "availableReplicas", "replicas")
-    if any(status.get(counter, 0) != desired for counter in counters):
+    if any(type(status.get(counter, 0)) is not int or status.get(counter, 0) != desired
+           for counter in counters):
         return f"{name}: waiting for all {desired} replicas to complete the current rollout"
     if len(live) != desired or ready_count != desired:
         return f"{name}: waiting for exactly {desired} current Ready Pods"
@@ -217,29 +222,91 @@ class KubernetesClient:
                 return items
 
 
-def check_fleet(client, targets, minimum, minimum_revision, deadline):
+def load_ordering_config(client, name, deadline):
+    name = urllib.parse.quote(name, safe="")
+    resource = client.get(
+        f"/api/v1/namespaces/{client.namespace}/configmaps/{name}", deadline,
+    )
+    if not isinstance(resource, dict) or not isinstance(resource.get("data"), dict):
+        raise ValueError("ordering ConfigMap data is missing")
+    config = json.loads(resource["data"]["ordering.json"])
+    if not isinstance(config, dict):
+        raise ValueError("ordering configuration must be an object")
+    if not isinstance(config.get("job"), str) or not config["job"]:
+        raise ValueError("ordering configuration requires a Job name")
+    targets = config.get("targets")
+    if not isinstance(targets, list) or not targets:
+        raise ValueError("ordering configuration requires nonempty targets")
+    for target in targets:
+        if not isinstance(target, dict):
+            raise ValueError("ordering targets must be objects")
+        for field in ("deployment", "container"):
+            if not isinstance(target.get(field), str) or not target[field]:
+                raise ValueError(f"ordering target requires a {field} name")
+        fingerprint = target.get("template")
+        if not isinstance(fingerprint, str) or not TEMPLATE_HASH.fullmatch(fingerprint):
+            raise ValueError("ordering target requires a SHA256 Pod template")
+        for field in ("replicas", "minReadySeconds"):
+            if type(target.get(field)) is not int or target[field] < 0:
+                raise ValueError(f"ordering target requires nonnegative integer {field}")
+    return config
+
+
+def job_complete(job):
+    if not isinstance(job, dict):
+        raise ValueError("Job observation must be an object")
+    metadata = job.get("metadata", {})
+    status = job.get("status", {})
+    if not isinstance(metadata, dict) or not isinstance(status, dict):
+        raise ValueError("Job metadata and status must be objects")
+    conditions = status.get("conditions", [])
+    if not isinstance(conditions, list) or any(not isinstance(c, dict) for c in conditions):
+        raise ValueError("Job conditions must be objects")
+    if any(c.get("type") in {"Failed", "FailureTarget"} and c.get("status") == "True"
+           for c in conditions):
+        raise RuntimeError("Migration Job failed; inspect its logs before retrying")
+    if metadata.get("deletionTimestamp"):
+        return False
+    return any(c.get("type") == "Complete" and c.get("status") == "True" for c in conditions)
+
+
+def migration_complete(client, name, deadline):
+    name = urllib.parse.quote(name, safe="")
+    path = f"/apis/batch/v1/namespaces/{client.namespace}/jobs/{name}"
+    return job_complete(client.get(path, deadline))
+
+
+def check_fleet(client, targets, minimum, deadline):
     for target in targets:
         deployment = client.deployment(target["deployment"], deadline)
         # The chart's Services select app=<deployment name>. Include stray Pods
         # with that label too; they can receive traffic regardless of ownership.
         pods = client.pods("app=" + target["deployment"], deadline)
         reason = check_deployment(
-            deployment, pods, target["container"], minimum, minimum_revision,
+            deployment, pods, target, minimum,
         )
         if reason:
             return reason
     return None
 
 
-def wait_for_fleet(client, targets, minimum, minimum_revision, timeout, interval,
+def wait_for_fleet(client, configmap, minimum, timeout, interval,
                   clock=time.monotonic, sleep=time.sleep, log=print):
     # All roles and API requests share one budget, unaffected by wall-clock changes.
     deadline = clock() + timeout
     successes = 0
     last_reason = "no observation yet"
+    expected = None
     while clock() < deadline:
         try:
-            reason = check_fleet(client, targets, minimum, minimum_revision, deadline)
+            ordering = load_ordering_config(client, configmap, deadline)
+            if ordering != expected:
+                successes = 0
+                expected = ordering
+            if migration_complete(client, ordering["job"], deadline):
+                reason = check_fleet(client, ordering["targets"], minimum, deadline)
+            else:
+                reason = f"migration Job {ordering['job']} has not completed"
         except urllib.error.HTTPError as error:
             # RBAC and Deployments may be applied after the application Pod is created.
             path = urllib.parse.urlsplit(error.url).path
@@ -268,20 +335,19 @@ def wait_for_fleet(client, targets, minimum, minimum_revision, timeout, interval
 
 def main():
     minimum = release_version(os.environ["BRAINSTORE_MINIMUM_VERSION"])
-    minimum_revision = int(os.environ["BRAINSTORE_MINIMUM_REVISION"])
-    targets = json.loads(os.environ["BRAINSTORE_DEPLOYMENTS"])
     timeout = int(os.environ["BRAINSTORE_GATE_TIMEOUT_SECONDS"])
     interval = int(os.environ["BRAINSTORE_GATE_POLL_SECONDS"])
-    if not targets or minimum_revision <= 0 or timeout <= 0 or interval <= 0 or interval >= timeout:
+    configmap = os.environ["ORDERING_CONFIGMAP"]
+    if not configmap or timeout <= 0 or interval <= 0 or interval >= timeout:
         raise ValueError("invalid startup gate configuration")
     client = KubernetesClient(os.environ["POD_NAMESPACE"], "/var/run/brainstore-gate")
-    wait_for_fleet(client, targets, minimum, minimum_revision, timeout, interval)
+    wait_for_fleet(client, configmap, minimum, timeout, interval)
 
 
 if __name__ == "__main__":
     try:
         main()
-    except (OSError, ValueError, KeyError, TypeError) as error:
+    except (OSError, ValueError, KeyError, TypeError, RuntimeError) as error:
         print(str(error), file=sys.stderr, flush=True)
         # Fail closed: Kubernetes retries this init container; the application stays stopped.
         sys.exit(1)

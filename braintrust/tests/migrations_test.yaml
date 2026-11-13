@@ -1,6 +1,5 @@
-suite: release migration Job and Deployment dependencies
+suite: content-addressed migration Job and stable Deployment dependencies
 templates:
-  - migration-rollback.yaml
   - migration-job.yaml
   - migration-gate.yaml
   - api-deployment.yaml
@@ -34,7 +33,7 @@ tests:
           of: Job
       - matchRegex:
           path: metadata.name
-          pattern: '^test-[a-f0-9]{8}-migrate-r7$'
+          pattern: '^test-[a-f0-9]{8}-migrate-[a-f0-9]{16}$'
       - equal:
           path: metadata.annotations["helm.sh/resource-policy"]
           value: keep
@@ -71,8 +70,14 @@ tests:
       - equal:
           path: spec.template.spec.automountServiceAccountToken
           value: false
+      - matchRegex:
+          path: spec.template.spec.containers[0].envFrom[0].configMapRef.name
+          pattern: '^test-[a-f0-9]{8}-migrate-[a-f0-9]{16}-config$'
+      - matchRegex:
+          path: spec.template.metadata.annotations["checksum/config"]
+          pattern: '^[a-f0-9]{64}$'
 
-  - it: snapshots configuration for the attempt without copying Secrets
+  - it: retains an immutable configuration snapshot without copying Secrets
     template: migration-job.yaml
     documentIndex: 1
     set:
@@ -82,13 +87,16 @@ tests:
           of: ConfigMap
       - matchRegex:
           path: metadata.name
-          pattern: '-migrate-r7-config$'
+          pattern: '-migrate-[a-f0-9]{16}-config$'
       - equal:
           path: data.ORG_NAME
           value: migration-org
       - equal:
           path: metadata.annotations["helm.sh/resource-policy"]
           value: keep
+      - equal:
+          path: immutable
+          value: true
       - isNull:
           path: data.PG_URL
 
@@ -101,14 +109,17 @@ tests:
       - equal:
           path: spec.template.spec.initContainers[1].name
           value: wait-for-brainstore
-      - matchRegex:
-          path: spec.template.spec.initContainers[0].env[1].value
-          pattern: '-migrate-r7$'
+      - equal:
+          path: spec.template.spec.initContainers[0].env[1]
+          value: {name: ORDERING_CONFIGMAP, value: test-9f86d081-ordering}
+      - contains:
+          path: spec.template.spec.volumes
+          content: {name: migration-gate-code, configMap: {name: test-9f86d081-ordering}}
       - equal:
           path: spec.template.spec.automountServiceAccountToken
           value: false
 
-  - it: restricts workload gates to reading only the exact migration Job
+  - it: restricts workload gates to reading the desired-state ConfigMap and exact Job
     template: migration-gate.yaml
     documentIndex: 1
     asserts:
@@ -125,16 +136,25 @@ tests:
           value: [get]
       - lengthEqual:
           path: rules
-          count: 1
+          count: 2
       - matchRegex:
           path: rules[0].resourceNames[0]
-          pattern: '-migrate-r7$'
+          pattern: '-migrate-[a-f0-9]{16}$'
       - lengthEqual:
           path: rules[0].resourceNames
           count: 1
       - equal:
-          path: metadata.annotations["helm.sh/resource-policy"]
-          value: keep
+          path: rules[1].apiGroups
+          value: [""]
+      - equal:
+          path: rules[1].resources
+          value: [configmaps]
+      - equal:
+          path: rules[1].verbs
+          value: [get]
+      - equal:
+          path: rules[1].resourceNames
+          value: [test-9f86d081-ordering]
 
   - it: binds all pool identities and the Brainstore account in the actual namespace
     template: migration-gate.yaml
@@ -149,9 +169,6 @@ tests:
       - equal:
           path: metadata.namespace
           value: actual-namespace
-      - equal:
-          path: metadata.annotations["helm.sh/resource-policy"]
-          value: keep
       - contains:
           path: subjects
           content: {kind: ServiceAccount, name: ingest, namespace: actual-namespace}
@@ -288,6 +305,9 @@ tests:
       - equal:
           path: spec.template.spec.containers[0].image
           value: registry.example/custom-api:v2.21.0
+      - equal:
+          path: spec.template.spec.initContainers[0].env[1]
+          value: {name: ORDERING_CONFIGMAP, value: test-9f86d081-ordering}
 
   - it: keeps the Brainstore image and digest unchanged when selecting an API bundle
     template: brainstore-reader-deployment.yaml
@@ -305,28 +325,28 @@ tests:
     template: brainstore-reader-deployment.yaml
     asserts:
       - {"equal": {"path": "spec.template.spec.initContainers[0].name", "value": "wait-for-migrations"}}
-      - {"matchRegex": {"path": "spec.template.spec.initContainers[0].env[1].value", "pattern": "-migrate-r7$"}}
+      - {"equal": {"path": "spec.template.spec.initContainers[0].env[1]", "value": {"name": "ORDERING_CONFIGMAP", "value": "test-9f86d081-ordering"}}}
       - {"equal": {"path": "spec.progressDeadlineSeconds", "value": 1800}}
 
   - it: gates the writer pool
     template: brainstore-writer-deployment.yaml
     asserts:
       - {"equal": {"path": "spec.template.spec.initContainers[0].name", "value": "wait-for-migrations"}}
-      - {"matchRegex": {"path": "spec.template.spec.initContainers[0].env[1].value", "pattern": "-migrate-r7$"}}
+      - {"equal": {"path": "spec.template.spec.initContainers[0].env[1]", "value": {"name": "ORDERING_CONFIGMAP", "value": "test-9f86d081-ordering"}}}
       - {"equal": {"path": "spec.progressDeadlineSeconds", "value": 1800}}
 
   - it: gates the fastreader pool
     template: brainstore-fastreader-deployment.yaml
     asserts:
       - {"equal": {"path": "spec.template.spec.initContainers[0].name", "value": "wait-for-migrations"}}
-      - {"matchRegex": {"path": "spec.template.spec.initContainers[0].env[1].value", "pattern": "-migrate-r7$"}}
+      - {"equal": {"path": "spec.template.spec.initContainers[0].env[1]", "value": {"name": "ORDERING_CONFIGMAP", "value": "test-9f86d081-ordering"}}}
       - {"equal": {"path": "spec.progressDeadlineSeconds", "value": 1800}}
 
   - it: gates the automationwriter pool
     template: brainstore-automationwriter-deployment.yaml
     asserts:
       - {"equal": {"path": "spec.template.spec.initContainers[0].name", "value": "wait-for-migrations"}}
-      - {"matchRegex": {"path": "spec.template.spec.initContainers[0].env[1].value", "pattern": "-migrate-r7$"}}
+      - {"equal": {"path": "spec.template.spec.initContainers[0].env[1]", "value": {"name": "ORDERING_CONFIGMAP", "value": "test-9f86d081-ordering"}}}
       - {"equal": {"path": "spec.progressDeadlineSeconds", "value": 1800}}
 
   - it: gates isolated API pool 0
@@ -432,7 +452,9 @@ tests:
   - it: merges partial reused values with defaults
     template: migration-job.yaml
     documentIndex: 0
-    set: {"deploymentOrdering": null, "deploymentOrdering.backoffLimit": 0}
+    set:
+      deploymentOrdering:
+        backoffLimit: 0
     asserts:
       - {"equal": {"path": "spec.backoffLimit", "value": 0}}
       - {"equal": {"path": "spec.activeDeadlineSeconds", "value": 1200}}
@@ -447,14 +469,14 @@ tests:
 
 
   - it: rejects invalid timeoutSeconds 0
-    template: migration-rollback.yaml
+    template: migration-job.yaml
     set: {"deploymentOrdering.timeoutSeconds": 0}
     asserts:
       - failedTemplate:
           errorMessage: deploymentOrdering timing values must be positive integers
 
   - it: rejects invalid timeoutSeconds 
-    template: migration-rollback.yaml
+    template: migration-job.yaml
     set: {"deploymentOrdering.timeoutSeconds": ""}
     asserts:
       - failedTemplate: {}
@@ -469,38 +491,38 @@ tests:
           value: 1200
 
   - it: rejects invalid timeoutSeconds -1
-    template: migration-rollback.yaml
+    template: migration-job.yaml
     set: {"deploymentOrdering.timeoutSeconds": -1}
     asserts:
       - failedTemplate: {}
 
   - it: rejects invalid pollIntervalSeconds 0
-    template: migration-rollback.yaml
+    template: migration-job.yaml
     set: {"deploymentOrdering.pollIntervalSeconds": 0}
     asserts:
       - failedTemplate: {}
 
   - it: rejects invalid pollIntervalSeconds 
-    template: migration-rollback.yaml
+    template: migration-job.yaml
     set: {"deploymentOrdering.pollIntervalSeconds": ""}
     asserts:
       - failedTemplate: {}
 
   - it: rejects invalid pollIntervalSeconds -1
-    template: migration-rollback.yaml
+    template: migration-job.yaml
     set: {"deploymentOrdering.pollIntervalSeconds": -1}
     asserts:
       - failedTemplate: {}
 
   - it: rejects a poll interval outside the budget
-    template: migration-rollback.yaml
+    template: migration-job.yaml
     set: {"deploymentOrdering.pollIntervalSeconds": 1200}
     asserts:
       - failedTemplate:
           errorMessage: deploymentOrdering.timeoutSeconds must exceed pollIntervalSeconds
 
   - it: rejects an empty helper image
-    template: migration-rollback.yaml
+    template: migration-job.yaml
     set: {"deploymentOrdering.image": ""}
     asserts:
       - failedTemplate:
@@ -513,19 +535,45 @@ tests:
       - {"hasDocuments": {"count": 0}}
 
   - it: rejects a negative retry count
-    template: migration-rollback.yaml
+    template: migration-job.yaml
     set: {"deploymentOrdering.backoffLimit": -1}
     asserts:
       - failedTemplate:
           errorMessage: deploymentOrdering.backoffLimit must be a nonnegative integer
 
-  - it: preserves revision suffix with long release names
+  - it: preserves the content suffix with long release names
     template: migration-job.yaml
     documentIndex: 0
     release: {"name": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "revision": 101}
     asserts:
-      - {"matchRegex": {"path": "metadata.name", "pattern": "^.{1,56}$"}}
-      - {"matchRegex": {"path": "metadata.name", "pattern": "-migrate-r101$"}}
+      - {"matchRegex": {"path": "metadata.name", "pattern": "^.{1,54}$"}}
+      - {"matchRegex": {"path": "metadata.name", "pattern": "-migrate-[a-f0-9]{16}$"}}
+
+  - it: bounds immutable snapshot names with long release names
+    template: migration-job.yaml
+    documentIndex: 1
+    release: {"name": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "revision": 101}
+    asserts:
+      - matchRegex:
+          path: metadata.name
+          pattern: '^.{1,61}$'
+      - matchRegex:
+          path: metadata.name
+          pattern: '-migrate-[a-f0-9]{16}-config$'
+
+  - it: uses a bounded stable ordering name with long release names
+    template: api-deployment.yaml
+    release: {"name": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "revision": 101}
+    asserts:
+      - equal:
+          path: spec.template.spec.initContainers[0].env[1].name
+          value: ORDERING_CONFIGMAP
+      - matchRegex:
+          path: spec.template.spec.initContainers[0].env[1].value
+          pattern: '^.{1,58}$'
+      - matchRegex:
+          path: spec.template.spec.initContainers[0].env[1].value
+          pattern: '-[a-f0-9]{8}-ordering$'
 
   - it: gates a partially specified automation writer
     template: brainstore-automationwriter-deployment.yaml
@@ -534,72 +582,16 @@ tests:
       - {"equal": {"path": "spec.template.spec.initContainers[0].name", "value": "wait-for-migrations"}}
       - {"equal": {"path": "spec.replicas", "value": 1}}
 
-  - it: prepares target revision rollback cleanup without install or upgrade hooks
-    template: migration-rollback.yaml
-    documentIndex: 3
-    asserts:
-      - isKind:
-          of: Job
-      - equal:
-          path: metadata.annotations["helm.sh/hook"]
-          value: pre-rollback
-      - equal:
-          path: metadata.annotations["helm.sh/hook-delete-policy"]
-          value: before-hook-creation,hook-succeeded
-      - matchRegex:
-          path: spec.template.spec.containers[0].env[1].value
-          pattern: '^test-9f86d081-migrate-r7$'
-      - matchRegex:
-          path: spec.template.spec.serviceAccountName
-          pattern: '-migrate-r7-reset$'
-      - equal:
-          path: spec.activeDeadlineSeconds
-          value: 1200
-
-  - it: limits rollback cleanup to the exact target revision
-    template: migration-rollback.yaml
-    documentIndex: 1
-    asserts:
-      - equal:
-          path: metadata.annotations["helm.sh/hook-weight"]
-          value: "-2"
-      - equal:
-          path: rules[0].verbs
-          value: [get, delete]
-      - equal:
-          path: rules[1].verbs
-          value: [get, delete]
-      - equal:
-          path: rules[2].verbs
-          value: [get, delete]
-      - equal:
-          path: rules[0].resourceNames
-          value: [test-9f86d081-migrate-r7]
-      - equal:
-          path: rules[1].resourceNames
-          value: [test-9f86d081-migrate-r7-config, test-9f86d081-migrate-r7-gate]
-      - equal:
-          path: rules[2].resourceNames
-          value: [test-9f86d081-migrate-r7]
-
-  - it: does not render rollback hooks when migrations are disabled
-    template: migration-rollback.yaml
-    set:
-      deploymentOrdering.enabled: false
-    asserts:
-      - hasDocuments:
-          count: 0
-
-  - it: reserves the release marker without discarding custom pod annotations
+  - it: reserves the desired pod fingerprint without discarding custom annotations
     template: brainstore-reader-deployment.yaml
     set:
       brainstore.reader.annotations.pod:
-        braintrust.dev/release-revision: forged
+        braintrust.dev/pod-template: forged
         custom: preserved
     asserts:
-      - equal:
-          path: spec.template.metadata.annotations["braintrust.dev/release-revision"]
-          value: "7"
+      - matchRegex:
+          path: spec.template.metadata.annotations["braintrust.dev/pod-template"]
+          pattern: "^[a-f0-9]{64}$"
       - equal:
           path: spec.template.metadata.annotations.custom
           value: preserved

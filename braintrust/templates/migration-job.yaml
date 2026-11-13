@@ -1,27 +1,8 @@
 {{- $config := include "braintrust.deploymentOrdering.config" . | fromYaml -}}
 {{- if $config.enabled -}}
 {{- $name := include "braintrust.migrations.name" . -}}
-{{- $api := include "braintrust.apiPoolConfig" (dict "root" . "overrides" (dict)) | fromYaml -}}
-{{/* Reuse the API pod contract so identity, TLS, secrets, security and scheduling
-stay in sync. The migrationJob flag suppresses release ordering. Only the main
-container is retained: sidecars and HTTP probes must not keep this Job alive. */}}
-{{- $deployment := include "braintrust.apiDeployment" (dict "root" . "api" $api "role" "migration" "migrationJob" true) | fromYaml -}}
-{{- $pod := $deployment.spec.template -}}
-{{- $container := first $pod.spec.containers -}}
-{{- range $key := list "ports" "livenessProbe" "readinessProbe" "startupProbe" -}}
-{{- $_ := unset $container $key -}}
-{{- end -}}
-{{- $_ := set $container "name" "migrate" -}}
-{{- $_ := set $container "image" (include "braintrust.migrations.image" .) -}}
-{{- $_ := set $container "command" (list "/braintrust/venv/bin/python" "/braintrust/api-schema/lambda_function.py" "--execute") -}}
-{{- $_ := set $container "envFrom" (list (dict "configMapRef" (dict "name" (printf "%s-config" $name)))) -}}
-{{- $_ := set $pod.spec "containers" (list $container) -}}
-{{- $_ := set $pod.spec "restartPolicy" "Never" -}}
-{{- $_ := set $pod.spec "automountServiceAccountToken" false -}}
-{{- $_ := unset $pod.spec "topologySpreadConstraints" -}}
-{{/* A migration pod must never match API Service / Deployment selectors. */}}
-{{- $_ := set $pod.metadata.labels "app" $name -}}
-{{- $_ := set $pod.metadata.labels "braintrust.dev/api-pool" "migration" -}}
+{{/* Reuse exactly the execution contract used to content-address this Job. */}}
+{{- $execution := include "braintrust.migrations.execution" (dict "root" . "name" $name) | fromYaml -}}
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -32,14 +13,12 @@ metadata:
   labels:
     {{- mergeOverwrite (deepCopy .Values.global.labels) (deepCopy .Values.api.labels) (dict "braintrust.dev/migration-release" .Release.Name) | toYaml | nindent 4 }}
 spec:
-  backoffLimit: {{ $config.backoffLimit }}
-  activeDeadlineSeconds: {{ $config.timeoutSeconds }}
+  {{- toYaml $execution.settings | nindent 2 }}
   template:
-    {{- toYaml $pod | nindent 4 }}
+    {{- toYaml $execution.pod | nindent 4 }}
 ---
-{{/* Snapshot non-secret configuration for this attempt rather than reading a
-mutable API ConfigMap after a subsequent upgrade. Secrets remain Secret refs. */}}
-{{- $apiConfig := include (print .Template.BasePath "/api-configmap.yaml") . | fromYaml }}
+{{/* Successful content-addressed Jobs and their configuration snapshots are
+reused across upgrades and rollbacks. Secrets remain Secret references. */}}
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -49,6 +28,7 @@ metadata:
     helm.sh/resource-policy: keep
   labels:
     braintrust.dev/migration-release: {{ .Release.Name | quote }}
+immutable: true
 data:
-  {{- toYaml $apiConfig.data | nindent 2 }}
+  {{- toYaml $execution.apiConfig | nindent 2 }}
 {{- end }}

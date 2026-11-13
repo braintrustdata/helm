@@ -19,6 +19,12 @@ tests:
       - equal:
           path: spec.template.spec.containers[0].image
           value: registry.example/standalone-api:v2.22.0
+      - matchRegex:
+          path: metadata.name
+          pattern: '^test-[a-f0-9]{8}-migrate-[a-f0-9]{16}$'
+      - matchRegex:
+          path: spec.template.spec.containers[0].envFrom[0].configMapRef.name
+          pattern: '^test-[a-f0-9]{8}-migrate-[a-f0-9]{16}-config$'
 
   - it: preserves the repository and full pin of a newer API image
     template: migration-job.yaml
@@ -220,6 +226,9 @@ tests:
       - equal:
           path: spec.template.spec.containers[0].image
           value: mirror.example:5000/standalone-api@sha256:bundle
+      - matchRegex:
+          path: metadata.name
+          pattern: '^test-[a-f0-9]{8}-migrate-[a-f0-9]{16}$'
 
   - it: accepts an explicit prerelease bundle as the operator's compatibility assertion
     template: migration-job.yaml
@@ -371,3 +380,34 @@ tests:
     asserts:
       - hasDocuments:
           count: 0
+
+  - it: retains an immutable configuration snapshot for an opaque pinned migration bundle
+    template: migration-job.yaml
+    documentIndex: 1
+    set:
+      api.image.tag: customer-api
+      brainstore.image.tag: customer-brainstore
+      deploymentOrdering.minimumVersion: v2.22.0
+      deploymentOrdering.migrationImage: mirror.example:5000/standalone-api@sha256:bundle
+    asserts:
+      - equal:
+          path: immutable
+          value: true
+      - equal:
+          path: metadata.annotations["helm.sh/resource-policy"]
+          value: keep
+      - matchRegex:
+          path: metadata.name
+          pattern: '^test-[a-f0-9]{8}-migrate-[a-f0-9]{16}-config$'
+
+  - it: keeps migration execution independent of the waiter helper image
+    template: migration-job.yaml
+    documentIndex: 0
+    set:
+      deploymentOrdering.image: mirror.example/python:3.13
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: registry.example/standalone-api:v2.22.0
+      - isNull:
+          path: spec.template.spec.initContainers

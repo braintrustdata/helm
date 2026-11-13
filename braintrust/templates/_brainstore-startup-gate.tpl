@@ -39,6 +39,29 @@ An API-only image bump must not silently accept the still-old Brainstore fleet.
 {{- toJson $targets -}}
 {{- end -}}
 
+{{/* Keep desired identities outside application pod templates: dependency-only
+changes must not restart otherwise unchanged applications. */}}
+{{- define "braintrust.brainstoreStartupGate.expectedTargets" -}}
+{{- $targets := list -}}
+{{- range $role := list "reader" "writer" "fastreader" "automationwriter" -}}
+{{- if or (ne $role "automationwriter") $.Values.brainstore.automationwriter -}}
+{{- $deployment := include (printf "%s/brainstore-%s-deployment.yaml" $.Template.BasePath $role) $ | fromYaml -}}
+{{- $replicas := 1 -}}
+{{- if not (kindIs "invalid" $deployment.spec.replicas) -}}
+{{- $replicas = int $deployment.spec.replicas -}}
+{{- end -}}
+{{- $targets = append $targets (dict
+  "deployment" $deployment.metadata.name
+  "container" (printf "brainstore-%s" $role)
+  "template" (index $deployment.spec.template.metadata.annotations "braintrust.dev/pod-template")
+  "replicas" $replicas
+  "minReadySeconds" (int $deployment.spec.minReadySeconds)
+) -}}
+{{- end -}}
+{{- end -}}
+{{- toJson $targets -}}
+{{- end -}}
+
 {{- define "braintrust.brainstoreStartupGate.validateApi" -}}
 {{- $rolling := .api.strategy.rollingUpdate | default dict -}}
 {{- if or (ne .api.strategy.type "RollingUpdate") (not (has (toString $rolling.maxUnavailable) (list "0" "0%"))) -}}
@@ -74,14 +97,12 @@ An API-only image bump must not silently accept the still-old Brainstore fleet.
           fieldPath: metadata.namespace
     - name: BRAINSTORE_MINIMUM_VERSION
       value: {{ include "braintrust.brainstoreStartupGate.minimumVersion" (dict "gate" $config "api" .api) | quote }}
-    - name: BRAINSTORE_DEPLOYMENTS
-      value: {{ include "braintrust.brainstoreStartupGate.targets" .root | quote }}
+    - name: ORDERING_CONFIGMAP
+      value: {{ include "braintrust.deploymentOrdering.name" .root | quote }}
     - name: BRAINSTORE_GATE_TIMEOUT_SECONDS
       value: {{ $config.timeoutSeconds | quote }}
     - name: BRAINSTORE_GATE_POLL_SECONDS
       value: {{ $config.pollIntervalSeconds | quote }}
-    - name: BRAINSTORE_MINIMUM_REVISION
-      value: {{ .root.Release.Revision | quote }}
   volumeMounts:
     - name: migration-gate-code
       mountPath: /opt/migration-gate

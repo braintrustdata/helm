@@ -294,7 +294,7 @@ and normal writable-layer/log overhead.
 {{- toYaml $resources -}}
 {{- end -}}
 
-{{/* Merge Brainstore pod annotations, reserving release identity for rollout checks. */}}
+{{/* Merge pod annotations; content identity rejects stale Ready rollouts. */}}
 {{- define "braintrust.brainstore.podAnnotations" -}}
 {{- $root := .root -}}
 {{- $annotations := dict "checksum/config" (include (printf "%s/brainstore-%s-configmap.yaml" $root.Template.BasePath .role) $root | sha256sum) -}}
@@ -304,10 +304,14 @@ and normal writable-layer/log overhead.
 {{- $annotations = mergeOverwrite $annotations (deepCopy (.config.annotations.pod | default dict)) -}}
 {{- $ordering := include "braintrust.deploymentOrdering.config" $root | fromYaml -}}
 {{- if $ordering.enabled -}}
-{{/* Release identity rejects a previous Ready generation before Helm updates it. */}}
-{{- $_ := set $annotations "braintrust.dev/release-revision" (toString $root.Release.Revision) -}}
+{{- $_ := unset $annotations "braintrust.dev/pod-template" -}}
 {{- $_ := set $annotations "braintrust.dev/brainstore-version" (include "braintrust.brainstoreStartupGate.brainstoreVersion" $root) -}}
+{{- if not ($root.brainstoreFingerprint | default false) -}}
+{{- $context := merge (dict "brainstoreFingerprint" true) $root -}}
+{{- $deployment := include (printf "%s/brainstore-%s-deployment.yaml" $root.Template.BasePath .role) $context | fromYaml -}}
+{{- $_ := set $annotations "braintrust.dev/pod-template" ($deployment.spec.template | toJson | sha256sum) -}}
 {{- end -}}
+{{- end }}{{/* ordering.enabled */}}
 {{- toYaml $annotations -}}
 {{- end -}}
 
