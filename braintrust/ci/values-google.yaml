@@ -42,7 +42,9 @@ api:
   backfillDisableNonhistorical: false
   allowInvalidBase64: false
   nodeMemoryPercent: "80"
-  extraEnvVars: []
+  extraEnvVars:
+    - name: AWS_REGION
+      value: "us-central1"
   nodeSelector: {}
   tolerations: []
   affinity: {}

@@ -11,6 +11,11 @@ objectStorage:
     brainstoreBucket: "test-brainstore-bucket"
     apiBucket: "test-api-bucket"
 
+api:
+  extraEnvVars:
+    - name: AWS_REGION
+      value: "us-central1"
+
 brainstore:
   serviceAccount:
     googleServiceAccount: "test@project.iam.gserviceaccount.com"
