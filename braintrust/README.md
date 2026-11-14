@@ -583,9 +583,10 @@ Known stable images still undergo version checks; opaque Brainstore pods must
 match their Deployment's exact image and declared release. See [values.yaml](values.yaml).
 Use `--wait --wait-for-jobs` with a sufficient Helm timeout.
 
-Migration Jobs are keyed by their image and execution configuration; successful
-Jobs and immutable configuration snapshots are retained and reused, including on
-rollback. After diagnosing a failed migration, delete its failed Job before
+Migration Jobs use `<release>-migrate-<content-hash>`, keyed by release identity,
+image, and execution configuration. Successful Jobs and immutable configuration
+snapshots are retained and reused, including on rollback. After diagnosing a failed
+migration, delete its failed Job before
 retrying the same inputs with Helm. Rollback does not reverse SQL changes;
 migrations must remain backward-compatible. External Secret value changes and
 replaced images behind unchanged tags are not detected; use immutable image pins

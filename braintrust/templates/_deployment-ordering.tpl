@@ -63,11 +63,12 @@ Use a fixed name when hashing to avoid self-referential labels and snapshot refs
 {{- dict "pod" $pod "apiConfig" $apiConfig.data "settings" (dict "backoffLimit" (int $config.backoffLimit) "activeDeadlineSeconds" (int $config.timeoutSeconds)) | toYaml -}}
 {{- end -}}
 
-{{/* Leave room for the immutable configuration snapshot suffix, even at the
-maximum release-name length. Release revisions are deliberately not inputs. */}}
+{{/* Reserve space for the immutable snapshot suffix; hash full release identity
+with execution inputs so truncated prefixes cannot collide across releases. */}}
 {{- define "braintrust.migrations.name" -}}
 {{- $execution := include "braintrust.migrations.execution" (dict "root" . "name" "migration-content") | fromYaml -}}
-{{- printf "%s-%s-migrate-%s" (.Release.Name | trunc 20 | trimSuffix "-") (.Release.Name | sha256sum | trunc 8) ($execution | toJson | sha256sum | trunc 16) -}}
+{{- $identity := dict "release" .Release.Name "namespace" .Release.Namespace "execution" $execution -}}
+{{- printf "%s-migrate-%s" (.Release.Name | trunc 31 | trimSuffix "-") ($identity | toJson | sha256sum | trunc 16) -}}
 {{- end -}}
 
 {{/* Migration scripts ship in standalone-api, never in the Brainstore or gate

@@ -21,10 +21,10 @@ tests:
           value: registry.example/standalone-api:v2.22.0
       - matchRegex:
           path: metadata.name
-          pattern: '^test-[a-f0-9]{8}-migrate-[a-f0-9]{16}$'
+          pattern: '^test-migrate-[a-f0-9]{16}$'
       - matchRegex:
           path: spec.template.spec.containers[0].envFrom[0].configMapRef.name
-          pattern: '^test-[a-f0-9]{8}-migrate-[a-f0-9]{16}-config$'
+          pattern: '^test-migrate-[a-f0-9]{16}-config$'
 
   - it: preserves the repository and full pin of a newer API image
     template: migration-job.yaml
@@ -228,7 +228,7 @@ tests:
           value: mirror.example:5000/standalone-api@sha256:bundle
       - matchRegex:
           path: metadata.name
-          pattern: '^test-[a-f0-9]{8}-migrate-[a-f0-9]{16}$'
+          pattern: '^test-migrate-[a-f0-9]{16}$'
 
   - it: accepts an explicit prerelease bundle as the operator's compatibility assertion
     template: migration-job.yaml
@@ -398,7 +398,7 @@ tests:
           value: keep
       - matchRegex:
           path: metadata.name
-          pattern: '^test-[a-f0-9]{8}-migrate-[a-f0-9]{16}-config$'
+          pattern: '^test-migrate-[a-f0-9]{16}-config$'
 
   - it: keeps migration execution independent of the waiter helper image
     template: migration-job.yaml

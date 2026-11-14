@@ -33,7 +33,7 @@ tests:
           of: Job
       - matchRegex:
           path: metadata.name
-          pattern: '^test-[a-f0-9]{8}-migrate-[a-f0-9]{16}$'
+          pattern: '^test-migrate-[a-f0-9]{16}$'
       - equal:
           path: metadata.annotations["helm.sh/resource-policy"]
           value: keep
@@ -72,7 +72,7 @@ tests:
           value: false
       - matchRegex:
           path: spec.template.spec.containers[0].envFrom[0].configMapRef.name
-          pattern: '^test-[a-f0-9]{8}-migrate-[a-f0-9]{16}-config$'
+          pattern: '^test-migrate-[a-f0-9]{16}-config$'
       - matchRegex:
           path: spec.template.metadata.annotations["checksum/config"]
           pattern: '^[a-f0-9]{64}$'
@@ -546,7 +546,7 @@ tests:
     documentIndex: 0
     release: {"name": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "revision": 101}
     asserts:
-      - {"matchRegex": {"path": "metadata.name", "pattern": "^.{1,54}$"}}
+      - {"matchRegex": {"path": "metadata.name", "pattern": "^.{1,56}$"}}
       - {"matchRegex": {"path": "metadata.name", "pattern": "-migrate-[a-f0-9]{16}$"}}
 
   - it: bounds immutable snapshot names with long release names
@@ -556,7 +556,7 @@ tests:
     asserts:
       - matchRegex:
           path: metadata.name
-          pattern: '^.{1,61}$'
+          pattern: '^.{1,63}$'
       - matchRegex:
           path: metadata.name
           pattern: '-migrate-[a-f0-9]{16}-config$'
