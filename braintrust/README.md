@@ -475,7 +475,8 @@ The API receives
 `BRAINSTORE_AUTOMATION_WRITER_URL` whenever the pool has replicas. A compatible
 API release decides which queries use this endpoint. With no replicas, the URL
 is omitted and the API falls back to the regular writers.
-The API startup gate covers readers, writers, and fast readers.
+The API startup gate covers every rendered reader and writer role, including
+automation writers and pools that are scaling down to zero.
 
 The include/exclude split follows `brainstore.automationwriter.replicas` in the
 Helm values. `kubectl scale` or an autoscaler changes the live pod count only;
@@ -554,3 +555,47 @@ Example values files for different cloud providers and configurations are locate
 - `examples/google-autopilot-cel/values.yaml`: GKE Autopilot deployment with CEL-friendly security settings.
 - `examples/google-api-isolation-autoscaling/values.yaml`: Minimal example for API workload isolation and per-pool autoscaling on GKE (combine with an Autopilot or Standard values file).
 - `examples/google-standard/values.yaml`: GKE Standard deployment.
+
+## Release ordering
+
+`deploymentOrdering.enabled` (default `true`) orders startup as migrations →
+Brainstore → API pools, enabled AI Gateway, and enabled Loop Runtime. Only changed
+workload pod templates roll out; unchanged workloads keep serving. A no-op Helm
+upgrade creates no new migration Job or pod rollout.
+
+**Upgrade:** `api.brainstoreStartupGate` is no longer read. Existing opt-outs must
+set `deploymentOrdering.enabled: false`; the old `false` value does not disable
+the new ordering.
+
+Gateway has its own Kubernetes ServiceAccount regardless of ordering; configure
+its name with `aiGateway.serviceAccount.name`.
+
+Ordering gates container startup, not Kubernetes object updates. Gates read the
+latest desired state from a stable ConfigMap and verify each Brainstore role's
+expected pod-template identity, observed generation, and complete readiness.
+Old Ready pods cannot satisfy a changed role's gate; unchanged healthy roles can.
+
+`deploymentOrdering.timeoutSeconds` bounds each phase. Stable tags select a
+migration bundle covering the newest API pool or Brainstore release. Opaque
+API/Brainstore pins require both a stable `minimumVersion` compatibility assertion
+and an explicit standalone-API `migrationImage` containing all required migrations.
+Known stable images still undergo version checks; opaque Brainstore pods must
+match their Deployment's exact image and declared release. See [values.yaml](values.yaml).
+Use `--wait --wait-for-jobs` with a sufficient Helm timeout.
+
+Migration Jobs use `<release>-migrate-<content-hash>`, keyed by release identity,
+image, and execution configuration. Successful Jobs and immutable configuration
+snapshots are retained and reused, including on rollback. After diagnosing a failed
+migration, delete its failed Job before
+retrying the same inputs with Helm. Rollback does not reverse SQL changes;
+migrations must remain backward-compatible. External Secret value changes and
+replaced images behind unchanged tags are not detected; use immutable image pins
+and explicitly restart affected workloads when changing external secrets.
+
+The legacy startup-gate ConfigMap is preserved unchanged while old API replicas
+may still need it; new pods use the stable ordering ConfigMap.
+
+After uninstall, before reusing a release name, delete Jobs labeled
+`braintrust.dev/migration-release=<release>` with foreground deletion and wait for
+completion, then delete labeled ConfigMaps, Roles, and RoleBindings. Never delete
+records still needed by active workloads or rollback revisions.

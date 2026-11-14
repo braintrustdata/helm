@@ -1,0 +1,639 @@
+suite: content-addressed migration Job and stable Deployment dependencies
+templates:
+  - migration-job.yaml
+  - migration-gate.yaml
+  - api-deployment.yaml
+  - api-configmap.yaml
+  - brainstore-reader-deployment.yaml
+  - brainstore-reader-configmap.yaml
+  - brainstore-writer-deployment.yaml
+  - brainstore-writer-configmap.yaml
+  - brainstore-fastreader-deployment.yaml
+  - brainstore-fastreader-configmap.yaml
+  - brainstore-automationwriter-deployment.yaml
+  - brainstore-automationwriter-configmap.yaml
+  - ai-gateway-deployment.yaml
+  - ai-gateway-configmap.yaml
+  - loop-runtime-deployment.yaml
+  - loop-runtime-configmap.yaml
+  - api-serviceaccount.yaml
+release:
+  name: test
+  namespace: workload
+  revision: 7
+tests:
+  - it: runs a regular bounded migration Job using the newest standalone API bundle
+    template: migration-job.yaml
+    documentIndex: 0
+    set:
+      api.image.repository: registry.example/custom-api
+      api.image.tag: v2.15.0
+    asserts:
+      - isKind:
+          of: Job
+      - matchRegex:
+          path: metadata.name
+          pattern: '^test-migrate-[a-f0-9]{16}$'
+      - equal:
+          path: metadata.annotations["helm.sh/resource-policy"]
+          value: keep
+      - isNull:
+          path: metadata.annotations["helm.sh/hook"]
+      - isNull:
+          path: spec.ttlSecondsAfterFinished
+      - equal:
+          path: spec.activeDeadlineSeconds
+          value: 1200
+      - equal:
+          path: spec.backoffLimit
+          value: 2
+      - equal:
+          path: spec.template.spec.restartPolicy
+          value: Never
+      - equal:
+          path: spec.template.spec.containers[0].command
+          value: [/braintrust/venv/bin/python, /braintrust/api-schema/lambda_function.py, --execute]
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: registry.example/custom-api:v2.23.0
+      - isNull:
+          path: spec.template.spec.initContainers
+      - isNull:
+          path: spec.template.spec.containers[0].readinessProbe
+      - isNull:
+          path: spec.template.spec.containers[0].livenessProbe
+      - isNull:
+          path: spec.template.spec.containers[0].ports
+      - notEqual:
+          path: spec.template.metadata.labels.app
+          value: braintrust-api
+      - equal:
+          path: spec.template.spec.automountServiceAccountToken
+          value: false
+      - matchRegex:
+          path: spec.template.spec.containers[0].envFrom[0].configMapRef.name
+          pattern: '^test-migrate-[a-f0-9]{16}-config$'
+      - matchRegex:
+          path: spec.template.metadata.annotations["checksum/config"]
+          pattern: '^[a-f0-9]{64}$'
+
+  - it: retains an immutable configuration snapshot without copying Secrets
+    template: migration-job.yaml
+    documentIndex: 1
+    set:
+      global.orgName: migration-org
+    asserts:
+      - isKind:
+          of: ConfigMap
+      - matchRegex:
+          path: metadata.name
+          pattern: '-migrate-[a-f0-9]{16}-config$'
+      - equal:
+          path: data.ORG_NAME
+          value: migration-org
+      - equal:
+          path: metadata.annotations["helm.sh/resource-policy"]
+          value: keep
+      - equal:
+          path: immutable
+          value: true
+      - isNull:
+          path: data.PG_URL
+
+  - it: waits for migrations before directly checking the Brainstore rollout
+    template: api-deployment.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.initContainers[0].name
+          value: wait-for-migrations
+      - equal:
+          path: spec.template.spec.initContainers[1].name
+          value: wait-for-brainstore
+      - equal:
+          path: spec.template.spec.initContainers[0].env[1]
+          value: {name: ORDERING_CONFIGMAP, value: test-9f86d081-ordering}
+      - contains:
+          path: spec.template.spec.volumes
+          content: {name: migration-gate-code, configMap: {name: test-9f86d081-ordering}}
+      - equal:
+          path: spec.template.spec.automountServiceAccountToken
+          value: false
+
+  - it: restricts workload gates to reading the desired-state ConfigMap and exact Job
+    template: migration-gate.yaml
+    documentIndex: 1
+    asserts:
+      - isKind:
+          of: Role
+      - equal:
+          path: rules[0].apiGroups
+          value: [batch]
+      - equal:
+          path: rules[0].resources
+          value: [jobs]
+      - equal:
+          path: rules[0].verbs
+          value: [get]
+      - lengthEqual:
+          path: rules
+          count: 2
+      - matchRegex:
+          path: rules[0].resourceNames[0]
+          pattern: '-migrate-[a-f0-9]{16}$'
+      - lengthEqual:
+          path: rules[0].resourceNames
+          count: 1
+      - equal:
+          path: rules[1].apiGroups
+          value: [""]
+      - equal:
+          path: rules[1].resources
+          value: [configmaps]
+      - equal:
+          path: rules[1].verbs
+          value: [get]
+      - equal:
+          path: rules[1].resourceNames
+          value: [test-9f86d081-ordering]
+
+  - it: binds all pool identities and the Brainstore account in the actual namespace
+    template: migration-gate.yaml
+    documentIndex: 2
+    set:
+      global.createNamespace: true
+      global.namespace: actual-namespace
+      api.workloadIsolation.enabled: true
+      api.workloadIsolation.ingest.serviceAccount.name: ingest
+      api.workloadIsolation.background.serviceAccount.name: background
+    asserts:
+      - equal:
+          path: metadata.namespace
+          value: actual-namespace
+      - contains:
+          path: subjects
+          content: {kind: ServiceAccount, name: ingest, namespace: actual-namespace}
+      - contains:
+          path: subjects
+          content: {kind: ServiceAccount, name: background, namespace: actual-namespace}
+      - contains:
+          path: subjects
+          content: {kind: ServiceAccount, name: brainstore, namespace: actual-namespace}
+
+  - it: inherits API environment CA security scheduling and volumes without sidecars
+    template: migration-job.yaml
+    documentIndex: 0
+    set:
+      api.customCA.enabled: true
+      api.tmpVolume.enabled: true
+      api.nodeSelector.migration-node: "yes"
+      api.securityContext.readOnlyRootFilesystem: true
+      api.extraEnvVars:
+        - {name: MIGRATION_VERSION_TABLE, value: custom_version}
+      api.extraContainers:
+        - {name: forever-sidecar, image: busybox}
+    asserts:
+      - lengthEqual:
+          path: spec.template.spec.containers
+          count: 1
+      - equal:
+          path: spec.template.spec.nodeSelector.migration-node
+          value: "yes"
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.readOnlyRootFilesystem
+          value: true
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: MIGRATION_VERSION_TABLE, value: custom_version}
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: SSL_CERT_FILE, value: /etc/braintrust/runtime-ca/ca-bundle.pem}
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content: {name: custom-ca-bundle, mountPath: /etc/braintrust/runtime-ca, readOnly: true}
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content: {name: tmp-volume, mountPath: /tmp}
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: PG_URL
+            valueFrom:
+              secretKeyRef: {name: braintrust-secrets, key: PG_URL}
+
+  - it: mounts Azure CSI secrets independently of application startup
+    template: migration-job.yaml
+    documentIndex: 0
+    set:
+      cloud: azure
+      azure.enableAzureKeyVaultDriver: true
+      azure.enableAzureContainerStorageDriver: false
+      azure.keyVaultName: test-vault
+    asserts:
+      - equal:
+          path: spec.template.metadata.labels["azure.workload.identity/use"]
+          value: "true"
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content: {name: secrets-store-inline, mountPath: /mnt/secrets-store, readOnly: true}
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: secrets-store-inline
+            csi:
+              driver: secrets-store.csi.k8s.io
+              readOnly: true
+              volumeAttributes: {secretProviderClass: test-vault}
+
+  - it: preserves Google native workload identity
+    template: migration-job.yaml
+    documentIndex: 0
+    set:
+      cloud: google
+      api.enableGcsAuth: true
+      api.serviceAccount.googleServiceAccount: api@example.iam.gserviceaccount.com
+      brainstore.serviceAccount.googleServiceAccount: brainstore@example.iam.gserviceaccount.com
+    asserts:
+      - equal:
+          path: spec.template.metadata.labels["gke-workload-identity/use"]
+          value: "true"
+      - equal:
+          path: spec.template.metadata.annotations["iam.gke.io/gcp-service-account"]
+          value: api@example.iam.gserviceaccount.com
+
+  - it: does not mutate API service labels while rendering the Job
+    template: api-serviceaccount.yaml
+    set:
+      global.labels.shared: global
+      api.labels.api-only: api
+      brainstore.reader.labels.reader-only: reader
+    asserts:
+      - equal:
+          path: metadata.labels.shared
+          value: global
+      - equal:
+          path: metadata.labels["api-only"]
+          value: api
+      - isNull:
+          path: metadata.labels["braintrust.dev/migration-release"]
+      - isNull:
+          path: metadata.labels["reader-only"]
+
+  - it: does not leak Brainstore labels into the Job
+    template: migration-job.yaml
+    documentIndex: 0
+    set:
+      global.labels.shared: global
+      api.labels.api-only: api
+      brainstore.reader.labels.reader-only: reader
+    asserts:
+      - equal:
+          path: metadata.labels.shared
+          value: global
+      - equal:
+          path: metadata.labels["api-only"]
+          value: api
+      - isNull:
+          path: metadata.labels["reader-only"]
+
+  - it: keeps the serving API image unchanged when Brainstore selects a newer bundle
+    template: api-deployment.yaml
+    set:
+      api.image.repository: registry.example/custom-api
+      api.image.tag: v2.21.0
+      brainstore.image.tag: v2.22.0
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: registry.example/custom-api:v2.21.0
+      - equal:
+          path: spec.template.spec.initContainers[0].env[1]
+          value: {name: ORDERING_CONFIGMAP, value: test-9f86d081-ordering}
+
+  - it: keeps the Brainstore image and digest unchanged when selecting an API bundle
+    template: brainstore-reader-deployment.yaml
+    set:
+      api.image.repository: registry.example/custom-api
+      api.image.tag: v2.21.0
+      brainstore.image.repository: registry.example/custom-brainstore
+      brainstore.image.tag: v2.22.0@sha256:brainstore
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: registry.example/custom-brainstore:v2.22.0@sha256:brainstore
+
+  - it: gates the reader pool
+    template: brainstore-reader-deployment.yaml
+    asserts:
+      - {"equal": {"path": "spec.template.spec.initContainers[0].name", "value": "wait-for-migrations"}}
+      - {"equal": {"path": "spec.template.spec.initContainers[0].env[1]", "value": {"name": "ORDERING_CONFIGMAP", "value": "test-9f86d081-ordering"}}}
+      - {"equal": {"path": "spec.progressDeadlineSeconds", "value": 1800}}
+
+  - it: gates the writer pool
+    template: brainstore-writer-deployment.yaml
+    asserts:
+      - {"equal": {"path": "spec.template.spec.initContainers[0].name", "value": "wait-for-migrations"}}
+      - {"equal": {"path": "spec.template.spec.initContainers[0].env[1]", "value": {"name": "ORDERING_CONFIGMAP", "value": "test-9f86d081-ordering"}}}
+      - {"equal": {"path": "spec.progressDeadlineSeconds", "value": 1800}}
+
+  - it: gates the fastreader pool
+    template: brainstore-fastreader-deployment.yaml
+    asserts:
+      - {"equal": {"path": "spec.template.spec.initContainers[0].name", "value": "wait-for-migrations"}}
+      - {"equal": {"path": "spec.template.spec.initContainers[0].env[1]", "value": {"name": "ORDERING_CONFIGMAP", "value": "test-9f86d081-ordering"}}}
+      - {"equal": {"path": "spec.progressDeadlineSeconds", "value": 1800}}
+
+  - it: gates the automationwriter pool
+    template: brainstore-automationwriter-deployment.yaml
+    asserts:
+      - {"equal": {"path": "spec.template.spec.initContainers[0].name", "value": "wait-for-migrations"}}
+      - {"equal": {"path": "spec.template.spec.initContainers[0].env[1]", "value": {"name": "ORDERING_CONFIGMAP", "value": "test-9f86d081-ordering"}}}
+      - {"equal": {"path": "spec.progressDeadlineSeconds", "value": 1800}}
+
+  - it: gates isolated API pool 0
+    template: api-deployment.yaml
+    documentIndex: 0
+    set: {"api.workloadIsolation.enabled": true}
+    asserts:
+      - {"equal": {"path": "spec.template.spec.initContainers[0].name", "value": "wait-for-migrations"}}
+      - {"equal": {"path": "spec.template.spec.initContainers[1].name", "value": "wait-for-brainstore"}}
+
+  - it: gates isolated API pool 1
+    template: api-deployment.yaml
+    documentIndex: 1
+    set: {"api.workloadIsolation.enabled": true}
+    asserts:
+      - {"equal": {"path": "spec.template.spec.initContainers[0].name", "value": "wait-for-migrations"}}
+      - {"equal": {"path": "spec.template.spec.initContainers[1].name", "value": "wait-for-brainstore"}}
+
+  - it: gates isolated API pool 2
+    template: api-deployment.yaml
+    documentIndex: 2
+    set: {"api.workloadIsolation.enabled": true}
+    asserts:
+      - {"equal": {"path": "spec.template.spec.initContainers[0].name", "value": "wait-for-migrations"}}
+      - {"equal": {"path": "spec.template.spec.initContainers[1].name", "value": "wait-for-brainstore"}}
+
+  - it: gates the optional AI Gateway
+    template: ai-gateway-deployment.yaml
+    set: {"aiGateway.enabled": true}
+    asserts:
+      - {"equal": {"path": "spec.template.spec.initContainers[0].name", "value": "wait-for-migrations"}}
+      - {"equal": {"path": "spec.template.spec.automountServiceAccountToken", "value": false}}
+      - {"equal": {"path": "spec.template.spec.initContainers[1].name", "value": "wait-for-brainstore"}}
+      - {"equal": {"path": "spec.progressDeadlineSeconds", "value": 3000}}
+
+  - it: gates the optional Loop runtime
+    values:
+      - __fixtures__/loop-runtime-values.yaml
+    template: loop-runtime-deployment.yaml
+    set: {"cloud": "google", "loopRuntime.enabled": true, "loopRuntime.serviceAccount.googleServiceAccount": "loop@example.iam.gserviceaccount.com", "brainstore.serviceAccount.googleServiceAccount": "bs@example.iam.gserviceaccount.com"}
+    asserts:
+      - {"equal": {"path": "spec.template.spec.initContainers[0].name", "value": "wait-for-migrations"}}
+      - {"equal": {"path": "spec.template.spec.initContainers[1].name", "value": "wait-for-brainstore"}}
+      - {"equal": {"path": "spec.progressDeadlineSeconds", "value": 3000}}
+
+  - it: binds the Loop runtime identity
+    values:
+      - __fixtures__/loop-runtime-values.yaml
+    template: migration-gate.yaml
+    documentIndex: 2
+    set: {"cloud": "google", "loopRuntime.enabled": true, "loopRuntime.serviceAccount.googleServiceAccount": "loop@example.iam.gserviceaccount.com", "brainstore.serviceAccount.googleServiceAccount": "bs@example.iam.gserviceaccount.com"}
+    asserts:
+      - {"contains": {"path": "subjects", "content": {"kind": "ServiceAccount", "name": "braintrust-loop-runtime", "namespace": "workload"}}}
+
+  - it: omits migration-job.yaml when disabled
+    template: migration-job.yaml
+    set: {"deploymentOrdering.enabled": false}
+    asserts:
+      - {"hasDocuments": {"count": 0}}
+
+  - it: omits migration-gate.yaml when disabled
+    template: migration-gate.yaml
+    set: {"deploymentOrdering.enabled": false}
+    asserts:
+      - {"hasDocuments": {"count": 0}}
+
+  - it: removes migration wait when disabled in brainstore-reader-deployment.yaml
+    template: brainstore-reader-deployment.yaml
+    set: {"deploymentOrdering.enabled": false, "aiGateway.enabled": true}
+    asserts:
+      - {"isNull": {"path": "spec.template.spec.initContainers"}}
+
+  - it: removes migration wait when disabled in brainstore-writer-deployment.yaml
+    template: brainstore-writer-deployment.yaml
+    set: {"deploymentOrdering.enabled": false, "aiGateway.enabled": true}
+    asserts:
+      - {"isNull": {"path": "spec.template.spec.initContainers"}}
+
+  - it: removes migration wait when disabled in brainstore-fastreader-deployment.yaml
+    template: brainstore-fastreader-deployment.yaml
+    set: {"deploymentOrdering.enabled": false, "aiGateway.enabled": true}
+    asserts:
+      - {"isNull": {"path": "spec.template.spec.initContainers"}}
+
+  - it: removes migration wait when disabled in brainstore-automationwriter-deployment.yaml
+    template: brainstore-automationwriter-deployment.yaml
+    set: {"deploymentOrdering.enabled": false, "aiGateway.enabled": true}
+    asserts:
+      - {"isNull": {"path": "spec.template.spec.initContainers"}}
+
+  - it: removes migration wait when disabled in ai-gateway-deployment.yaml
+    template: ai-gateway-deployment.yaml
+    set: {"deploymentOrdering.enabled": false, "aiGateway.enabled": true}
+    asserts:
+      - {"isNull": {"path": "spec.template.spec.initContainers"}}
+
+  - it: defaults a missing or null feature map on reused values
+    template: api-deployment.yaml
+    set: {"deploymentOrdering": null}
+    asserts:
+      - {"equal": {"path": "spec.template.spec.initContainers[0].name", "value": "wait-for-migrations"}}
+
+  - it: merges partial reused values with defaults
+    template: migration-job.yaml
+    documentIndex: 0
+    set:
+      deploymentOrdering:
+        backoffLimit: 0
+    asserts:
+      - {"equal": {"path": "spec.backoffLimit", "value": 0}}
+      - {"equal": {"path": "spec.activeDeadlineSeconds", "value": 1200}}
+
+  - it: uses custom timing and a mirrored helper image
+    template: brainstore-reader-deployment.yaml
+    set: {"deploymentOrdering.timeoutSeconds": 1800, "deploymentOrdering.pollIntervalSeconds": 10, "deploymentOrdering.image": "mirror/python:3.13"}
+    asserts:
+      - {"equal": {"path": "spec.template.spec.initContainers[0].image", "value": "mirror/python:3.13"}}
+      - {"equal": {"path": "spec.template.spec.initContainers[0].env[2].value", "value": "1800"}}
+      - {"equal": {"path": "spec.template.spec.initContainers[0].env[3].value", "value": "10"}}
+
+
+  - it: rejects invalid timeoutSeconds 0
+    template: migration-job.yaml
+    set: {"deploymentOrdering.timeoutSeconds": 0}
+    asserts:
+      - failedTemplate:
+          errorMessage: deploymentOrdering timing values must be positive integers
+
+  - it: rejects invalid timeoutSeconds 
+    template: migration-job.yaml
+    set: {"deploymentOrdering.timeoutSeconds": ""}
+    asserts:
+      - failedTemplate: {}
+
+  - it: defaults a null timeoutSeconds after Helm coalesces values
+    template: migration-job.yaml
+    documentIndex: 0
+    set: {deploymentOrdering.timeoutSeconds: null}
+    asserts:
+      - equal:
+          path: spec.activeDeadlineSeconds
+          value: 1200
+
+  - it: rejects invalid timeoutSeconds -1
+    template: migration-job.yaml
+    set: {"deploymentOrdering.timeoutSeconds": -1}
+    asserts:
+      - failedTemplate: {}
+
+  - it: rejects invalid pollIntervalSeconds 0
+    template: migration-job.yaml
+    set: {"deploymentOrdering.pollIntervalSeconds": 0}
+    asserts:
+      - failedTemplate: {}
+
+  - it: rejects invalid pollIntervalSeconds 
+    template: migration-job.yaml
+    set: {"deploymentOrdering.pollIntervalSeconds": ""}
+    asserts:
+      - failedTemplate: {}
+
+  - it: rejects invalid pollIntervalSeconds -1
+    template: migration-job.yaml
+    set: {"deploymentOrdering.pollIntervalSeconds": -1}
+    asserts:
+      - failedTemplate: {}
+
+  - it: rejects a poll interval outside the budget
+    template: migration-job.yaml
+    set: {"deploymentOrdering.pollIntervalSeconds": 1200}
+    asserts:
+      - failedTemplate:
+          errorMessage: deploymentOrdering.timeoutSeconds must exceed pollIntervalSeconds
+
+  - it: rejects an empty helper image
+    template: migration-job.yaml
+    set: {"deploymentOrdering.image": ""}
+    asserts:
+      - failedTemplate:
+          errorMessage: deploymentOrdering.image is required
+
+  - it: does not validate unused disabled settings
+    template: migration-job.yaml
+    set: {"deploymentOrdering.enabled": false, "deploymentOrdering.image": "", "deploymentOrdering.timeoutSeconds": 0}
+    asserts:
+      - {"hasDocuments": {"count": 0}}
+
+  - it: rejects a negative retry count
+    template: migration-job.yaml
+    set: {"deploymentOrdering.backoffLimit": -1}
+    asserts:
+      - failedTemplate:
+          errorMessage: deploymentOrdering.backoffLimit must be a nonnegative integer
+
+  - it: preserves the content suffix with long release names
+    template: migration-job.yaml
+    documentIndex: 0
+    release: {"name": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "revision": 101}
+    asserts:
+      - {"matchRegex": {"path": "metadata.name", "pattern": "^.{1,56}$"}}
+      - {"matchRegex": {"path": "metadata.name", "pattern": "-migrate-[a-f0-9]{16}$"}}
+
+  - it: bounds immutable snapshot names with long release names
+    template: migration-job.yaml
+    documentIndex: 1
+    release: {"name": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "revision": 101}
+    asserts:
+      - matchRegex:
+          path: metadata.name
+          pattern: '^.{1,63}$'
+      - matchRegex:
+          path: metadata.name
+          pattern: '-migrate-[a-f0-9]{16}-config$'
+
+  - it: uses a bounded stable ordering name with long release names
+    template: api-deployment.yaml
+    release: {"name": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "revision": 101}
+    asserts:
+      - equal:
+          path: spec.template.spec.initContainers[0].env[1].name
+          value: ORDERING_CONFIGMAP
+      - matchRegex:
+          path: spec.template.spec.initContainers[0].env[1].value
+          pattern: '^.{1,58}$'
+      - matchRegex:
+          path: spec.template.spec.initContainers[0].env[1].value
+          pattern: '-[a-f0-9]{8}-ordering$'
+
+  - it: gates a partially specified automation writer
+    template: brainstore-automationwriter-deployment.yaml
+    set: {"brainstore.automationwriter": {"replicas": 1}}
+    asserts:
+      - {"equal": {"path": "spec.template.spec.initContainers[0].name", "value": "wait-for-migrations"}}
+      - {"equal": {"path": "spec.replicas", "value": 1}}
+
+  - it: reserves the desired pod fingerprint without discarding custom annotations
+    template: brainstore-reader-deployment.yaml
+    set:
+      brainstore.reader.annotations.pod:
+        braintrust.dev/pod-template: forged
+        custom: preserved
+    asserts:
+      - matchRegex:
+          path: spec.template.metadata.annotations["braintrust.dev/pod-template"]
+          pattern: "^[a-f0-9]{64}$"
+      - equal:
+          path: spec.template.metadata.annotations.custom
+          value: preserved
+
+  - it: gives the API time for migration and one direct rollout check
+    template: api-deployment.yaml
+    set:
+      deploymentOrdering.timeoutSeconds: 900
+    asserts:
+      - equal:
+          path: spec.progressDeadlineSeconds
+          value: 2100
+
+  - it: removes both Loop waits when ordering is disabled
+    template: loop-runtime-deployment.yaml
+    values:
+      - __fixtures__/loop-runtime-values.yaml
+    set:
+      deploymentOrdering.enabled: false
+    asserts:
+      - isNull:
+          path: spec.template.spec.initContainers
+
+  - it: uses the shared API floor for Gateway startup
+    template: ai-gateway-deployment.yaml
+    set:
+      aiGateway.enabled: true
+      api.image.tag: v2.15.0
+    asserts:
+      - contains:
+          path: spec.template.spec.initContainers[1].env
+          content: {name: BRAINSTORE_MINIMUM_VERSION, value: "2.15.0"}
+
+  - it: applies the explicit shared floor to Loop startup
+    template: loop-runtime-deployment.yaml
+    values:
+      - __fixtures__/loop-runtime-values.yaml
+    set:
+      api.image.tag: deadbeef
+      deploymentOrdering.minimumVersion: v2.15.0
+      deploymentOrdering.migrationImage: public.ecr.aws/braintrust/standalone-api:v2.23.0
+    asserts:
+      - contains:
+          path: spec.template.spec.initContainers[1].env
+          content: {name: BRAINSTORE_MINIMUM_VERSION, value: "2.15.0"}

@@ -175,6 +175,9 @@ tests:
             containerPort: 8001
       - equal:
           path: spec.template.spec.initContainers[0].name
+          value: wait-for-migrations
+      - equal:
+          path: spec.template.spec.initContainers[1].name
           value: wait-for-brainstore
       - contains:
           path: spec.template.spec.containers[0].env
@@ -189,7 +192,7 @@ tests:
     set:
       cloud: google
       api.autoscaling.enabled: true
-      api.brainstoreStartupGate.enabled: false
+      deploymentOrdering.enabled: false
       api.extraEnvVars:
         - name: ENABLE_PROMETHEUS_METRICS
           value: "false"
@@ -198,6 +201,8 @@ tests:
     release:
       namespace: "braintrust"
     asserts:
+      - isNull:
+          path: spec.template.spec.initContainers
       - equal:
           path: spec.template.spec.containers[0].env[-1].name
           value: ENABLE_PROMETHEUS_METRICS
@@ -397,6 +402,10 @@ tests:
         template: api-deployment.yaml
       - equal:
           path: spec.template.spec.initContainers[0].name
+          value: wait-for-migrations
+        template: api-deployment.yaml
+      - equal:
+          path: spec.template.spec.initContainers[1].name
           value: wait-for-brainstore
         template: api-deployment.yaml
       - equal:

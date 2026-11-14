@@ -1,0 +1,413 @@
+suite: migration bundle selection across serving images
+templates:
+  - migration-job.yaml
+  - api-configmap.yaml
+release:
+  name: test
+  namespace: workload
+  revision: 7
+set:
+  api.image.repository: registry.example/standalone-api
+  api.image.tag: v2.21.0
+  brainstore.image.repository: registry.example/brainstore
+  brainstore.image.tag: v2.22.0
+tests:
+  - it: uses standalone API scripts at the newer Brainstore release
+    template: migration-job.yaml
+    documentIndex: 0
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: registry.example/standalone-api:v2.22.0
+      - matchRegex:
+          path: metadata.name
+          pattern: '^test-migrate-[a-f0-9]{16}$'
+      - matchRegex:
+          path: spec.template.spec.containers[0].envFrom[0].configMapRef.name
+          pattern: '^test-migrate-[a-f0-9]{16}-config$'
+
+  - it: preserves the repository and full pin of a newer API image
+    template: migration-job.yaml
+    documentIndex: 0
+    set:
+      api.image.repository: mirror.example:5000/custom/api
+      api.image.tag: v2.24.0@sha256:api
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: mirror.example:5000/custom/api:v2.24.0@sha256:api
+
+  - it: accepts stable API tags without a v prefix
+    template: migration-job.yaml
+    documentIndex: 0
+    set:
+      api.image.tag: 2.24.0
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: registry.example/standalone-api:2.24.0
+
+  - it: drops the Brainstore digest when selecting its release in the API repository
+    template: migration-job.yaml
+    documentIndex: 0
+    set:
+      brainstore.image.tag: v2.24.0@sha256:brainstore
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: registry.example/standalone-api:v2.24.0
+
+  - it: preserves a Brainstore stable tag without its v prefix or digest
+    template: migration-job.yaml
+    documentIndex: 0
+    set:
+      brainstore.image.tag: 2.24.0@sha256:brainstore
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: registry.example/standalone-api:2.24.0
+
+  - it: compares release components numerically rather than lexicographically
+    template: migration-job.yaml
+    documentIndex: 0
+    set:
+      api.image.tag: v2.9.0
+      brainstore.image.tag: v2.22.0
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: registry.example/standalone-api:v2.22.0
+
+  - it: keeps the API digest when API and Brainstore releases are equal
+    template: migration-job.yaml
+    documentIndex: 0
+    set:
+      api.image.tag: v2.22.0@sha256:api
+      brainstore.image.tag: 2.22.0@sha256:brainstore
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: registry.example/standalone-api:v2.22.0@sha256:api
+
+  - it: selects a newer isolated ingest pool including its custom repository and digest
+    template: migration-job.yaml
+    documentIndex: 0
+    set:
+      api.workloadIsolation.enabled: true
+      api.workloadIsolation.ingest.image.repository: mirror.example:5000/ingest-api
+      api.workloadIsolation.ingest.image.tag: v2.24.0@sha256:ingest
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: mirror.example:5000/ingest-api:v2.24.0@sha256:ingest
+
+  - it: considers the background pool even when ingest is also newer than the shared API
+    template: migration-job.yaml
+    documentIndex: 0
+    set:
+      api.workloadIsolation.enabled: true
+      api.workloadIsolation.ingest.image.tag: v2.24.0
+      api.workloadIsolation.background.image.repository: registry.example/background-api
+      api.workloadIsolation.background.image.tag: 2.25.0@sha256:background
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: registry.example/background-api:2.25.0@sha256:background
+
+  - it: uses the shared API repository when Brainstore is newer than every isolated pool
+    template: migration-job.yaml
+    documentIndex: 0
+    set:
+      api.workloadIsolation.enabled: true
+      api.workloadIsolation.background.image.repository: registry.example/background-api
+      api.workloadIsolation.background.image.tag: v2.25.0
+      brainstore.image.tag: v2.26.0@sha256:brainstore
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: registry.example/standalone-api:v2.26.0
+
+  - it: ignores image overrides for API pools that are not rendered
+    template: migration-job.yaml
+    documentIndex: 0
+    set:
+      api.workloadIsolation.enabled: false
+      api.workloadIsolation.ingest.image.tag: v3.0.0
+      api.workloadIsolation.background.image.tag: deadbeef
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: registry.example/standalone-api:v2.22.0
+
+  - it: blocks a newer API major before executing migrations
+    template: migration-job.yaml
+    set:
+      api.image.tag: v3.0.0
+    asserts:
+      - failedTemplate: &mixed-major
+          errorMessage: deploymentOrdering cannot migrate API and Brainstore service images from different major releases
+
+  - it: blocks a newer Brainstore major before executing migrations
+    template: migration-job.yaml
+    set:
+      brainstore.image.tag: v3.0.0@sha256:brainstore
+    asserts:
+      - failedTemplate: *mixed-major
+
+  - it: does not let an explicit opaque bundle bypass incompatible API pool majors
+    template: migration-job.yaml
+    set:
+      api.workloadIsolation.enabled: true
+      api.workloadIsolation.background.image.tag: v3.0.0
+      deploymentOrdering.migrationImage: registry.example/migration-api:custom
+    asserts:
+      - failedTemplate: *mixed-major
+
+  - it: requires a bundle for a SHA API even with an explicit release floor
+    template: migration-job.yaml
+    set:
+      api.image.tag: deadbeef
+      deploymentOrdering.minimumVersion: v2.22.0
+    asserts:
+      - failedTemplate: &opaque-bundle
+          errorMessage: deploymentOrdering.migrationImage is required for opaque API or Brainstore service image tags; minimumVersion cannot select a migration bundle
+
+  - it: requires a bundle for a SHA Brainstore instead of borrowing the floor's release
+    template: migration-job.yaml
+    set:
+      brainstore.image.tag: 0123456789abcdef0123456789abcdef0123456789
+      deploymentOrdering.minimumVersion: v2.25.0
+    asserts:
+      - failedTemplate: *opaque-bundle
+
+  - it: handles an all-digit numeric API SHA without a semver parsing error
+    template: migration-job.yaml
+    set:
+      api.image.tag: 1234567
+      deploymentOrdering.minimumVersion: v2.22.0
+    asserts:
+      - failedTemplate: *opaque-bundle
+
+  - it: requires a bundle for prerelease serving tags
+    template: migration-job.yaml
+    set:
+      api.image.tag: v2.24.0-rc.1
+      deploymentOrdering.minimumVersion: v2.22.0
+    asserts:
+      - failedTemplate: *opaque-bundle
+
+  - it: requires a bundle for custom serving tags with a digest
+    template: migration-job.yaml
+    set:
+      brainstore.image.tag: customer-build@sha256:brainstore
+      deploymentOrdering.minimumVersion: v2.22.0
+    asserts:
+      - failedTemplate: *opaque-bundle
+
+  - it: requires a bundle if any isolated API pool is opaque
+    template: migration-job.yaml
+    set:
+      api.workloadIsolation.enabled: true
+      api.workloadIsolation.ingest.image.tag: deadbeef
+      api.workloadIsolation.background.image.tag: v2.25.0
+      deploymentOrdering.minimumVersion: v2.22.0
+    asserts:
+      - failedTemplate: *opaque-bundle
+
+  - it: accepts an explicit digest-only standalone API bundle for opaque services
+    template: migration-job.yaml
+    documentIndex: 0
+    set:
+      api.image.tag: 0123456789abcdef0123456789abcdef0123456789
+      brainstore.image.tag: deadbeef
+      deploymentOrdering.minimumVersion: v2.22.0
+      deploymentOrdering.migrationImage: mirror.example:5000/standalone-api@sha256:bundle
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: mirror.example:5000/standalone-api@sha256:bundle
+      - matchRegex:
+          path: metadata.name
+          pattern: '^test-migrate-[a-f0-9]{16}$'
+
+  - it: accepts an explicit prerelease bundle as the operator's compatibility assertion
+    template: migration-job.yaml
+    documentIndex: 0
+    set:
+      api.image.tag: 1234567
+      brainstore.image.tag: customer-build
+      deploymentOrdering.minimumVersion: v2.22.0
+      deploymentOrdering.migrationImage: registry.example/standalone-api:v2.24.0-rc.1@sha256:bundle
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: registry.example/standalone-api:v2.24.0-rc.1@sha256:bundle
+
+  - it: accepts an opaque bundle for stable services without inventing a floor requirement
+    template: migration-job.yaml
+    documentIndex: 0
+    set:
+      deploymentOrdering.migrationImage: registry.example/standalone-api:customer-migrations
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: registry.example/standalone-api:customer-migrations
+
+  - it: preserves a known explicit bundle tag and digest at the required release
+    template: migration-job.yaml
+    documentIndex: 0
+    set:
+      deploymentOrdering.migrationImage: mirror.example:5000/standalone-api:2.22.0@sha256:bundle
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: mirror.example:5000/standalone-api:2.22.0@sha256:bundle
+
+  - it: rejects a known explicit bundle older than Brainstore
+    template: migration-job.yaml
+    set:
+      deploymentOrdering.migrationImage: registry.example/standalone-api:v2.21.0@sha256:bundle
+    asserts:
+      - failedTemplate:
+          errorMessage: deploymentOrdering.migrationImage release v2.21.0 is older than required release 2.22.0
+
+  - it: rejects a known explicit bundle older than the newest isolated API pool
+    template: migration-job.yaml
+    set:
+      api.workloadIsolation.enabled: true
+      api.workloadIsolation.background.image.tag: v2.25.0
+      deploymentOrdering.migrationImage: registry.example/standalone-api:v2.24.0
+    asserts:
+      - failedTemplate:
+          errorMessage: deploymentOrdering.migrationImage release v2.24.0 is older than required release 2.25.0
+
+  - it: rejects a known explicit bundle older than the explicit floor for opaque services
+    template: migration-job.yaml
+    set:
+      api.image.tag: deadbeef
+      deploymentOrdering.minimumVersion: v2.25.0
+      deploymentOrdering.migrationImage: registry.example/standalone-api:v2.24.0
+    asserts:
+      - failedTemplate:
+          errorMessage: deploymentOrdering.migrationImage release v2.24.0 is older than required release 2.25.0
+
+  - it: accepts a known explicit bundle at the floor for opaque services
+    template: migration-job.yaml
+    documentIndex: 0
+    set:
+      api.image.tag: deadbeef
+      brainstore.image.tag: customer-build
+      deploymentOrdering.minimumVersion: v2.25.0
+      deploymentOrdering.migrationImage: registry.example/standalone-api:v2.25.0
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: registry.example/standalone-api:v2.25.0
+
+  - it: still requires a release floor for opaque services when a bundle is explicit
+    template: migration-job.yaml
+    set:
+      brainstore.image.tag: deadbeef
+      deploymentOrdering.migrationImage: registry.example/standalone-api:customer-migrations
+    asserts:
+      - failedTemplate:
+          errorMessage: deploymentOrdering.minimumVersion is required for opaque API or Brainstore service image tags
+
+  - it: validates an explicit floor before comparing a stable bundle against it
+    template: migration-job.yaml
+    set:
+      deploymentOrdering.minimumVersion: not-a-version
+      deploymentOrdering.migrationImage: registry.example/standalone-api:v2.24.0
+    asserts:
+      - failedTemplate:
+          errorMessage: deploymentOrdering.minimumVersion must be a stable release version
+
+  - it: leaves an explicitly untagged standalone API reference to the operator's assertion
+    template: migration-job.yaml
+    documentIndex: 0
+    set:
+      deploymentOrdering.migrationImage: registry.example/standalone-api
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: registry.example/standalone-api
+
+  - it: rejects a non-string migration image instead of silently ignoring zero
+    template: migration-job.yaml
+    set:
+      deploymentOrdering.migrationImage: 0
+    asserts:
+      - failedTemplate:
+          errorMessage: deploymentOrdering.migrationImage must be a full standalone-API image reference
+
+  - it: treats a null migration image as automatic selection
+    template: migration-job.yaml
+    documentIndex: 0
+    set:
+      deploymentOrdering.migrationImage: null
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: registry.example/standalone-api:v2.22.0
+
+  - it: selects a bundle when reused values omit the ordering map
+    template: migration-job.yaml
+    documentIndex: 0
+    set:
+      deploymentOrdering: null
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: registry.example/standalone-api:v2.22.0
+
+  - it: ignores unused opaque images invalid overrides and floors when ordering is disabled
+    template: migration-job.yaml
+    set:
+      deploymentOrdering.enabled: false
+      deploymentOrdering.minimumVersion: not-a-version
+      deploymentOrdering.migrationImage: 0
+      api.image.tag: deadbeef
+      brainstore.image.tag: customer-build
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: does not reject unused cross-major combinations when ordering is disabled
+    template: migration-job.yaml
+    set:
+      deploymentOrdering.enabled: false
+      api.image.tag: v3.0.0
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: retains an immutable configuration snapshot for an opaque pinned migration bundle
+    template: migration-job.yaml
+    documentIndex: 1
+    set:
+      api.image.tag: customer-api
+      brainstore.image.tag: customer-brainstore
+      deploymentOrdering.minimumVersion: v2.22.0
+      deploymentOrdering.migrationImage: mirror.example:5000/standalone-api@sha256:bundle
+    asserts:
+      - equal:
+          path: immutable
+          value: true
+      - equal:
+          path: metadata.annotations["helm.sh/resource-policy"]
+          value: keep
+      - matchRegex:
+          path: metadata.name
+          pattern: '^test-migrate-[a-f0-9]{16}-config$'
+
+  - it: keeps migration execution independent of the waiter helper image
+    template: migration-job.yaml
+    documentIndex: 0
+    set:
+      deploymentOrdering.image: mirror.example/python:3.13
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: registry.example/standalone-api:v2.22.0
+      - isNull:
+          path: spec.template.spec.initContainers

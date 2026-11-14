@@ -102,26 +102,6 @@ btqlAuditLogsBestEffortOrgIds: []
 
 api:
   name: "braintrust-api"
-  # Experimental: hold new API processes until compatible Brainstore capacity
-  # is available. Shared by all API pools. Enable for a canary before promotion.
-  # Requires stable release tags (vX.Y.Z); opaque custom tags cannot prove compatibility.
-  # Only the init container mounts a Kubernetes API token when enabled; custom
-  # sidecars needing Kubernetes API access must project their own token.
-  brainstoreStartupGate:
-    enabled: true
-    # Empty derives the floor from each pool's api.image.tag. Kept in each API Pod so
-    # older APIs can restart against newer Brainstore releases in the same major.
-    minimumVersion: ""
-    image: "python:3.13-alpine@sha256:79e7a9b9ff1cbceff819f856fb374477792a5967759d94df266de7b7b4120e6f"
-    timeoutSeconds: 1200
-    pollIntervalSeconds: 15
-    resources:
-      requests:
-        cpu: "25m"
-        memory: "32Mi"
-      limits:
-        cpu: "100m"
-        memory: "128Mi"
   labels: {}
   podLabels: {}
   annotations:
@@ -407,6 +387,7 @@ aiGateway:
     deployment: {}
     service: {}
     pod: {}
+    serviceaccount: {}
   # With autoscaling, the default minReplicas.
   replicas: 2
   # Needs metrics-server; without it the HPA holds minReplicas.
@@ -429,6 +410,8 @@ aiGateway:
     type: ClusterIP
     port: 8080
     portName: http
+  serviceAccount:
+    name: "braintrust-ai-gateway"
   # Optional cloud region identifier (e.g. us-east-1). Sets GATEWAY_REGION when provided.
   region: ""
   braintrustAppUrl: "https://www.braintrust.dev"
@@ -831,3 +814,29 @@ virtualService:
             host: "braintrust-api"  # Should match api.service.name or api.name
             port:
               number: 8000  # Should match api.service.port
+
+# Order startup as migrations -> completed Brainstore rollout -> all other apps.
+# Disable to deploy everything without chart-managed startup ordering.
+# Unchanged workloads keep running; successful migration inputs are reused.
+# See README.md#release-ordering for configuration and operational limits.
+deploymentOrdering:
+  enabled: true
+  # Empty derives the API compatibility floor from each pool's stable image tag.
+  # Required for opaque API/Brainstore tags; asserts the opaque Brainstore release.
+  minimumVersion: ""
+  # Full standalone-API image containing migrations for all selected service images.
+  # Empty selects the newest stable API/Brainstore release; required for opaque pins.
+  migrationImage: ""
+  # Separate budget for each phase (migration Job/wait, then Brainstore rollout).
+  timeoutSeconds: 1200
+  pollIntervalSeconds: 15
+  backoffLimit: 2
+  # Small read-only init-container helper; separate from the migration bundle above.
+  image: "python:3.13-alpine@sha256:79e7a9b9ff1cbceff819f856fb374477792a5967759d94df266de7b7b4120e6f"
+  resources:
+    requests:
+      cpu: 25m
+      memory: 32Mi
+    limits:
+      cpu: 100m
+      memory: 128Mi
