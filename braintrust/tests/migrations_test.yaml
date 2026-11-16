@@ -632,7 +632,7 @@ tests:
     set:
       api.image.tag: deadbeef
       deploymentOrdering.minimumVersion: v2.15.0
-      deploymentOrdering.migrationImage: public.ecr.aws/braintrust/standalone-api:v2.23.0
+      deploymentOrdering.migrationImageTag: v2.23.0
     asserts:
       - contains:
           path: spec.template.spec.initContainers[1].env

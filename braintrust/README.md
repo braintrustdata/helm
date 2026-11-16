@@ -575,10 +575,12 @@ latest desired state from a stable ConfigMap and verify each Brainstore role's
 expected pod-template identity, observed generation, and complete readiness.
 Old Ready pods cannot satisfy a changed role's gate; unchanged healthy roles can.
 
-`deploymentOrdering.timeoutSeconds` bounds each phase. Stable tags select a
-migration bundle covering the newest API pool or Brainstore release. Opaque
-API/Brainstore pins require both a stable `minimumVersion` compatibility assertion
-and an explicit standalone-API `migrationImage` containing all required migrations.
+`deploymentOrdering.timeoutSeconds` bounds each phase. Stable tags select the
+newest API pool or Brainstore release, always in `api.image.repository`.
+Automatic selection drops digests from other repositories. Override the selection
+with `deploymentOrdering.migrationImageTag`, using a tag, `tag@digest`, or `@digest`.
+Opaque API or Brainstore pins require both a stable `minimumVersion` compatibility
+assertion and an explicit migration tag for a bundle containing all required migrations.
 Known stable images still undergo version checks; opaque Brainstore pods must
 match their Deployment's exact image and declared release. See [values.yaml](values.yaml).
 Use `--wait --wait-for-jobs` with a sufficient Helm timeout.

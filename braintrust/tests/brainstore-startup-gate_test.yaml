@@ -165,7 +165,7 @@ tests:
     set:
       deploymentOrdering.enabled: true
       api.image.tag: deadbeef
-      deploymentOrdering.migrationImage: public.ecr.aws/braintrust/standalone-api:v2.23.0
+      deploymentOrdering.migrationImageTag: v2.23.0
     asserts:
       - failedTemplate: {}
 
@@ -283,7 +283,7 @@ tests:
     template: brainstore-reader-deployment.yaml
     set:
       brainstore.image.tag: deadbeef
-      deploymentOrdering.migrationImage: public.ecr.aws/braintrust/standalone-api:v2.23.0
+      deploymentOrdering.migrationImageTag: v2.23.0
     asserts:
       - failedTemplate: {}
 
@@ -304,7 +304,7 @@ tests:
     set:
       brainstore.image.tag: deadbeef
       deploymentOrdering.minimumVersion: "2.22.0"
-      deploymentOrdering.migrationImage: public.ecr.aws/braintrust/standalone-api:release-bundle
+      deploymentOrdering.migrationImageTag: release-bundle
       brainstore.reader.annotations.pod:
         braintrust.dev/brainstore-version: "9.0.0"
     asserts:

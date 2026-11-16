@@ -3,7 +3,7 @@
 {{- $defaults := dict
   "enabled" true
   "minimumVersion" ""
-  "migrationImage" ""
+  "migrationImageTag" ""
   "timeoutSeconds" 1200
   "pollIntervalSeconds" 15
   "backoffLimit" 2
@@ -71,13 +71,13 @@ with execution inputs so truncated prefixes cannot collide across releases. */}}
 {{- printf "%s-migrate-%s" (.Release.Name | trunc 31 | trimSuffix "-") ($identity | toJson | sha256sum | trunc 16) -}}
 {{- end -}}
 
-{{/* Migration scripts ship in standalone-api, never in the Brainstore or gate
-helper image. Preserve API pins, but translate a newer Brainstore release to
-the shared API repository without carrying over the Brainstore digest. */}}
+{{/* Migrations always use the shared API repository. A digest from another
+repository cannot identify the migration image there, so retain only its tag. */}}
 {{- define "braintrust.migrations.image" -}}
 {{- $config := include "braintrust.deploymentOrdering.config" . | fromYaml -}}
 {{- if $config.enabled -}}
 {{- $stableRelease := "^v?(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$" -}}
+{{- $repository := .Values.api.image.repository -}}
 {{- $images := list -}}
 {{- range $pool := include "braintrust.apiPools" . | fromYamlArray -}}
 {{- $images = append $images (dict "repository" $pool.config.image.repository "tag" (toString $pool.config.image.tag) "brainstore" false) -}}
@@ -99,24 +99,32 @@ the shared API repository without carrying over the Brainstore digest. */}}
 {{- if or (not $selectedVersion) (semverCompare (printf ">%s" $selectedVersion) $version) -}}
 {{- $selectedVersion = $version -}}
 {{- $selectedTag := $image.tag -}}
-{{- if $image.brainstore -}}
+{{- if or $image.brainstore (ne $image.repository $repository) -}}
 {{- $selectedTag = $tag -}}
 {{- end -}}
-{{- $selectedImage = printf "%s:%s" $image.repository $selectedTag -}}
+{{- $selectedImage = printf "%s:%s" $repository $selectedTag -}}
 {{- end -}}
 {{- else -}}
 {{- $opaque = true -}}
 {{- end -}}
 {{- end -}}
-{{- $override := $config.migrationImage -}}
+{{- $override := $config.migrationImageTag -}}
 {{- if kindIs "invalid" $override -}}
 {{- $override = "" -}}
 {{- end -}}
+{{- if not (has (kindOf $override) (list "string" "int" "int64" "float64")) -}}
+{{- fail "deploymentOrdering.migrationImageTag must be a tag or digest" -}}
+{{- end -}}
 {{- if not (kindIs "string" $override) -}}
-{{- fail "deploymentOrdering.migrationImage must be a full standalone-API image reference" -}}
+{{- $override = toJson $override -}}
+{{- end -}}
+{{- $tagPattern := "[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}" -}}
+{{- $digestPattern := "@[A-Za-z][A-Za-z0-9_+.-]*:[A-Fa-f0-9]{32,}" -}}
+{{- if and $override (not (regexMatch (printf "^(%s)(%s)?$|^%s$" $tagPattern $digestPattern $digestPattern) $override)) -}}
+{{- fail "deploymentOrdering.migrationImageTag must contain only a tag, tag@digest, or @digest; the repository comes from api.image.repository" -}}
 {{- end -}}
 {{- if and $opaque (not $override) -}}
-{{- fail "deploymentOrdering.migrationImage is required for opaque API or Brainstore service image tags; minimumVersion cannot select a migration bundle" -}}
+{{- fail "deploymentOrdering.migrationImageTag is required for opaque API or Brainstore service image tags; minimumVersion cannot select a migration bundle" -}}
 {{- end -}}
 {{- $minimum := $config.minimumVersion | default "" | toString -}}
 {{- if and $opaque (not $minimum) -}}
@@ -126,22 +134,21 @@ the shared API repository without carrying over the Brainstore digest. */}}
 {{- fail "deploymentOrdering.minimumVersion must be a stable release version" -}}
 {{- end -}}
 {{- if $override -}}
-{{- $reference := first (splitList "@" $override) -}}
-{{- $lastComponent := last (splitList "/" $reference) -}}
-{{- $overrideTag := "" -}}
-{{- if contains ":" $lastComponent -}}
-{{- $overrideTag = last (splitList ":" $lastComponent) -}}
-{{- end -}}
+{{- $overrideTag := first (splitList "@" $override) -}}
 {{- if regexMatch $stableRelease $overrideTag -}}
 {{- $requiredVersion := $selectedVersion -}}
 {{- if and $minimum (or (not $requiredVersion) (semverCompare (printf ">%s" $requiredVersion) $minimum)) -}}
 {{- $requiredVersion = trimPrefix "v" $minimum -}}
 {{- end -}}
 {{- if and $requiredVersion (semverCompare (printf "<%s" $requiredVersion) $overrideTag) -}}
-{{- fail (printf "deploymentOrdering.migrationImage release %s is older than required release %s" $overrideTag $requiredVersion) -}}
+{{- fail (printf "deploymentOrdering.migrationImageTag release %s is older than required release %s" $overrideTag $requiredVersion) -}}
 {{- end -}}
 {{- end -}}
-{{- $override -}}
+{{- if hasPrefix "@" $override -}}
+{{- printf "%s%s" $repository $override -}}
+{{- else -}}
+{{- printf "%s:%s" $repository $override -}}
+{{- end -}}
 {{- else -}}
 {{- $selectedImage -}}
 {{- end -}}

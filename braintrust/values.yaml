@@ -824,9 +824,9 @@ deploymentOrdering:
   # Empty derives the API compatibility floor from each pool's stable image tag.
   # Required for opaque API/Brainstore tags; asserts the opaque Brainstore release.
   minimumVersion: ""
-  # Full standalone-API image containing migrations for all selected service images.
+  # Tag, tag@digest, or @digest in api.image.repository. No repository override.
   # Empty selects the newest stable API/Brainstore release; required for opaque pins.
-  migrationImage: ""
+  migrationImageTag: ""
   # Separate budget for each phase (migration Job/wait, then Brainstore rollout).
   timeoutSeconds: 1200
   pollIntervalSeconds: 15
