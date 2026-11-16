@@ -504,6 +504,10 @@ missing pool fields are filled from the chart defaults. Set
 This option is not recommended for most deployments; enable it only with
 guidance from Braintrust support.
 
+## Removed BTQL audit log settings
+
+Data plane v2.23.0 no longer uses `BTQL_AUDIT_LOGS_STRICT_ORG_IDS` or `BTQL_AUDIT_LOGS_BEST_EFFORT_ORG_IDS`. The chart ignores the old `btqlAuditLogsStrictOrgIds` and `btqlAuditLogsBestEffortOrgIds` values, including values retained by `helm upgrade --reuse-values`. Remove them from your values files.
+
 ## Testing
 
 This Helm chart includes comprehensive automated unit tests.
