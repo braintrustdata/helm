@@ -3,8 +3,11 @@
 {{- $root := .root -}}
 {{- $api := .api -}}
 {{- $role := .role -}}
-{{- $startupGate := include "braintrust.brainstoreStartupGate.config" $root | fromYaml -}}
-{{- if $startupGate.enabled -}}
+{{- $ordering := include "braintrust.deploymentOrdering.config" $root | fromYaml -}}
+{{- if .migrationJob -}}
+{{- $_ := set $ordering "enabled" false -}}
+{{- end -}}
+{{- if $ordering.enabled -}}
 {{- include "braintrust.brainstoreStartupGate.validateApi" (dict "api" $api) -}}
 {{- end -}}
 {{- $customCA := $api.customCA -}}
@@ -44,8 +47,8 @@ metadata:
     {{- toYaml . | nindent 4 }}
   {{- end }}
 spec:
-  {{- if $startupGate.enabled }}
-  progressDeadlineSeconds: {{ add (int $startupGate.timeoutSeconds) 300 }}
+  {{- if $ordering.enabled }}
+  progressDeadlineSeconds: {{ add 300 (mul 2 (int $ordering.timeoutSeconds)) }}
   {{- end }}
   {{- if not (dig "autoscaling" "enabled" false $api) }}
   replicas: {{ $api.replicas }}
@@ -67,7 +70,7 @@ spec:
         {{- end }}
       annotations:
         checksum/config: {{ include (print $root.Template.BasePath "/api-configmap.yaml") $root | sha256sum }}
-        {{- if $startupGate.enabled }}
+        {{- if $ordering.enabled }}
         checksum/brainstore-startup-gate: {{ $root.Files.Get "files/brainstore-startup-gate.py" | sha256sum }}
         {{- end }}
         {{- if and (eq $root.Values.cloud "google") $api.enableGcsAuth }}
@@ -78,8 +81,8 @@ spec:
         {{- end }}
     spec:
       serviceAccountName: {{ $api.serviceAccount.name }}
-      {{- if $startupGate.enabled }}
-      # Only the init container mounts the projected Kubernetes API credential.
+      {{- if $ordering.enabled }}
+      # Only the init containers mount the projected Kubernetes API credential.
       automountServiceAccountToken: false
       {{- end }}
       {{- with $api.podSecurityContext }}
@@ -107,44 +110,10 @@ spec:
       affinity:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- if $startupGate.enabled }}
+      {{- if $ordering.enabled }}
       initContainers:
-        - name: wait-for-brainstore
-          image: {{ $startupGate.image | quote }}
-          imagePullPolicy: IfNotPresent
-          command: ["python3", "-B", "-u", "/opt/brainstore-gate/gate.py"]
-          securityContext:
-            allowPrivilegeEscalation: false
-            readOnlyRootFilesystem: true
-            runAsNonRoot: true
-            runAsUser: 65532
-            runAsGroup: 65532
-            capabilities:
-              drop: ["ALL"]
-            seccompProfile:
-              type: RuntimeDefault
-          resources:
-            {{- toYaml $startupGate.resources | nindent 12 }}
-          env:
-            - name: POD_NAMESPACE
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.namespace
-            - name: BRAINSTORE_MINIMUM_VERSION
-              value: {{ include "braintrust.brainstoreStartupGate.minimumVersion" (dict "gate" $startupGate "api" $api) | quote }}
-            - name: BRAINSTORE_DEPLOYMENTS
-              value: {{ include "braintrust.brainstoreStartupGate.targets" $root | quote }}
-            - name: BRAINSTORE_GATE_TIMEOUT_SECONDS
-              value: {{ $startupGate.timeoutSeconds | quote }}
-            - name: BRAINSTORE_GATE_POLL_SECONDS
-              value: {{ $startupGate.pollIntervalSeconds | quote }}
-          volumeMounts:
-            - name: brainstore-gate-code
-              mountPath: /opt/brainstore-gate
-              readOnly: true
-            - name: brainstore-gate-credentials
-              mountPath: /var/run/brainstore-gate
-              readOnly: true
+        {{- include "braintrust.migrations.initContainer" $root | nindent 8 }}
+        {{- include "braintrust.brainstoreStartupGate.initContainer" (dict "root" $root "api" $api) | nindent 8 }}
       {{- end }}
       containers:
         - name: api
@@ -260,22 +229,9 @@ spec:
       {{- toYaml . | nindent 8 }}
       {{- end }}
       volumes:
-        {{- if or $startupGate.enabled $api.tmpVolume.enabled (and (eq $root.Values.cloud "azure") $root.Values.azure.enableAzureKeyVaultDriver) $customCA.enabled $api.extraVolumes }}
-        {{- if $startupGate.enabled }}
-        - name: brainstore-gate-code
-          configMap:
-            name: {{ include "braintrust.brainstoreStartupGate.name" $root }}
-        - name: brainstore-gate-credentials
-          projected:
-            sources:
-              - serviceAccountToken:
-                  path: token
-                  expirationSeconds: 3600
-              - configMap:
-                  name: kube-root-ca.crt
-                  items:
-                    - key: ca.crt
-                      path: ca.crt
+        {{- if or $ordering.enabled $api.tmpVolume.enabled (and (eq $root.Values.cloud "azure") $root.Values.azure.enableAzureKeyVaultDriver) $customCA.enabled $api.extraVolumes }}
+        {{- if $ordering.enabled }}
+        {{- include "braintrust.migrations.volumes" $root | nindent 8 }}
         {{- end }}
         {{- if $api.tmpVolume.enabled }}
         - name: tmp-volume

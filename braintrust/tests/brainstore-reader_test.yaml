@@ -2,6 +2,9 @@ suite: test Brainstore Reader deployment template
 templates:
   - brainstore-reader-deployment.yaml
   - brainstore-reader-configmap.yaml
+# Test workload details independently of release ordering.
+set:
+  deploymentOrdering.enabled: false
 tests:
   - it: should render Brainstore Reader deployment with default values
     template: brainstore-reader-deployment.yaml

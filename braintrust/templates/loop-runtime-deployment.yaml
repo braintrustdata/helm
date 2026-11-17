@@ -1,3 +1,4 @@
+{{- $ordering := include "braintrust.deploymentOrdering.config" . | fromYaml -}}
 {{- include "braintrust.loopRuntime.validate" . -}}
 {{- if include "braintrust.loopRuntime.enabled" . -}}
 {{- $autoscaling := include "braintrust.loopRuntime.autoscaling" . | fromYaml -}}
@@ -16,6 +17,9 @@ metadata:
     {{- toYaml . | nindent 4 }}
   {{- end }}
 spec:
+  {{- if $ordering.enabled }}
+  progressDeadlineSeconds: {{ add 600 (mul 2 (int $ordering.timeoutSeconds)) }}
+  {{- end }}
   {{- if not $autoscaling }}
   replicas: {{ ternary 1 .Values.loopRuntime.replicas (has .Values.loopRuntime.replicas (list nil "")) }}
   {{- end }}
@@ -40,6 +44,9 @@ spec:
         {{- end }}
     spec:
       serviceAccountName: {{ .Values.loopRuntime.serviceAccount.name }}
+      {{- if $ordering.enabled }}
+      automountServiceAccountToken: false
+      {{- end }}
       # The runtime drains active turns for up to 90 seconds after SIGTERM.
       terminationGracePeriodSeconds: 120
       securityContext:
@@ -60,6 +67,11 @@ spec:
       {{- with .Values.loopRuntime.affinity }}
       affinity:
         {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if $ordering.enabled }}
+      initContainers:
+        {{- include "braintrust.migrations.initContainer" . | nindent 8 }}
+        {{- include "braintrust.brainstoreStartupGate.initContainer" (dict "root" . "api" .Values.api) | nindent 8 }}
       {{- end }}
       containers:
         - name: loop-runtime
@@ -148,6 +160,9 @@ spec:
       {{- toYaml . | nindent 8 }}
       {{- end }}
       volumes:
+        {{- if $ordering.enabled }}
+        {{- include "braintrust.migrations.volumes" . | nindent 8 }}
+        {{- end }}
         - name: state
           emptyDir:
             sizeLimit: 2Gi

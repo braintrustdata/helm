@@ -146,6 +146,11 @@ Internal cluster URL for the AI Gateway service.
 http://{{ .Values.aiGateway.service.name | default .Values.aiGateway.name }}.{{ include "braintrust.namespace" . }}:{{ .Values.aiGateway.service.port }}
 {{- end -}}
 
+{{/* Also supports reused values that predate the Gateway ServiceAccount. */}}
+{{- define "braintrust.aiGateway.serviceAccountName" -}}
+{{- (.Values.aiGateway.serviceAccount | default dict).name | default "braintrust-ai-gateway" -}}
+{{- end -}}
+
 {{/*
 Whether Loop Runtime is enabled. Values reused from a chart release that
 predates Loop Runtime have no loopRuntime map, which means disabled.
@@ -287,6 +292,27 @@ and normal writable-layer/log overhead.
 {{- $_ := set $resources "limits" $limits -}}
 {{- end -}}
 {{- toYaml $resources -}}
+{{- end -}}
+
+{{/* Merge pod annotations; content identity rejects stale Ready rollouts. */}}
+{{- define "braintrust.brainstore.podAnnotations" -}}
+{{- $root := .root -}}
+{{- $annotations := dict "checksum/config" (include (printf "%s/brainstore-%s-configmap.yaml" $root.Template.BasePath .role) $root | sha256sum) -}}
+{{- if eq $root.Values.cloud "google" -}}
+{{- $_ := set $annotations "iam.gke.io/gcp-service-account" (required "brainstore.serviceAccount.googleServiceAccount is required when cloud is google" $root.Values.brainstore.serviceAccount.googleServiceAccount) -}}
+{{- end -}}
+{{- $annotations = mergeOverwrite $annotations (deepCopy (.config.annotations.pod | default dict)) -}}
+{{- $ordering := include "braintrust.deploymentOrdering.config" $root | fromYaml -}}
+{{- if $ordering.enabled -}}
+{{- $_ := unset $annotations "braintrust.dev/pod-template" -}}
+{{- $_ := set $annotations "braintrust.dev/brainstore-version" (include "braintrust.brainstoreStartupGate.brainstoreVersion" $root) -}}
+{{- if not ($root.brainstoreFingerprint | default false) -}}
+{{- $context := merge (dict "brainstoreFingerprint" true) $root -}}
+{{- $deployment := include (printf "%s/brainstore-%s-deployment.yaml" $root.Template.BasePath .role) $context | fromYaml -}}
+{{- $_ := set $annotations "braintrust.dev/pod-template" ($deployment.spec.template | toJson | sha256sum) -}}
+{{- end -}}
+{{- end }}{{/* ordering.enabled */}}
+{{- toYaml $annotations -}}
 {{- end -}}
 
 {{/*
