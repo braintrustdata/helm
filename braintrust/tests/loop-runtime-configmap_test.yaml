@@ -75,6 +75,9 @@ tests:
       - equal:
           path: data.LOOP_RUNTIME_MAX_CLAIMED_CONVERSATIONS
           value: "2"
+      - equal:
+          path: data.LOOP_RUNTIME_SANDBOX_CAPACITY_TARGET_UTILIZATION_PERCENT
+          value: "50"
       - isNull:
           path: data.BRAINSTORE_LOCKS_URI
 

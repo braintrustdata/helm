@@ -52,27 +52,20 @@ uses the same URL. To override it for Loop only, set `BRAINTRUST_APP_URL` in
      --values <your GKE values> --values braintrust/examples/gke-loop-runtime/values.yaml --wait
    ```
 
-Worker `replicas` sets the minimum count. The worker controller scales from
-reported sandbox demand and usable worker capacity, bounded by
-`controller.maxReplicas` and the Terraform node-pool maximum. Keep room for an
-extra worker during upgrades; insufficient capacity can still return
-`CapacityExhausted` while new workers are provisioning or when limits are reached.
+Worker `replicas` is a floor; the controller scales from demand and usable capacity
+within `controller.maxReplicas` and the Terraform node-pool maximum. Reserve an
+extra worker for upgrades; requests can return `CapacityExhausted` while scaling
+or at those limits.
 
 ## Filesystem retention
 
-The pinned worker chart and image support filesystem retention, which remains
-off unless the retention overlay is applied. Keep the worker chart, worker image
-and Loop Runtime image compatible; updating only the image can omit required
-controller settings from an older chart.
-The worker package URL is recorded in `loopRuntime.sandboxServiceChart` in the
-Braintrust chart's release values. The Terraform installer reads that pin from
-the selected chart release and installs it in the isolated worker cluster.
+Retention is off unless the overlay is applied. Keep the worker chart, worker image
+and Loop Runtime image compatible. Terraform selects the worker package from
+`loopRuntime.sandboxServiceChart` in the chosen Braintrust Helm release.
 
-Apply the GCP Terraform module's checkpoint-storage update first. Its
-`gke_isolated_workers.checkpoint_store` output identifies a dedicated private GCS
-bucket. Copy that URI into `sandbox-service-retention.yaml`. Worker nodes receive
-object access to that bucket through their node identity; the primary runtime and
-isolated services pool do not need checkpoint access.
+Apply the GCP checkpoint-storage update first, then copy
+`gke_isolated_workers.checkpoint_store` into `sandbox-service-retention.yaml`.
+Only worker nodes receive checkpoint-bucket access through their node identity.
 
 Apply the overlay using the same published worker chart and image as above:
 
@@ -84,30 +77,22 @@ helm --kube-context <worker> upgrade --install sandbox-service \
   --values braintrust/examples/gke-loop-runtime/sandbox-service-retention.yaml --wait
 ```
 
-Existing releases using `--reuse-values` must explicitly set both retention
-values and the compatible image; do not rely on new chart defaults to replace
-retained settings. The worker controller continues to own replica changes and
-draining. Keep its eviction protections and provision capacity for a replacement
-worker during upgrades.
+With `--reuse-values`, explicitly set both retention values and a compatible image.
+The controller owns scaling and draining; retain its eviction protections.
 
-Upgrade replacements have a 15-minute drain deadline by default. On expiry the
-controller can retire the old worker, losing active edits or local-only
-checkpoints. Set `SANDBOX_SERVICE_WORKER_DRAIN_TIMEOUT_SECONDS` in the worker
-chart's `controller.env` to change the deadline; `0` disables forced retirement.
-This deadline applies to old-revision replacements, not ordinary scale-down.
+Upgrade replacements default to a 15-minute drain deadline; expiry can lose active
+edits or local-only checkpoints. Change `SANDBOX_SERVICE_WORKER_DRAIN_TIMEOUT_SECONDS`
+in `controller.env`, or use `0` to wait indefinitely. Ordinary scale-down has no
+such deadline.
 
-The workers still use local SSDs formatted as XFS for their working disks.
-Checkpoints preserve files at completed idle sleep or preserving drain; they do
-not preserve running processes or edits since the last completed checkpoint.
-Before relying on recovery, verify that a file survives sleep, wake, and worker
-node replacement in the target deployment. Allow disk headroom for retained
-local checkpoints as well as active sandboxes.
+Workers still use local SSD/XFS. Checkpoints preserve files at completed idle sleep
+or preserving drain, excluding running processes and later edits. Allow local disk
+headroom for checkpoints and active sandboxes, and verify file recovery across
+sleep, wake, and worker replacement before relying on it.
 
-Keep the checkpoint bucket and URI stable while retained sandboxes exist.
-Coordinate any return to workers without retention support before disabling it.
-Removing the worker infrastructure retains the bucket; save its URI and retain
-the encryption key, and import the original storage before re-enabling workers
-with existing checkpoints. See the Terraform module's
+Keep the bucket, URI and encryption key stable while retained sandboxes exist.
+Coordinate rollback before disabling retention. Infrastructure removal retains
+the bucket; import the original storage before re-enabling workers. See the
 [storage lifecycle](https://github.com/braintrustdata/terraform-google-braintrust-data-plane/blob/main/ISOLATED_WORKERS.md#storage-and-lifecycle).
 
 Loop Runtime defaults to one pod. Rolling updates use `maxSurge: 1` and
@@ -126,11 +111,9 @@ The application must expose the gauge `loop_runtime_claimed_conversation_utiliza
 An image without that endpoint or gauge cannot drive metric-based scaling; there is no image-version gate.
 The HPA owns replicas while enabled; disabling it restores `loopRuntime.replicas`.
 Enabling it on an existing Deployment can initially reset the count to one.
-The enabled runtime HPA's utilization target also sets sandbox capacity headroom.
-The sandbox runtime accepts targets of at least 1%, so an HPA target below 1%
-uses 1% for workers while preserving the HPA target. With runtime autoscaling
-disabled, worker capacity keeps its 50% target. Worker and node-pool maximums
-still bound sandbox capacity independently of the runtime HPA.
+The HPA target also sets sandbox capacity headroom, with a 1% sandbox minimum.
+HPA targets below 1% stay unchanged; disabled autoscaling keeps the sandbox target
+at 50%. Worker and node-pool maximums still bound sandbox capacity.
 
 Sandbox administration is disabled by default. Set `loopRuntime.enableSandboxAdmin: true`
 to allow authorized sysadmins to inspect and terminate sandboxes.

@@ -13,6 +13,8 @@ tests:
     values: &values
       - __fixtures__/base-values.yaml
       - __fixtures__/loop-runtime-values.yaml
+    set:
+      loopRuntime.autoscaling.targetConversationUtilization: 0
     asserts:
       - hasDocuments:
           count: 0
@@ -24,6 +26,10 @@ tests:
           path: spec.replicas
           value: 1
         template: loop-runtime-deployment.yaml
+      - equal: &capacityTarget
+          path: data.LOOP_RUNTIME_SANDBOX_CAPACITY_TARGET_UTILIZATION_PERCENT
+          value: "50"
+        template: loop-runtime-configmap.yaml
 
   - it: should reject a zero autoscaling minimum
     template: loop-runtime-hpa.yaml
@@ -70,8 +76,26 @@ tests:
       loopRuntime.autoscaling.enabled: true
       loopRuntime.autoscaling.targetConversationUtilization: "101"
     asserts:
-      - failedTemplate:
+      - failedTemplate: &invalidTarget
           errorMessage: loopRuntime.autoscaling.targetConversationUtilization must be greater than 0 and at most 100
+
+  - it: should reject a zero conversation utilization target
+    template: loop-runtime-hpa.yaml
+    values: *values
+    set:
+      loopRuntime.autoscaling.enabled: true
+      loopRuntime.autoscaling.targetConversationUtilization: 0
+    asserts:
+      - failedTemplate: *invalidTarget
+
+  - it: should reject an empty conversation utilization target
+    template: loop-runtime-hpa.yaml
+    values: *values
+    set:
+      loopRuntime.autoscaling.enabled: true
+      loopRuntime.autoscaling.targetConversationUtilization: ""
+    asserts:
+      - failedTemplate: *invalidTarget
 
   - it: should reject a relative metrics endpoint
     template: loop-runtime-hpa.yaml
@@ -155,6 +179,8 @@ tests:
     set:
       loopRuntime.autoscaling.enabled: true
     asserts: &autoscalingDefaults
+      - equal: *capacityTarget
+        template: loop-runtime-configmap.yaml
       - equal:
           path: spec.minReplicas
           value: 1
@@ -199,6 +225,10 @@ tests:
         targetConversationUtilization: "75"
     asserts:
       - equal:
+          <<: *capacityTarget
+          value: "75"
+        template: loop-runtime-configmap.yaml
+      - equal:
           path: spec.minReplicas
           value: 2
         template: loop-runtime-hpa.yaml
@@ -228,6 +258,9 @@ tests:
     asserts:
       - hasDocuments:
           count: 0
+        template: loop-runtime-configmap.yaml
+      - hasDocuments:
+          count: 0
         template: loop-runtime-hpa.yaml
       - hasDocuments:
           count: 0
@@ -239,10 +272,42 @@ tests:
       loopRuntime.replicas: 3
       loopRuntime.autoscaling: null
     asserts:
+      - equal: *capacityTarget
+        template: loop-runtime-configmap.yaml
       - equal:
           path: spec.replicas
           value: 3
         template: loop-runtime-deployment.yaml
       - hasDocuments:
           count: 0
+        template: loop-runtime-hpa.yaml
+
+  - it: should share a fractional HPA target with sandbox capacity
+    values: *values
+    set:
+      loopRuntime.autoscaling.enabled: true
+      loopRuntime.autoscaling.targetConversationUtilization: 35.5
+    asserts:
+      - equal:
+          <<: *capacityTarget
+          value: "35.5"
+        template: loop-runtime-configmap.yaml
+      - equal:
+          path: spec.metrics[0].pods.target.averageValue
+          value: "35.5"
+        template: loop-runtime-hpa.yaml
+
+  - it: should preserve sub-percent HPA targets while respecting the sandbox minimum
+    values: *values
+    set:
+      loopRuntime.autoscaling.enabled: true
+      loopRuntime.autoscaling.targetConversationUtilization: "0.5"
+    asserts:
+      - equal:
+          <<: *capacityTarget
+          value: "1"
+        template: loop-runtime-configmap.yaml
+      - equal:
+          path: spec.metrics[0].pods.target.averageValue
+          value: "0.5"
         template: loop-runtime-hpa.yaml
