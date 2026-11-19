@@ -28,6 +28,7 @@ tests:
     set:
       api.image.repository: registry.example/custom-api
       api.image.tag: v2.15.0
+      brainstore.image.tag: v2.23.0
     asserts:
       - isKind:
           of: Job
@@ -631,6 +632,7 @@ tests:
       - __fixtures__/loop-runtime-values.yaml
     set:
       api.image.tag: deadbeef
+      brainstore.image.tag: v2.23.0
       deploymentOrdering.minimumVersion: v2.15.0
       deploymentOrdering.migrationImageTag: v2.23.0
     asserts:

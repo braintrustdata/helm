@@ -1,0 +1,4 @@
+# Overlay for a Sandbox Service release that supports filesystem retention.
+# Apply the GCP infrastructure update first, then use its checkpoint_store output.
+filesystemRetention: true
+checkpointStore: "<gke_isolated_workers.checkpoint_store>"
