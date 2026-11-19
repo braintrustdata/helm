@@ -39,7 +39,7 @@ uses the same URL. To override it for Loop only, set `BRAINTRUST_APP_URL` in
 
    ```sh
    helm --kube-context <worker> upgrade --install sandbox-service \
-     https://braintrust-cf-us-east-1.s3.amazonaws.com/sandbox-service/1f4b6826c61064575b3db956b67625133257bd8a6e49e4ea86cdb55012dd53a7/sandbox-service-0.1.0.tgz \
+     https://braintrust-cf-us-east-1.s3.amazonaws.com/sandbox-service/062fbf5e1090e1f624eda6d6f9dfe7af05921e3d90a6405d330feb7866775ad2/sandbox-service-0.1.0.tgz \
      --namespace braintrust-sandbox --values braintrust/examples/gke-loop-runtime/sandbox-service.yaml --wait
    ```
 
@@ -52,17 +52,18 @@ uses the same URL. To override it for Loop only, set `BRAINTRUST_APP_URL` in
      --values <your GKE values> --values braintrust/examples/gke-loop-runtime/values.yaml --wait
    ```
 
-Workers run at a fixed count. One `c4-standard-8-lssd` worker holds about seven
-1 vCPU / 2 GiB sandboxes; beyond that, new sandboxes fail with
-`CapacityExhausted`. Raise `replicas` in `sandbox-service.yaml` to add workers.
+Worker `replicas` sets the minimum count. The worker controller scales from
+reported sandbox demand and usable worker capacity, bounded by
+`controller.maxReplicas` and the Terraform node-pool maximum. Keep room for an
+extra worker during upgrades; insufficient capacity can still return
+`CapacityExhausted` while new workers are provisioning or when limits are reached.
 
 ## Filesystem retention
 
-The worker package and image pinned above use node-local storage. They do not
-enable durable filesystem checkpoints. To enable retention, use a published
-Sandbox Service chart and image whose release supports filesystem retention,
-alongside a compatible Loop Runtime image. Updating only the image or passing
-retention values to the older chart does not enable this feature.
+The pinned worker chart and image support filesystem retention, which remains
+off unless the retention overlay is applied. Keep the worker chart, worker image
+and Loop Runtime image compatible; updating only the image can omit required
+controller settings from an older chart.
 
 Apply the GCP Terraform module's checkpoint-storage update first. Its
 `gke_isolated_workers.checkpoint_store` output identifies a dedicated private GCS
@@ -70,17 +71,14 @@ bucket. Copy that URI into `sandbox-service-retention.yaml`. Worker nodes receiv
 object access to that bucket through their node identity; the primary runtime and
 isolated services pool do not need checkpoint access.
 
-Set `SANDBOX_SERVICE_CHART_URL` and `SANDBOX_SERVICE_IMAGE` to the compatible
-published artifacts, then apply the overlay to the worker release:
+Apply the overlay using the same published worker chart and image as above:
 
 ```sh
-: "${SANDBOX_SERVICE_CHART_URL:?set a retention-capable published worker chart URL}"
-: "${SANDBOX_SERVICE_IMAGE:?set a compatible published worker image}"
 helm --kube-context <worker> upgrade --install sandbox-service \
-  "$SANDBOX_SERVICE_CHART_URL" --namespace braintrust-sandbox \
+  https://braintrust-cf-us-east-1.s3.amazonaws.com/sandbox-service/062fbf5e1090e1f624eda6d6f9dfe7af05921e3d90a6405d330feb7866775ad2/sandbox-service-0.1.0.tgz \
+  --namespace braintrust-sandbox \
   --values braintrust/examples/gke-loop-runtime/sandbox-service.yaml \
-  --values braintrust/examples/gke-loop-runtime/sandbox-service-retention.yaml \
-  --set-string image="$SANDBOX_SERVICE_IMAGE" --wait
+  --values braintrust/examples/gke-loop-runtime/sandbox-service-retention.yaml --wait
 ```
 
 Existing releases using `--reuse-values` must explicitly set both retention
@@ -88,6 +86,12 @@ values and the compatible image; do not rely on new chart defaults to replace
 retained settings. The worker controller continues to own replica changes and
 draining. Keep its eviction protections and provision capacity for a replacement
 worker during upgrades.
+
+Upgrade replacements have a 15-minute drain deadline by default. On expiry the
+controller can retire the old worker, losing active edits or local-only
+checkpoints. Set `SANDBOX_SERVICE_WORKER_DRAIN_TIMEOUT_SECONDS` in the worker
+chart's `controller.env` to change the deadline; `0` disables forced retirement.
+This deadline applies to old-revision replacements, not ordinary scale-down.
 
 The workers still use local SSDs formatted as XFS for their working disks.
 Checkpoints preserve files at completed idle sleep or preserving drain; they do
@@ -119,7 +123,11 @@ The application must expose the gauge `loop_runtime_claimed_conversation_utiliza
 An image without that endpoint or gauge cannot drive metric-based scaling; there is no image-version gate.
 The HPA owns replicas while enabled; disabling it restores `loopRuntime.replicas`.
 Enabling it on an existing Deployment can initially reset the count to one.
-This scales runtime pods only; provision worker replicas separately for the expected sandbox capacity.
+The enabled runtime HPA's utilization target also sets sandbox capacity headroom.
+The sandbox runtime accepts targets of at least 1%, so an HPA target below 1%
+uses 1% for workers while preserving the HPA target. With runtime autoscaling
+disabled, worker capacity keeps its 50% target. Worker and node-pool maximums
+still bound sandbox capacity independently of the runtime HPA.
 
 Sandbox administration is disabled by default. Set `loopRuntime.enableSandboxAdmin: true`
 to allow authorized sysadmins to inspect and terminate sandboxes.
