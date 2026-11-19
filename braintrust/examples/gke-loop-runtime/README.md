@@ -64,6 +64,9 @@ The pinned worker chart and image support filesystem retention, which remains
 off unless the retention overlay is applied. Keep the worker chart, worker image
 and Loop Runtime image compatible; updating only the image can omit required
 controller settings from an older chart.
+The worker package URL is recorded in `loopRuntime.sandboxServiceChart` in the
+Braintrust chart's release values. The Terraform installer reads that pin from
+the selected chart release and installs it in the isolated worker cluster.
 
 Apply the GCP Terraform module's checkpoint-storage update first. Its
 `gke_isolated_workers.checkpoint_store` output identifies a dedicated private GCS

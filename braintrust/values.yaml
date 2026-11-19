@@ -309,6 +309,8 @@ loopRuntime:
     repository: public.ecr.aws/braintrust/loop-runtime
     tag: v2.24.0
     pullPolicy: IfNotPresent
+  # Separate worker chart, pinned with this release for the Terraform installer.
+  sandboxServiceChart: "https://braintrust-cf-us-east-1.s3.amazonaws.com/sandbox-service/062fbf5e1090e1f624eda6d6f9dfe7af05921e3d90a6405d330feb7866775ad2/sandbox-service-0.1.0.tgz"
   # Requires the same GKE custom-metrics prerequisites as api.autoscaling.
   # Without the application metric, the HPA cannot perform metric-driven scaling.
   autoscaling:
