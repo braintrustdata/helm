@@ -184,6 +184,18 @@ predates Loop Runtime have no loopRuntime map, which means disabled.
 {{- fail (printf "loopRuntime.sandbox.%s must be a positive integer" $field) -}}
 {{- end -}}
 {{- end -}}
+{{- $tls := index $sandbox "clientTls" -}}
+{{- if and (not (kindIs "invalid" $tls)) (not (kindIs "map" $tls)) -}}
+{{- fail "loopRuntime.sandbox.clientTls must be a map or null" -}}
+{{- end -}}
+{{- if $tls -}}
+{{- range $key := list "client.pem" "client.key" "server-ca.pem" -}}
+{{- $value := index $tls $key -}}
+{{- if or (not (kindIs "string" $value)) (eq (trim (toString $value)) "") -}}
+{{- fail (printf "loopRuntime.sandbox.clientTls[%s] is required and must be a non-empty string" $key) -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
 {{- $egress := $sandbox.egressGateway | default dict -}}
 {{- $_ := required "objectStorage.google.brainstoreBucket is required" .Values.objectStorage.google.brainstoreBucket -}}
 {{- $_ := required "objectStorage.google.apiBucket is required" .Values.objectStorage.google.apiBucket -}}

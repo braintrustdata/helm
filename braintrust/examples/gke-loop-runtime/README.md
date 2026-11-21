@@ -1,8 +1,72 @@
 # Loop Runtime on GKE
 
-Loop Runtime runs in the primary GKE cluster. Its sandboxes run on Sandbox
-Service workers in a separate isolated cluster. Both clusters come from the
-GCP Terraform module with:
+Set `enable_loop_runtime = true` in the
+[GCP data-plane module](https://github.com/braintrustdata/terraform-google-braintrust-data-plane#loop-runtime-infrastructure)
+and apply infrastructure first. Loop Runtime stays in the primary cluster;
+Sandbox Service workers run in a separate isolated cluster. The primary keeps
+its existing Autopilot or Standard mode.
+
+## Helm-managed primary release
+
+Use the standalone
+[Loop setup module](https://github.com/braintrustdata/terraform-google-braintrust-gke-app/tree/main/modules/loop-runtime-helm)
+with the infra output and the same primary chart version:
+
+```hcl
+module "loop" {
+  source = "github.com/braintrustdata/terraform-google-braintrust-gke-app//modules/loop-runtime-helm?ref=<module-version>"
+
+  loop_runtime       = try(data.terraform_remote_state.infra.outputs.loop_runtime, null)
+  helm_chart_version = var.helm_chart_version
+}
+
+output "loop_helm_values" {
+  value     = module.loop.helm_values_yaml
+  sensitive = true
+}
+```
+
+Apply this deployment root. It configures worker providers, installs workers,
+and creates mTLS automatically, without managing the primary application.
+Pass its generated overlay after your existing Helm values:
+
+```sh
+umask 077
+terraform output -raw loop_helm_values > loop-values.yaml
+helm upgrade --install braintrust oci://public.ecr.aws/braintrust/helm/braintrust \
+  --namespace braintrust --create-namespace --version <chart-version> \
+  --reset-then-reuse-values --values <existing-values.yaml> \
+  --values loop-values.yaml --wait
+```
+
+The overlay supplies discovery, workload identity, egress, matching image tags,
+AI Gateway routing and client TLS. The chart creates `sandbox-client-tls`
+and rolls the runtime when its certificate changes. Keep this file out of source
+control: it contains private keys. Terraform and Helm release state also contain
+TLS credentials. The selected primary chart must support
+`loopRuntime.sandbox.clientTls`; the module rejects older releases.
+See the [complete example](https://github.com/braintrustdata/terraform-google-braintrust-gke-app/tree/main/examples/helm-loop-runtime).
+
+## Terraform-managed primary release
+
+The [GKE app module](https://github.com/braintrustdata/terraform-google-braintrust-gke-app#managed-loop-runtime)
+uses the same worker and TLS implementation and supplies the generated values
+to its Helm release automatically. Pass the infra output once:
+
+```hcl
+loop_runtime = try(data.terraform_remote_state.infra.outputs.loop_runtime, null)
+```
+
+Apply infrastructure, then the app root. There is no separate app enable flag.
+See its [remote-state example](https://github.com/braintrustdata/terraform-google-braintrust-gke-app/tree/main/examples/remote-state-app-root).
+The [AWS Terraform module](https://github.com/braintrustdata/terraform-aws-braintrust-data-plane#loop-runtime)
+also provides `enable_loop_runtime` for ECS; this Helm runtime supports Google Cloud.
+
+## Manual Helm installation
+
+The remaining steps are for installations that manage Helm releases directly.
+Skip them when using the managed GKE app module, which owns these releases and
+secrets. Provision standalone workers with the GCP infrastructure module:
 
 ```hcl
 gke_isolated_workers = {
