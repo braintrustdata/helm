@@ -1,8 +1,39 @@
 # Loop Runtime on GKE
 
-Loop Runtime runs in the primary GKE cluster. Its sandboxes run on Sandbox
-Service workers in a separate isolated cluster. Both clusters come from the
-GCP Terraform module with:
+Use the public Terraform modules for a managed installation. Set this input in
+the [GCP data-plane module](https://github.com/braintrustdata/terraform-google-braintrust-data-plane#loop-runtime-infrastructure):
+
+```hcl
+enable_loop_runtime = true
+```
+
+The [GKE app module](https://github.com/braintrustdata/terraform-google-braintrust-gke-app#managed-loop-runtime)
+consumes the resulting infrastructure output:
+
+```hcl
+# In the existing app module call:
+loop_runtime = try(data.terraform_remote_state.infra.outputs.loop_runtime, null)
+```
+
+Apply infrastructure, then the app root. Terraform provisions the isolated worker
+cluster, configures its providers, installs the worker chart, creates and shares
+mTLS secrets, and connects Loop to the primary Helm release. Compatible worker
+and runtime images come from the selected Braintrust chart; networking and sizing
+have defaults with optional overrides. The app's existing Google identity needs
+access to both clusters. See the
+[complete example](https://github.com/braintrustdata/terraform-google-braintrust-gke-app/tree/main/examples/remote-state-app-root).
+
+Loop Runtime runs in the primary GKE cluster, preserving its existing Autopilot
+or Standard mode. Sandboxes run on Sandbox Service workers in a separate isolated
+cluster. The [AWS Terraform module](https://github.com/braintrustdata/terraform-aws-braintrust-data-plane#loop-runtime)
+also provides `enable_loop_runtime` for its ECS deployment; this Helm runtime
+currently supports Google Cloud.
+
+## Manual Helm installation
+
+The remaining steps are for installations that manage Helm releases directly.
+Skip them when using the managed GKE app module, which owns these releases and
+secrets. Provision standalone workers with the GCP infrastructure module:
 
 ```hcl
 gke_isolated_workers = {

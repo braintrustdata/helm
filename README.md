@@ -29,6 +29,17 @@ See the [Braintrust Helm Chart](./braintrust/README.md) for more details.
 
 GKE Autopilot is the preferred solution for new Braintrust deployments. GKE Standard is supported when customer requirements prevent Autopilot use.
 
+## Loop Runtime
+
+On GKE, set `enable_loop_runtime = true` in the
+[public GCP Terraform module](https://github.com/braintrustdata/terraform-google-braintrust-data-plane#loop-runtime-infrastructure)
+and pass its `loop_runtime` output to the
+[GKE app module](https://github.com/braintrustdata/terraform-google-braintrust-gke-app#managed-loop-runtime).
+Apply infrastructure, then the app root. The modules manage the worker cluster,
+worker chart, TLS, and runtime Helm settings. Worker providers and certificates
+are configured by the app module.
+See the [Loop setup guide](braintrust/examples/gke-loop-runtime).
+
 ## GKE Standard node pool changes
 
 The [Standard example](braintrust/examples/google-standard/values.yaml) uses stable workload selectors and enables optional API and Brainstore disruption budgets.
