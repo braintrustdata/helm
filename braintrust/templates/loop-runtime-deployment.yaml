@@ -38,9 +38,6 @@ spec:
         {{- toYaml $podLabels | nindent 8 }}
       annotations:
         checksum/config: {{ include (print $.Template.BasePath "/loop-runtime-configmap.yaml") . | sha256sum }}
-        {{- with .Values.loopRuntime.sandbox.clientTls }}
-        checksum/sandbox-client-tls: {{ toJson . | sha256sum }}
-        {{- end }}
         iam.gke.io/gcp-service-account: {{ .Values.loopRuntime.serviceAccount.googleServiceAccount }}
         {{- with .Values.loopRuntime.annotations.pod }}
         {{- toYaml . | nindent 8 }}
@@ -71,10 +68,41 @@ spec:
       affinity:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- if $ordering.enabled }}
+      {{- if or $ordering.enabled .Values.loopRuntime.sandbox.clientTlsSecret }}
       initContainers:
+        {{- if $ordering.enabled }}
         {{- include "braintrust.migrations.initContainer" . | nindent 8 }}
         {{- include "braintrust.brainstoreStartupGate.initContainer" (dict "root" . "api" .Values.api) | nindent 8 }}
+        {{- end }}
+        {{- with .Values.loopRuntime.sandbox.clientTlsSecret }}
+        - name: sandbox-tls-init
+          image: "{{ $.Values.loopRuntime.image.repository }}:{{ $.Values.loopRuntime.image.tag }}"
+          imagePullPolicy: {{ $.Values.loopRuntime.image.pullPolicy }}
+          command: ["node"]
+          args:
+            - -e
+            - |
+              {{- $.Files.Get "files/loop-runtime-tls.js" | nindent 14 }}
+          env:
+            - name: SANDBOX_TLS_BOOTSTRAP
+              value: "1"
+            - name: SANDBOX_TLS_SECRET
+              value: {{ . | quote }}
+          resources:
+            requests:
+              cpu: 25m
+              memory: 32Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: sandbox-tls
+              mountPath: /etc/sandbox-tls
+        {{- end }}
       {{- end }}
       containers:
         - name: loop-runtime
@@ -172,10 +200,15 @@ spec:
         - name: cache
           emptyDir:
             sizeLimit: 6Gi
-        # Managed by this chart when sandbox.clientTls is supplied.
         - name: sandbox-tls
+          {{- if .Values.loopRuntime.sandbox.clientTlsSecret }}
+          emptyDir:
+            medium: Memory
+            sizeLimit: 1Mi
+          {{- else }}
           secret:
             secretName: sandbox-client-tls
+          {{- end }}
         {{- with .Values.loopRuntime.extraVolumes }}
         {{- toYaml . | nindent 8 }}
         {{- end }}

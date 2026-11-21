@@ -32,13 +32,13 @@ GKE Autopilot is the preferred solution for new Braintrust deployments. GKE Stan
 ## Loop Runtime
 
 On GKE, set `enable_loop_runtime = true` in the
-[public GCP Terraform module](https://github.com/braintrustdata/terraform-google-braintrust-data-plane#loop-runtime-infrastructure).
-For a Helm-managed primary release, the
-[standalone Loop module](https://github.com/braintrustdata/terraform-google-braintrust-gke-app/tree/main/modules/loop-runtime-helm)
-installs workers and generates one Helm values file containing connections and
-client TLS. The chart creates the Secret and rolls Loop when TLS changes.
-The full GKE app module uses the same setup internally.
-See the [Loop setup guide](braintrust/examples/gke-loop-runtime) for both paths.
+[public GCP Terraform module](https://github.com/braintrustdata/terraform-google-braintrust-data-plane#loop-runtime).
+Its infrastructure apply installs isolated workers and generates persistent TLS
+in Secret Manager. Pass the `loop_runtime_helm_values_yaml` output after your
+existing Helm values. The runtime reads its client bundle through Workload
+Identity; no setup module, worker provider aliases or certificate files are
+required. The GKE app module consumes the same configuration automatically.
+See the [Loop setup guide](braintrust/examples/gke-loop-runtime).
 
 ## GKE Standard node pool changes
 

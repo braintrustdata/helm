@@ -184,17 +184,12 @@ predates Loop Runtime have no loopRuntime map, which means disabled.
 {{- fail (printf "loopRuntime.sandbox.%s must be a positive integer" $field) -}}
 {{- end -}}
 {{- end -}}
-{{- $tls := index $sandbox "clientTls" -}}
-{{- if and (not (kindIs "invalid" $tls)) (not (kindIs "map" $tls)) -}}
-{{- fail "loopRuntime.sandbox.clientTls must be a map or null" -}}
+{{- $secret := index $sandbox "clientTlsSecret" -}}
+{{- if and (not (kindIs "invalid" $secret)) (not (kindIs "string" $secret)) -}}
+{{- fail "loopRuntime.sandbox.clientTlsSecret must be a Secret Manager version reference or empty" -}}
 {{- end -}}
-{{- if $tls -}}
-{{- range $key := list "client.pem" "client.key" "server-ca.pem" -}}
-{{- $value := index $tls $key -}}
-{{- if or (not (kindIs "string" $value)) (eq (trim (toString $value)) "") -}}
-{{- fail (printf "loopRuntime.sandbox.clientTls[%s] is required and must be a non-empty string" $key) -}}
-{{- end -}}
-{{- end -}}
+{{- if and $secret (not (regexMatch "^projects/[A-Za-z0-9.:-]+/secrets/[A-Za-z0-9_-]+/versions/(latest|[0-9]+)$" $secret)) -}}
+{{- fail "loopRuntime.sandbox.clientTlsSecret must be a Secret Manager version reference or empty" -}}
 {{- end -}}
 {{- $egress := $sandbox.egressGateway | default dict -}}
 {{- $_ := required "objectStorage.google.brainstoreBucket is required" .Values.objectStorage.google.brainstoreBucket -}}
