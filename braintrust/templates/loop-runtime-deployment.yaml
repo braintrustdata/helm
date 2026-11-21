@@ -38,6 +38,9 @@ spec:
         {{- toYaml $podLabels | nindent 8 }}
       annotations:
         checksum/config: {{ include (print $.Template.BasePath "/loop-runtime-configmap.yaml") . | sha256sum }}
+        {{- with .Values.loopRuntime.sandbox.clientTls }}
+        checksum/sandbox-client-tls: {{ toJson . | sha256sum }}
+        {{- end }}
         iam.gke.io/gcp-service-account: {{ .Values.loopRuntime.serviceAccount.googleServiceAccount }}
         {{- with .Values.loopRuntime.annotations.pod }}
         {{- toYaml . | nindent 8 }}
@@ -169,7 +172,7 @@ spec:
         - name: cache
           emptyDir:
             sizeLimit: 6Gi
-        # Created by examples/gke-loop-runtime/create-sandbox-tls.sh.
+        # Managed by this chart when sandbox.clientTls is supplied.
         - name: sandbox-tls
           secret:
             secretName: sandbox-client-tls

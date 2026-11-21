@@ -1,0 +1,6 @@
+loopRuntime:
+  sandbox:
+    clientTls:
+      client.pem: test-client-cert
+      client.key: test-client-key
+      server-ca.pem: test-server-ca
