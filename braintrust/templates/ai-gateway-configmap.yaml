@@ -14,6 +14,10 @@ metadata:
     {{- toYaml . | nindent 4 }}
   {{- end }}
 data:
+  ORG_NAME: {{ .Values.global.orgName | default "" | toString | trim | default "*" | quote }}
+  {{- with (.Values.global.allowedOrgIds | default "" | toString | trim) }}
+  ALLOWED_ORG_IDS: {{ . | quote }}
+  {{- end }}
   GATEWAY_ENV: "production"
   {{- if .Values.aiGateway.region }}
   GATEWAY_REGION: {{ .Values.aiGateway.region | quote }}

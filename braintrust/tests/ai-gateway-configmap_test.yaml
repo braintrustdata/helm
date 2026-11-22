@@ -25,6 +25,11 @@ tests:
           path: metadata.name
           value: braintrust-ai-gateway
       - equal:
+          path: data.ORG_NAME
+          value: "test-org"
+      - isNull:
+          path: data.ALLOWED_ORG_IDS
+      - equal:
           path: data.GATEWAY_ENV
           value: "production"
       - isNull:
@@ -163,3 +168,78 @@ tests:
       - equal:
           path: data.OTLP_HTTP_ENDPOINT
           value: "https://control.example.com/api/pulse/otel"
+
+  - it: should forward a trimmed organization name and complete ID allowlist
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      aiGateway.enabled: true
+      global.orgName: " example.com "
+      global.allowedOrgIds: " 00000000-0000-4000-8000-000000000001,00000000-0000-4000-8000-000000000002 "
+    asserts:
+      - equal:
+          path: data.ORG_NAME
+          value: "example.com"
+      - equal:
+          path: data.ALLOWED_ORG_IDS
+          value: "00000000-0000-4000-8000-000000000001,00000000-0000-4000-8000-000000000002"
+
+  - it: should preserve wildcard organization access with an ID allowlist
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      aiGateway.enabled: true
+      global.orgName: "*"
+      global.primaryOrgName: "example.com"
+      global.allowedOrgIds: "00000000-0000-4000-8000-000000000001"
+    asserts:
+      - equal:
+          path: data.ORG_NAME
+          value: "*"
+      - equal:
+          path: data.ALLOWED_ORG_IDS
+          value: "00000000-0000-4000-8000-000000000001"
+
+  - it: should retain wildcard defaults when organization settings are omitted
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      aiGateway.enabled: true
+      global.orgName: ""
+      global.primaryOrgName: "example.com"
+    asserts:
+      - equal:
+          path: data.ORG_NAME
+          value: "*"
+      - isNull:
+          path: data.ALLOWED_ORG_IDS
+
+  - it: should normalize blank organization settings
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      aiGateway.enabled: true
+      global.orgName: "   "
+      global.primaryOrgName: "example.com"
+      global.allowedOrgIds: "   "
+    asserts:
+      - equal:
+          path: data.ORG_NAME
+          value: "*"
+      - isNull:
+          path: data.ALLOWED_ORG_IDS
+
+  - it: should tolerate null organization settings in reused values
+    values:
+      - __fixtures__/base-values.yaml
+    set:
+      aiGateway.enabled: true
+      global.orgName: null
+      global.primaryOrgName: "example.com"
+      global.allowedOrgIds: null
+    asserts:
+      - equal:
+          path: data.ORG_NAME
+          value: "*"
+      - isNull:
+          path: data.ALLOWED_ORG_IDS
