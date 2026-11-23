@@ -2,16 +2,14 @@
 
 Set `enable_loop_runtime = true` in the
 [GCP data-plane module](https://github.com/braintrustdata/terraform-google-braintrust-data-plane#loop-runtime-infrastructure)
-and apply infrastructure first. Loop Runtime stays in the primary cluster;
-Sandbox Service workers run in a separate isolated cluster. The primary keeps
-its existing Autopilot or Standard mode.
+and apply infrastructure first. Workers run in an isolated cluster; Loop Runtime
+stays in the primary cluster with its existing Autopilot or Standard mode.
 
 ## Helm-managed primary release
 
-The infrastructure apply installs workers, generates separate server and client
-CAs, and retains their bundles in Secret Manager. It waits for worker installation
-to succeed. Later applies reuse the bundles. Export the resulting configuration
-and pass it after your existing Helm values:
+Infrastructure installs workers, waits for readiness and persists separate server
+and client CA bundles in Secret Manager for reuse. Pass its configuration after
+your existing Helm values:
 
 ```sh
 terraform output -raw loop_runtime_helm_values_yaml > loop-values.yaml
@@ -21,15 +19,12 @@ helm upgrade --install braintrust oci://public.ecr.aws/braintrust/helm/braintrus
   --values loop-values.yaml --wait
 ```
 
-Use a chart that supports `loopRuntime.sandbox.clientTlsSecret`. The overlay
-contains a secret reference, runtime identity, worker version and connection
-settings. Generated TLS keys are absent from Terraform state and Helm values.
-At Pod startup, an init container uses Workload Identity to fetch only the client
-bundle and writes it into an in-memory volume mounted read-only by the runtime.
-The identity has no access to the server bundle or CA private keys.
-No separate setup Terraform root, worker provider aliases or TLS generation is
-required. Set worker sizing, version and Helm overrides through infrastructure's
-optional `loop_runtime_options`.
+Use a chart supporting `loopRuntime.sandbox.clientTlsSecret`. The overlay supplies
+the secret reference, runtime identity, worker version and connection settings;
+keys stay out of Terraform state and Helm values. At Pod startup, Workload Identity
+loads only the client bundle into memory for a read-only runtime mount, without
+access to server credentials or CA keys. No setup root, worker providers or manual
+TLS generation is required; use `loop_runtime_options` for worker overrides.
 
 Deploy compatible API, Brainstore and routed AI Gateway versions first. Keep the
 generated runtime/worker version compatible with those services. For a Standard
@@ -38,16 +33,16 @@ pool. Explicit values after `--reset-then-reuse-values` replace retained setting
 
 ## Terraform-managed primary release
 
-The [GKE app module](https://github.com/braintrustdata/terraform-google-braintrust-gke-app#managed-loop-runtime)
-passes the same configuration to its primary Helm release automatically:
+Pass the same output to the
+[GKE app module](https://github.com/braintrustdata/terraform-google-braintrust-gke-app#managed-loop-runtime):
 
 ```hcl
 loop_runtime = try(data.terraform_remote_state.infra.outputs.loop_runtime, null)
 ```
 
-Apply infrastructure, then the app root. There is no separate app enable flag.
-See its [remote-state example](https://github.com/braintrustdata/terraform-google-braintrust-gke-app/tree/main/examples/remote-state-app-root).
-The full app module is optional for Helm installations.
+Apply infrastructure before the app root; no app enable flag is needed.
+See the [remote-state example](https://github.com/braintrustdata/terraform-google-braintrust-gke-app/tree/main/examples/remote-state-app-root);
+direct Helm installations do not need the app module.
 
 ## Custom worker installations
 

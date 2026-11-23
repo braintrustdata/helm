@@ -289,9 +289,8 @@ api:
   extraContainers: []
   extraVolumes: []
 
-# Loop Runtime (optional, cloud: google only). The public GCP Terraform + GKE app
-# modules manage workers, TLS, and these connection values when enable_loop_runtime
-# is true. See examples/gke-loop-runtime; direct Helm setup is documented there too.
+# Loop Runtime (optional, cloud: google only). Sandboxes run on Sandbox Service
+# workers in a separate GKE cluster; see examples/gke-loop-runtime.
 loopRuntime:
   enabled: false
   # Allow Braintrust staff sysadmins to inspect and terminate sandboxes.
