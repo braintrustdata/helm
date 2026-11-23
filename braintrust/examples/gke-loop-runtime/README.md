@@ -15,6 +15,20 @@ gke_isolated_workers = {
 `<...>` values below come from `terraform output gke_isolated_workers` and
 `terraform output loop_runtime_service_account`.
 
+Apply the GCP Terraform configuration before enabling Loop Runtime, then set
+`loopRuntime.serviceAccount.googleServiceAccount` to the dedicated runtime account.
+The chart configures pods to use that Google account; Terraform owns the cloud
+IAM grants. The GCP data-plane module grants the runtime
+[`roles/storage.objectAdmin`](https://docs.cloud.google.com/storage/docs/access-control/iam-roles#standard-roles)
+on the deployment's Brainstore and API buckets.
+
+Usage accounting creates temporary markers at
+`brainstore/wal/active-writes/<wal-token>/usage_events:<org-id>/<marker-id>` in
+the Brainstore bucket. Custom IAM must allow the runtime to create and delete
+these markers, including object generations in versioned buckets, so writes can
+commit. A Helm or image upgrade does not update bucket permissions; apply the
+corresponding Terraform configuration too.
+
 Use compatible API, Brainstore, and AI Gateway images for the runtime build.
 Use the chart's Braintrust services version for Loop Runtime and Sandbox Service.
 With `helm upgrade --reuse-values`, explicitly set `--set loopRuntime.image.tag=<services-version>`
