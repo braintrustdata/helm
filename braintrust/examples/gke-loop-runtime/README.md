@@ -27,7 +27,16 @@ access to server credentials or CA keys. No setup root, worker providers or manu
 TLS generation is required; use `loop_runtime_options` for worker overrides.
 
 Deploy compatible API, Brainstore and routed AI Gateway versions first. Keep the
-generated runtime/worker version compatible with those services. For a Standard
+generated runtime/worker version compatible with those services. Before applying,
+compare the chart's default with the generated overlay:
+
+```sh
+helm show values oci://public.ecr.aws/braintrust/helm/braintrust --version <chart-version> | yq '.loopRuntime.image.tag'
+yq '.loopRuntime.image.tag' loop-values.yaml
+```
+
+If they differ, upgrade the data-plane module or deliberately pin
+`loop_runtime_options.services_version` there. For a Standard
 primary cluster, retain your `loopRuntime.nodeSelector` override for its services
 pool. Explicit values after `--reset-then-reuse-values` replace retained settings.
 
