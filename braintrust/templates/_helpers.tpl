@@ -184,6 +184,13 @@ predates Loop Runtime have no loopRuntime map, which means disabled.
 {{- fail (printf "loopRuntime.sandbox.%s must be a positive integer" $field) -}}
 {{- end -}}
 {{- end -}}
+{{- $secret := index $sandbox "clientTlsSecret" -}}
+{{- if and (not (kindIs "invalid" $secret)) (not (kindIs "string" $secret)) -}}
+{{- fail "loopRuntime.sandbox.clientTlsSecret must be a Secret Manager version reference or empty" -}}
+{{- end -}}
+{{- if and $secret (not (regexMatch "^projects/[A-Za-z0-9.:-]+/secrets/[A-Za-z0-9_-]+/versions/(latest|[0-9]+)$" $secret)) -}}
+{{- fail "loopRuntime.sandbox.clientTlsSecret must be a Secret Manager version reference or empty" -}}
+{{- end -}}
 {{- $egress := $sandbox.egressGateway | default dict -}}
 {{- $_ := required "objectStorage.google.brainstoreBucket is required" .Values.objectStorage.google.brainstoreBucket -}}
 {{- $_ := required "objectStorage.google.apiBucket is required" .Values.objectStorage.google.apiBucket -}}

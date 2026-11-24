@@ -26,6 +26,7 @@ jobs:
       - name: Run unit tests
         run: |
           python3 -m unittest discover -s tests -p 'test_*.py'
+          node --test tests/test_loop_runtime_tls.cjs
           helm unittest braintrust
 
   lint-test:

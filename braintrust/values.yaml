@@ -357,6 +357,9 @@ loopRuntime:
     successThreshold: 1
   # Values come from Terraform output gke_isolated_workers.
   sandbox:
+    # Secret Manager version populated by the automatic infrastructure bootstrap.
+    # Empty uses an existing sandbox-client-tls Kubernetes Secret.
+    clientTlsSecret: ""
     # discovery.endpoint
     dnsUrl: ""
     # loop_egress.address, loop_egress.source_ranges, and loop_egress.url

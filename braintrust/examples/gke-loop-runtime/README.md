@@ -1,8 +1,66 @@
 # Loop Runtime on GKE
 
-Loop Runtime runs in the primary GKE cluster. Its sandboxes run on Sandbox
-Service workers in a separate isolated cluster. Both clusters come from the
-GCP Terraform module with:
+With v4.0.0 or later, set `enable_loop_runtime = true` in the
+[GCP data-plane module](https://github.com/braintrustdata/terraform-google-braintrust-data-plane#loop-runtime-infrastructure)
+and apply infrastructure first. Workers run in an isolated cluster; Loop Runtime
+stays in the primary cluster with its existing Autopilot or Standard mode.
+
+## Helm-managed primary release
+
+Infrastructure installs workers, waits for readiness and persists separate server
+and client CA bundles in Secret Manager for reuse. Pass its configuration after
+your existing Helm values:
+
+```sh
+terraform output -raw loop_runtime_helm_values_yaml > loop-values.yaml
+helm upgrade --install braintrust oci://public.ecr.aws/braintrust/helm/braintrust \
+  --namespace braintrust --create-namespace --version <chart-version> \
+  --reset-then-reuse-values --values <existing-values.yaml> \
+  --values loop-values.yaml --wait
+```
+
+Use a chart supporting `loopRuntime.sandbox.clientTlsSecret`. The overlay supplies
+the secret reference, runtime identity, worker version and connection settings;
+keys stay out of Terraform state and Helm values. At Pod startup, Workload Identity
+loads only the client bundle into memory for a read-only runtime mount, without
+access to server credentials or CA keys. No setup root, worker providers or manual
+TLS generation is required; use `loop_runtime_options` for worker overrides.
+
+Deploy compatible API, Brainstore and routed AI Gateway versions first. Keep the
+generated runtime/worker version compatible with those services. Before applying,
+compare the chart's default with the generated overlay:
+
+```sh
+helm show values oci://public.ecr.aws/braintrust/helm/braintrust --version <chart-version> | yq '.loopRuntime.image.tag'
+yq '.loopRuntime.image.tag' loop-values.yaml
+```
+
+If they differ, upgrade the data-plane module or deliberately pin
+`loop_runtime_options.services_version` there. For a Standard
+primary cluster, retain your `loopRuntime.nodeSelector` override for its services
+pool. Explicit values after `--reset-then-reuse-values` replace retained settings.
+
+## Terraform-managed primary release
+
+If Terraform manages the primary `helm_release`, append the infrastructure's
+`loop_runtime_helm_values_yaml` output to its existing `values` list, after your
+existing values. Apply infrastructure first, then update the Helm release.
+
+## Clusters managed by your platform
+
+Call the [worker bootstrap module](https://github.com/braintrustdata/terraform-google-braintrust-data-plane/tree/main/modules/gke-loop-bootstrap)
+from your existing Terraform with the worker cluster's DNS API endpoint and
+networking/storage outputs. It installs workers and TLS without creating a cluster,
+and returns `helm_values_yaml` for the same Helm command above; no manual worker
+install, certificate copying or connection overlay is needed. Your platform still
+owns cluster/network resources and cloud IAM; keep organization settings, node
+placement and any Cloud SQL Proxy sidecar in your existing primary values.
+
+## Custom worker installations
+
+These optional steps are for installations managing the worker release and TLS
+themselves. Platform-managed clusters can use the automatic bootstrap above.
+Provision standalone workers with the GCP infrastructure module:
 
 ```hcl
 gke_isolated_workers = {
@@ -59,9 +117,9 @@ or at those limits.
 
 ## Filesystem retention
 
-Retention is off unless the overlay is applied. Keep the worker chart, worker image
-and Loop Runtime image compatible. Terraform selects the worker package from
-`loopRuntime.sandboxServiceChart` in the chosen Braintrust Helm release.
+The automatic infrastructure bootstrap enables filesystem retention and supplies
+the checkpoint store. The following overlay steps apply only to custom worker
+installations. Keep the worker chart, worker image and Loop Runtime compatible.
 
 Apply the GCP checkpoint-storage update first, then copy
 `gke_isolated_workers.checkpoint_store` into `sandbox-service-retention.yaml`.

@@ -15,6 +15,7 @@ CHART_DIR="braintrust"
 
 # The init-container helper deliberately uses only the Python standard library.
 python3 -m unittest discover -s tests -p 'test_*.py'
+node --test tests/test_loop_runtime_tls.cjs
 
 # Check if helm is installed
 if ! command -v helm &> /dev/null; then
