@@ -1,6 +1,6 @@
 # Loop Runtime on GKE
 
-Set `enable_loop_runtime = true` in the
+With v4.0.0 or later, set `enable_loop_runtime = true` in the
 [GCP data-plane module](https://github.com/braintrustdata/terraform-google-braintrust-data-plane#loop-runtime-infrastructure)
 and apply infrastructure first. Workers run in an isolated cluster; Loop Runtime
 stays in the primary cluster with its existing Autopilot or Standard mode.
@@ -42,16 +42,9 @@ pool. Explicit values after `--reset-then-reuse-values` replace retained setting
 
 ## Terraform-managed primary release
 
-Pass the same output to the
-[GKE app module](https://github.com/braintrustdata/terraform-google-braintrust-gke-app#managed-loop-runtime):
-
-```hcl
-loop_runtime = try(data.terraform_remote_state.infra.outputs.loop_runtime, null)
-```
-
-Apply infrastructure before the app root; no app enable flag is needed.
-See the [remote-state example](https://github.com/braintrustdata/terraform-google-braintrust-gke-app/tree/main/examples/remote-state-app-root);
-direct Helm installations do not need the app module.
+If Terraform manages the primary `helm_release`, append the infrastructure's
+`loop_runtime_helm_values_yaml` output to its existing `values` list, after your
+existing values. Apply infrastructure first, then update the Helm release.
 
 ## Clusters managed by your platform
 
