@@ -44,11 +44,21 @@ Apply infrastructure before the app root; no app enable flag is needed.
 See the [remote-state example](https://github.com/braintrustdata/terraform-google-braintrust-gke-app/tree/main/examples/remote-state-app-root);
 direct Helm installations do not need the app module.
 
+## Clusters managed by your platform
+
+Call the [worker bootstrap module](https://github.com/braintrustdata/terraform-google-braintrust-data-plane/tree/main/modules/gke-loop-bootstrap)
+from your existing Terraform with the worker cluster's DNS API endpoint and
+networking/storage outputs. It installs workers and TLS without creating a cluster,
+and returns `helm_values_yaml` for the same Helm command above; no manual worker
+install, certificate copying or connection overlay is needed. Your platform still
+owns cluster/network resources and cloud IAM; keep organization settings, node
+placement and any Cloud SQL Proxy sidecar in your existing primary values.
+
 ## Custom worker installations
 
-These optional steps are for installations that manage the worker release and
-TLS themselves. Ordinary Terraform and Helm deployments use the automatic path
-above. Provision standalone workers with the GCP infrastructure module:
+These optional steps are for installations managing the worker release and TLS
+themselves. Platform-managed clusters can use the automatic bootstrap above.
+Provision standalone workers with the GCP infrastructure module:
 
 ```hcl
 gke_isolated_workers = {
