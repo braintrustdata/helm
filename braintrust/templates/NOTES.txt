@@ -1,0 +1,4 @@
+{{- if not (.Values.aiGateway | default dict).useGateway }}
+WARNING: This deployment uses the deprecated legacy LLM proxy. A future release will remove the legacy proxy and require the Braintrust Gateway.
+To set up the Gateway, see https://docs.braintrust.dev/admin/self-hosting/configure/gateway#deploy-and-enable-the-gateway
+{{- end }}

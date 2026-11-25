@@ -1,5 +1,5 @@
 {{- $ordering := include "braintrust.deploymentOrdering.config" . | fromYaml -}}
-{{- if .Values.aiGateway.enabled }}
+{{- if (.Values.aiGateway | default dict).enabled }}
 ---
 apiVersion: apps/v1
 kind: Deployment

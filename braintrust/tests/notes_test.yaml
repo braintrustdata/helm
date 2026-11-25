@@ -1,0 +1,49 @@
+suite: test legacy proxy deployment warning
+templates:
+  - templates/NOTES.txt
+  - templates/api-configmap.yaml
+values:
+  - __fixtures__/base-values.yaml
+tests:
+  - it: warns when routing is disabled, even with the Gateway deployed
+    set:
+      aiGateway.enabled: true
+      aiGateway.useGateway: false
+    asserts:
+      - matchRegexRaw:
+          pattern: "A future release will remove the legacy proxy and require the Braintrust Gateway"
+        template: templates/NOTES.txt
+      - notExists:
+          path: data.GATEWAY_URL
+        template: templates/api-configmap.yaml
+  - it: stays silent when routing is enabled, regardless of the deployment flag
+    set:
+      aiGateway.enabled: false
+      aiGateway.useGateway: true
+    asserts:
+      - equalRaw:
+          value: ""
+        template: templates/NOTES.txt
+      - exists:
+          path: data.GATEWAY_URL
+        template: templates/api-configmap.yaml
+  - it: warns when the Gateway map is missing
+    set:
+      aiGateway: null
+    asserts:
+      - matchRegexRaw:
+          pattern: "A future release will remove the legacy proxy and require the Braintrust Gateway"
+        template: templates/NOTES.txt
+      - notExists:
+          path: data.GATEWAY_URL
+        template: templates/api-configmap.yaml
+  - it: warns when the routing setting is missing
+    set:
+      aiGateway.useGateway: null
+    asserts:
+      - matchRegexRaw:
+          pattern: "A future release will remove the legacy proxy and require the Braintrust Gateway"
+        template: templates/NOTES.txt
+      - notExists:
+          path: data.GATEWAY_URL
+        template: templates/api-configmap.yaml

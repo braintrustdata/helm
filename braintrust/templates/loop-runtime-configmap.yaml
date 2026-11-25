@@ -26,7 +26,7 @@ data:
   LOOP_RUNTIME_STATE_DIR: /mnt/tmp/loop-runtime
   {{- /* The runtime refuses an empty ORG_NAME; the API treats empty as every org. */}}
   ORG_NAME: {{ .Values.global.orgName | default "" | toString | trim | default "*" | quote }}
-  {{- with .Values.aiGateway.braintrustAppUrl }}
+  {{- with (.Values.aiGateway | default dict).braintrustAppUrl }}
   BRAINTRUST_APP_URL: {{ . | quote }}
   {{- end }}
   BRAINTRUST_API_URL: {{ include "braintrust.apiInternalUrl" . | quote }}
