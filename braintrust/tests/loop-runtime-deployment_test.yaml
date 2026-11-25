@@ -25,6 +25,17 @@ tests:
       - equal:
           path: spec.replicas
           value: 1
+      - equal:
+          path: spec.template.spec.containers[0].resources
+          value:
+            requests:
+              cpu: "2"
+              memory: 8Gi
+              ephemeral-storage: 9Gi
+            limits:
+              cpu: "2"
+              memory: 8Gi
+              ephemeral-storage: 9Gi
       - contains:
           path: spec.template.spec.containers[0].env
           content:

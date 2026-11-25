@@ -158,7 +158,11 @@ Loop Runtime defaults to one pod. Rolling updates use `maxSurge: 1` and
 for more capacity or pod redundancy.
 With `helm upgrade --reuse-values`, add `--set loopRuntime.replicas=1`
 to replace a retained count of two.
-Each runtime pod claims at most two conversations and has a 256Mi in-memory cache budget.
+The runtime defaults to 20 claimed conversations per pod, with 2 CPU and 8Gi of memory.
+Set `loopRuntime.extraEnvVars` to override the claim limit, and size `loopRuntime.resources`
+for your workload. The in-memory cache budget is 256Mi.
+When upgrading with `--reuse-values`, explicitly set the CPU and memory requests and
+limits to 2 CPU and 8Gi if the release retained the old 1 CPU and 2Gi defaults.
 
 For conversation-based runtime autoscaling, set `loopRuntime.autoscaling.enabled: true`.
 This uses the same GKE custom-metrics prerequisites as `api.autoscaling` and defaults

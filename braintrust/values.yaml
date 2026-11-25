@@ -332,12 +332,12 @@ loopRuntime:
     googleServiceAccount: ""
   resources:
     requests:
-      cpu: "1"
-      memory: "2Gi"
+      cpu: "2"
+      memory: "8Gi"
       ephemeral-storage: "9Gi"
     limits:
-      cpu: "1"
-      memory: "2Gi"
+      cpu: "2"
+      memory: "8Gi"
       ephemeral-storage: "9Gi"
   livenessProbe:
     httpGet:
