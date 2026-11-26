@@ -134,13 +134,19 @@ GKE deletion protection must exist on the source pool before hardware replacemen
 - Do not describe PDBs as an unconditional zero-downtime guarantee.
 - Test role isolation, API compatibility, and cross-cloud behavior after PDB changes.
 
-### Version Numbers
+### Release Versioning
 
-Chart version numbers are semantically meaningful for the upgrade path:
-- Minor versions (e.g., 5.2.0) are additive, non-breaking chart features
-- Major versions (e.g., 6.0.0) carry Data Plane image tag changes that affect runtime behavior
+Choose the chart version bump based on changes to both the chart and the Braintrust release it deploys:
 
-Do not bump `Chart.yaml` version without explicit coordination - version numbers determine customer upgrade sequencing.
+- **Major:** Increment the major version for breaking changes in either the chart or the Braintrust release.
+- **Minor:** Increment the minor version for non-breaking changes in either the chart or the Braintrust release, unless the release contains only documentation changes and backward-compatible bug fixes.
+- **Patch:** Increment the patch version when the release contains only documentation changes and backward-compatible bug fixes.
+
+Removing a top-level chart input (value) is a breaking change and requires a major version bump.
+
+Use the highest applicable version bump across all changes in the release. Reset the minor and patch versions to zero when incrementing the major version, and reset the patch version to zero when incrementing the minor version.
+
+Do not bump the version in `braintrust/Chart.yaml` without explicit coordination; version numbers determine customer upgrade sequencing.
 
 ## Review guidelines
 
