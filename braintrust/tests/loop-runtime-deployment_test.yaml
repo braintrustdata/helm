@@ -19,10 +19,28 @@ tests:
       loopRuntime.extraEnvVars:
         - name: BRAINTRUST_APP_URL
           value: https://loop-control-plane.example.com
+        - name: LOOP_RUNTIME_MAX_CLAIMED_CONVERSATIONS
+          value: "40"
     asserts:
       - equal:
           path: spec.replicas
           value: 1
+      - equal:
+          path: spec.template.spec.containers[0].resources
+          value:
+            requests:
+              cpu: "2"
+              memory: 8Gi
+              ephemeral-storage: 9Gi
+            limits:
+              cpu: "2"
+              memory: 8Gi
+              ephemeral-storage: 9Gi
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: LOOP_RUNTIME_MAX_CLAIMED_CONVERSATIONS
+            value: "40"
       - equal:
           path: spec.strategy
           value:
