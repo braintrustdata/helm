@@ -52,7 +52,7 @@ subjects:
   {{- if include "braintrust.loopRuntime.enabled" . -}}
   {{- $_ := set $accounts .Values.loopRuntime.serviceAccount.name true -}}
   {{- end -}}
-  {{- if .Values.aiGateway.enabled -}}
+  {{- if (.Values.aiGateway | default dict).enabled -}}
   {{- $_ := set $accounts (include "braintrust.aiGateway.serviceAccountName" .) true -}}
   {{- end -}}
   {{- range $account := keys $accounts | sortAlpha }}

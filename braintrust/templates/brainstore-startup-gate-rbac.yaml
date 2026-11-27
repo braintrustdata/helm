@@ -39,7 +39,7 @@ subjects:
   {{- range $pool := include "braintrust.apiPools" . | fromYamlArray -}}
   {{- $_ := set $accounts $pool.config.serviceAccount.name true -}}
   {{- end -}}
-  {{- if .Values.aiGateway.enabled -}}
+  {{- if (.Values.aiGateway | default dict).enabled -}}
   {{- $_ := set $accounts (include "braintrust.aiGateway.serviceAccountName" .) true -}}
   {{- end -}}
   {{- if include "braintrust.loopRuntime.enabled" . -}}

@@ -1,0 +1,17 @@
+{{- $useGateway := (.Values.aiGateway | default dict).useGateway -}}
+{{- $usesLegacyProxy := false -}}
+{{- range $pool := include "braintrust.apiPools" . | fromYamlArray -}}
+  {{- $poolUsesGateway := $useGateway -}}
+  {{- range $env := $pool.config.extraEnvVars -}}
+    {{- if eq $env.name "GATEWAY_URL" -}}
+      {{- $poolUsesGateway = or $env.value $env.valueFrom -}}
+    {{- end -}}
+  {{- end -}}
+  {{- if not $poolUsesGateway -}}
+    {{- $usesLegacyProxy = true -}}
+  {{- end -}}
+{{- end -}}
+{{- if $usesLegacyProxy }}
+WARNING: This deployment uses the deprecated legacy LLM proxy. A future release will remove the legacy proxy and require the Braintrust Gateway.
+To set up the Gateway, see https://docs.braintrust.dev/admin/self-hosting/configure/gateway#deploy-and-enable-the-gateway
+{{- end }}

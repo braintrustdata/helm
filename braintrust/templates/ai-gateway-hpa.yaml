@@ -1,5 +1,6 @@
-{{- $autoscaling := .Values.aiGateway.autoscaling | default dict }}
-{{- if and .Values.aiGateway.enabled (dig "enabled" true $autoscaling) }}
+{{- $gateway := .Values.aiGateway | default dict }}
+{{- $autoscaling := $gateway.autoscaling | default dict }}
+{{- if and $gateway.enabled (dig "enabled" true $autoscaling) }}
 {{- /* Bounds default from replicas so a custom count is not reset to 2-6. */}}
 {{- $minReplicas := int (dig "minReplicas" (dig "replicas" 2 .Values.aiGateway) $autoscaling) }}
 {{- $maxReplicas := int (dig "maxReplicas" (max 6 $minReplicas) $autoscaling) }}
