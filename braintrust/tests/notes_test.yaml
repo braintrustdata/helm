@@ -16,6 +16,71 @@ tests:
       - notExists:
           path: data.GATEWAY_URL
         template: templates/api-configmap.yaml
+  - it: stays silent when a shared custom Gateway URL is inherited by every API pool
+    set:
+      aiGateway: null
+      api.workloadIsolation.enabled: true
+      api.extraEnvVars:
+        - name: GATEWAY_URL
+          value: "https://gateway.example.com"
+    asserts:
+      - equalRaw:
+          value: ""
+        template: templates/NOTES.txt
+      - notExists:
+          path: data.GATEWAY_URL
+        template: templates/api-configmap.yaml
+  - it: stays silent when the Gateway URL is supplied by a secret
+    set:
+      aiGateway.useGateway: false
+      api.extraEnvVars:
+        - name: GATEWAY_URL
+          valueFrom:
+            secretKeyRef:
+              name: custom-gateway
+              key: url
+    asserts:
+      - equalRaw:
+          value: ""
+        template: templates/NOTES.txt
+  - it: warns when only the isolated pools specify a Gateway URL
+    set:
+      aiGateway.useGateway: false
+      api.workloadIsolation.enabled: true
+      api.workloadIsolation.ingest.extraEnvVars:
+        - name: GATEWAY_URL
+          value: "https://gateway.example.com"
+      api.workloadIsolation.background.extraEnvVars:
+        - name: GATEWAY_URL
+          value: "https://gateway.example.com"
+    asserts:
+      - matchRegexRaw:
+          pattern: "A future release will remove the legacy proxy and require the Braintrust Gateway"
+        template: templates/NOTES.txt
+  - it: warns when an empty pool override clears the shared Gateway URL
+    set:
+      aiGateway.useGateway: false
+      api.workloadIsolation.enabled: true
+      api.extraEnvVars:
+        - name: GATEWAY_URL
+          value: "https://gateway.example.com"
+      api.workloadIsolation.background.extraEnvVars:
+        - name: GATEWAY_URL
+          value: ""
+    asserts:
+      - matchRegexRaw:
+          pattern: "A future release will remove the legacy proxy and require the Braintrust Gateway"
+        template: templates/NOTES.txt
+  - it: warns when an explicit empty Gateway URL overrides the chart Gateway
+    set:
+      aiGateway.useGateway: true
+      api.extraEnvVars:
+        - name: GATEWAY_URL
+          value: ""
+    asserts:
+      - matchRegexRaw:
+          pattern: "A future release will remove the legacy proxy and require the Braintrust Gateway"
+        template: templates/NOTES.txt
   - it: stays silent when routing is enabled, regardless of the deployment flag
     set:
       aiGateway.enabled: false
